@@ -64,10 +64,7 @@ $wgCategoryTreeMaxDepth = array( CT_MODE_PAGES => 1, CT_MODE_ALL => 1, CT_MODE_C
 $wgCategoryTreeForceHeaders = false;
 $wgCategoryTreeSidebarRoot = null;
 $wgCategoryTreeHijackPageCategories = false; # EXPERIMENTAL! NOT YET FOR PRODUCTION USE! Main problem is general HTML/CSS layout cruftiness.
-
-$wgCategoryTreeExtPath = '/bluespice-mw/ext-dist/CategoryTree';
-$wgCategoryTreeVersion = '6';  # NOTE: bump this when you change the CSS or JS files!
-$wgCategoryTreeUseCategoryTable = version_compare( $wgVersion, "1.13", '>=' );
+$wgCategoryTreeUseCategoryTable = true;
 
 $wgCategoryTreeOmitNamespace = CT_HIDEPREFIX_CATEGORIES;
 $wgCategoryTreeDefaultMode = CT_MODE_CATEGORIES;
@@ -102,24 +99,17 @@ $wgCategoryTreePageCategoryOptions['namespaces'] = false;
 $wgCategoryTreePageCategoryOptions['depth'] = 0;
 # $wgCategoryTreePageCategoryOptions['class'] = 'CategoryTreeInlineNode';
 
-$wgExtensionAliasesFiles['CategoryTree'] = dirname( __FILE__ ) . '/CategoryTree.alias.php';
+$wgExtensionMessagesFiles['CategoryTreeAlias'] = dirname( __FILE__ ) . '/CategoryTree.alias.php';
 
 /**
  * Register extension setup hook and credits
  */
 $wgExtensionFunctions[] = 'efCategoryTree';
-$wgExtensionCredits['specialpage'][] = array(
+$wgExtensionCredits['specialpage'][] = $wgExtensionCredits['parserhook'][] = array(
 	'path' => __FILE__,
 	'name' => 'CategoryTree',
 	'author' => 'Daniel Kinzler',
-	'url' => 'http://www.mediawiki.org/wiki/Extension:CategoryTree',
-	'descriptionmsg' => 'categorytree-desc',
-);
-$wgExtensionCredits['parserhook'][] = array(
-	'path' => __FILE__,
-	'name' => 'CategoryTree',
-	'author' => 'Daniel Kinzler',
-	'url' => 'http://www.mediawiki.org/wiki/Extension:CategoryTree',
+	'url' => 'https://www.mediawiki.org/wiki/Extension:CategoryTree',
 	'descriptionmsg' => 'categorytree-desc',
 );
 
@@ -136,6 +126,7 @@ $wgExtensionMessagesFiles['CategoryTree'] = $dir . 'CategoryTree.i18n.php';
 $wgAutoloadClasses['CategoryTreePage'] = $dir . 'CategoryTreePage.php';
 $wgAutoloadClasses['CategoryTree'] = $dir . 'CategoryTreeFunctions.php';
 $wgAutoloadClasses['CategoryTreeCategoryPage'] = $dir . 'CategoryPageSubclass.php';
+$wgAutoloadClasses['CategoryTreeCategoryViewer'] = $dir . 'CategoryPageSubclass.php';
 $wgSpecialPages['CategoryTree'] = 'CategoryTreePage';
 $wgSpecialPageGroups['CategoryTree'] = 'pages';
 # $wgHooks['SkinTemplateTabs'][] = 'efCategoryTreeInstallTabs';
@@ -147,10 +138,40 @@ $wgHooks['ArticleFromTitle'][] = 'efCategoryTreeArticleFromTitle';
 $wgAjaxExportList[] = 'efCategoryTreeAjaxWrapper';
 
 /**
+ * Register ResourceLoader modules
+ */
+$commonModuleInfo = array(
+	'localBasePath' => dirname( __FILE__ ) . '/modules',
+	'remoteExtPath' => 'CategoryTree/modules',
+);
+
+$wgResourceModules['ext.categoryTree'] = array(
+	'scripts' => 'ext.categoryTree.js',
+	'messages' => array(
+		'categorytree-collapse',
+		'categorytree-expand',
+		'categorytree-collapse-bullet',
+		'categorytree-expand-bullet',
+		'categorytree-load',
+		'categorytree-loading',
+		'categorytree-nothing-found',
+		'categorytree-no-subcategories',
+		'categorytree-no-parent-categories',
+		'categorytree-no-pages',
+		'categorytree-error',
+		'categorytree-retry',
+	),
+) + $commonModuleInfo;
+
+$wgResourceModules['ext.categoryTree.css'] = array(
+	'styles' => 'ext.categoryTree.css',
+) + $commonModuleInfo;
+
+/**
  * Hook it up
  */
 function efCategoryTree() {
-	global $wgUseAjax, $wgHooks, $wgOut;
+	global $wgUseAjax, $wgHooks, $wgOut, $wgRequest;
 	global $wgCategoryTreeDefaultOptions, $wgCategoryTreeDefaultMode, $wgCategoryTreeOmitNamespace;
 	global $wgCategoryTreeCategoryPageOptions, $wgCategoryTreeCategoryPageMode, $wgCategoryTreeAllowTag;
 	global $wgCategoryTreeSidebarRoot, $wgCategoryTreeForceHeaders, $wgCategoryTreeHijackPageCategories;
@@ -184,25 +205,26 @@ function efCategoryTree() {
 		$wgCategoryTreeDefaultOptions['hideprefix'] = $wgCategoryTreeOmitNamespace;
 	}
 
-	if ( !isset( $wgCategoryTreeCategoryPageOptions['mode'] ) || is_null( $wgCategoryTreeCategoryPageOptions['mode'] ) ) {
-		$wgCategoryTreeCategoryPageOptions['mode'] = $wgCategoryTreeCategoryPageMode;
+	if ( !isset( $wgCategoryTreeCategoryPageOptions['mode'] ) || is_null( $wgCategoryTreeCategoryPageOptions['mode'] ) ) {	
+		$wgCategoryTreeCategoryPageOptions['mode'] = ( $mode = $wgRequest->getVal( 'mode' ) ) ? CategoryTree::decodeMode( $mode ) : $wgCategoryTreeCategoryPageMode;
 	}
 
 	if ( $wgCategoryTreeForceHeaders ) {
 		CategoryTree::setHeaders( $wgOut );
-	}
-	else {
+	} else {
 		$wgHooks['OutputPageParserOutput'][] = 'efCategoryTreeParserOutput';
 	}
+
+	$wgHooks['MakeGlobalVariablesScript'][] = 'efCategoryTreeGetConfigVars';
 }
 
+/**
+ * @param $parser Parser
+ * @return bool
+ */
 function efCategoryTreeSetHooks( $parser ) {
 	$parser->setHook( 'categorytree' , 'efCategoryTreeParserHook' );
-	//HW
-	//PW(24.08.2012): the {{#categorytree}} tag wont work now
-	//( "" is not a valid magic thingie for "categorytree" )
-	//TODO: find the problem (maybe a previous hook does not return true)
-	//$parser->setFunctionHook( 'categorytree' , 'efCategoryTreeParserFunction' );
+	$parser->setFunctionHook( 'categorytree' , 'efCategoryTreeParserFunction' );
 	return true;
 }
 
@@ -212,8 +234,12 @@ function efCategoryTreeSetHooks( $parser ) {
  * If $enc is not given, '' is asumed, which simulates the old call interface,
  * namely, only providing the mode name or number.
  * This loads CategoryTreeFunctions.php and calls CategoryTree::ajax()
+ * @param $category
+ * @param $options array
+ * @param $enc string
+ * @return AjaxResponse|bool
  */
-function efCategoryTreeAjaxWrapper( $category, $options, $enc = '' ) {
+function efCategoryTreeAjaxWrapper( $category, $options = array(), $enc = '' ) {
 	global $wgCategoryTreeHTTPCache, $wgSquidMaxage, $wgUseSquid;
 
 	if ( is_string( $options ) ) {
@@ -237,8 +263,10 @@ function efCategoryTreeAjaxWrapper( $category, $options, $enc = '' ) {
 
 /**
  * Internal function to cap depth
+ * @param $mode
+ * @param $depth
+ * @return int|mixed
  */
-
 function efCategoryTreeCapDepth( $mode, $depth ) {
 	global $wgCategoryTreeMaxDepth;
 
@@ -263,6 +291,8 @@ function efCategoryTreeCapDepth( $mode, $depth ) {
 /**
  * Entry point for the {{#categorytree}} tag parser function.
  * This is a wrapper around efCategoryTreeParserHook
+ * @param $parser Parser
+ * @return array|string
  */
 function efCategoryTreeParserFunction( $parser ) {
 	$params = func_get_args();
@@ -280,8 +310,7 @@ function efCategoryTreeParserFunction( $parser ) {
 		if ( preg_match( '/^\s*(\S.*?)\s*=\s*(.*?)\s*$/', $p, $m ) ) {
 			$k = $m[1];
 			$v = preg_replace( '/^"\s*(.*?)\s*"$/', '$1', $m[2] ); // strip any quotes enclusing the value
-		}
-		else {
+		} else {
 			$k = trim( $p );
 			$v = true;
 		}
@@ -297,13 +326,16 @@ function efCategoryTreeParserFunction( $parser ) {
 /**
  * Hook implementation for injecting a category tree into the sidebar.
  * Registered automatically if $wgCategoryTreeSidebarRoot is set to a category name.
+ * @param $skin
+ * @param $tpl SkinTemplate
+ * @return bool
  */
 function efCategoryTreeSkinTemplateOutputPageBeforeExec( $skin, $tpl ) {
 	global $wgCategoryTreeSidebarRoot, $wgCategoryTreeSidebarOptions;
 
 	$html = efCategoryTreeParserHook( $wgCategoryTreeSidebarRoot, $wgCategoryTreeSidebarOptions );
 	if ( $html ) {
-		$tpl->data['sidebar']['categorytree-portlet'] = $html; // requires MW 1.13, r36917
+		$tpl->data['sidebar']['categorytree-portlet'] = $html;
 	}
 
 	return true;
@@ -312,6 +344,11 @@ function efCategoryTreeSkinTemplateOutputPageBeforeExec( $skin, $tpl ) {
 /**
  * Entry point for the <categorytree> tag parser hook.
  * This loads CategoryTreeFunctions.php and calls CategoryTree::getTag()
+ * @param $cat
+ * @param $argv
+ * @param $parser Parser
+ * @param $allowMissing bool
+ * @return bool|string
  */
 function efCategoryTreeParserHook( $cat, $argv, $parser = null, $allowMissing = false ) {
 	global $wgOut;
@@ -339,9 +376,12 @@ function efCategoryTreeParserHook( $cat, $argv, $parser = null, $allowMissing = 
 }
 
 /**
-* Hook callback that injects messages and things into the <head> tag
-* Does nothing if $parserOutput->mCategoryTreeTag is not set
-*/
+ * Hook callback that injects messages and things into the <head> tag
+ * Does nothing if $parserOutput->mCategoryTreeTag is not set
+ * @param $outputPage OutputPage
+ * @param $parserOutput ParserOutput
+ * @return bool
+ */
 function efCategoryTreeParserOutput( $outputPage, $parserOutput )  {
 	if ( !empty( $parserOutput->mCategoryTreeTag ) ) {
 		CategoryTree::setHeaders( $outputPage );
@@ -351,6 +391,10 @@ function efCategoryTreeParserOutput( $outputPage, $parserOutput )  {
 
 /**
  * ArticleFromTitle hook, override category page handling
+ *
+ * @param $title Title
+ * @param $article Article
+ * @return bool
  */
 function efCategoryTreeArticleFromTitle( $title, &$article ) {
 	if ( $title->getNamespace() == NS_CATEGORY ) {
@@ -361,6 +405,10 @@ function efCategoryTreeArticleFromTitle( $title, &$article ) {
 
 /**
  * OutputPageMakeCategoryLinks hook, override category links
+ * @param $out
+ * @param $categories
+ * @param $links
+ * @return bool
  */
 function efCategoryTreeOutputPageMakeCategoryLinks( $out, &$categories, &$links ) {
 	global $wgCategoryTreePageCategoryOptions;
@@ -372,12 +420,31 @@ function efCategoryTreeOutputPageMakeCategoryLinks( $out, &$categories, &$links 
 	return false;
 }
 
+/**
+ * @param $skin
+ * @param $links
+ * @param $result
+ * @return bool
+ */
 function efCategoryTreeSkinJoinCategoryLinks( $skin, &$links, &$result ) {
-	$embed = '<div class="CategoryTreePretendInlineMSIE CategoryTreeCategoryBarItem">';
+	$embed = '<div class="CategoryTreeCategoryBarItem">';
 	$pop = '</div>';
 	$sep = ' ';
 
 	$result = $embed . implode ( "{$pop} {$sep} {$embed}" , $links ) . $pop;
 
 	return false;
+}
+
+/**
+ * @param $vars
+ * @return bool
+ */
+function efCategoryTreeGetConfigVars( &$vars ) {
+	global $wgCategoryTreeCategoryPageOptions;
+
+	// Look this is pretty bad but Category tree is just whacky, it needs to be rewritten
+	$ct = new CategoryTree( $wgCategoryTreeCategoryPageOptions );
+	$vars['wgCategoryTreePageCategoryOptions'] = $ct->getOptionsAsJsStructure();
+	return true;
 }

@@ -23,7 +23,7 @@ $magicWords['af'] = array(
 
 /** Arabic (العربية) */
 $magicWords['ar'] = array(
-	'categorytree' => array( 0, 'شجرة_تصنيف', 'categorytree' ),
+	'categorytree' => array( 0, 'شجرة_تصنيف' ),
 );
 
 /** Egyptian Spoken Arabic (مصرى) */
@@ -31,14 +31,24 @@ $magicWords['arz'] = array(
 	'categorytree' => array( 0, 'شجرة_تصنيف', 'categorytree' ),
 );
 
-/** Breton (Brezhoneg) */
+/** Breton (brezhoneg) */
 $magicWords['br'] = array(
-	'categorytree' => array( 0, 'GwezennadurRummad', 'categorytree' ),
+	'categorytree' => array( 0, 'GwezennadurRummad' ),
 );
 
-/** Chechen (Нохчийн) */
+/** Chechen (нохчийн) */
 $magicWords['ce'] = array(
 	'categorytree' => array( 0, 'кадегардит', 'деревокатегорий', 'categorytree' ),
+);
+
+/** German (Deutsch) */
+$magicWords['de'] = array(
+	'categorytree' => array( 0, 'kategorienbaum', 'kategoriebaum' ),
+);
+
+/** Zazaki (Zazaki) */
+$magicWords['diq'] = array(
+	'categorytree' => array( 0, 'darakategoriye' ),
 );
 
 /** Esperanto (Esperanto) */
@@ -46,14 +56,29 @@ $magicWords['eo'] = array(
 	'categorytree' => array( 0, 'kategoriarbo' ),
 );
 
-/** Spanish (Español) */
+/** Spanish (español) */
 $magicWords['es'] = array(
-	'categorytree' => array( 0, 'árboldecategorías', 'arboldecategorias', 'categorytree' ),
+	'categorytree' => array( 0, 'árboldecategorías', 'arboldecategorias' ),
 );
 
-/** Estonian (Eesti) */
+/** Estonian (eesti) */
 $magicWords['et'] = array(
 	'categorytree' => array( 0, 'kategooriapuu' ),
+);
+
+/** Persian (فارسی) */
+$magicWords['fa'] = array(
+	'categorytree' => array( 0, 'درخت‌رده', 'درخت_رده' ),
+);
+
+/** Galician (galego) */
+$magicWords['gl'] = array(
+	'categorytree' => array( 0, 'árboredecategorías' ),
+);
+
+/** Hebrew (עברית) */
+$magicWords['he'] = array(
+	'categorytree' => array( 0, 'עץ_קטגוריה' ),
 );
 
 /** Igbo (Igbo) */
@@ -61,7 +86,7 @@ $magicWords['ig'] = array(
 	'categorytree' => array( 0, 'óshíshíébéonọr', 'categorytree' ),
 );
 
-/** Italian (Italiano) */
+/** Italian (italiano) */
 $magicWords['it'] = array(
 	'categorytree' => array( 0, 'alberocategorie' ),
 );
@@ -71,9 +96,24 @@ $magicWords['ja'] = array(
 	'categorytree' => array( 0, 'カテゴリツリー' ),
 );
 
+/** Georgian (ქართული) */
+$magicWords['ka'] = array(
+	'categorytree' => array( 0, 'კატეგორიის_ხე' ),
+);
+
 /** Korean (한국어) */
 $magicWords['ko'] = array(
 	'categorytree' => array( 0, '분류트리' ),
+);
+
+/** Kurdish (Latin script) (Kurdî (latînî)‎) */
+$magicWords['ku-latn'] = array(
+	'categorytree' => array( 0, 'dara_kategoriyan' ),
+);
+
+/** Cornish (kernowek) */
+$magicWords['kw'] = array(
+	'categorytree' => array( 0, 'gwedhenglass' ),
 );
 
 /** Ladino (Ladino) */
@@ -86,6 +126,11 @@ $magicWords['mg'] = array(
 	'categorytree' => array( 0, 'karazantsokajy', 'categorytree' ),
 );
 
+/** Macedonian (македонски) */
+$magicWords['mk'] = array(
+	'categorytree' => array( 0, 'стеблонакатегории' ),
+);
+
 /** Malayalam (മലയാളം) */
 $magicWords['ml'] = array(
 	'categorytree' => array( 0, 'വർഗ്ഗവൃക്ഷം' ),
@@ -96,9 +141,14 @@ $magicWords['mr'] = array(
 	'categorytree' => array( 0, 'वर्गवृक्ष', 'categorytree' ),
 );
 
-/** Nedersaksisch (Nedersaksisch) */
+/** Norwegian Bokmål (norsk bokmål) */
+$magicWords['nb'] = array(
+	'categorytree' => array( 0, 'kategoritre' ),
+);
+
+/** Low Saxon (Netherlands) (Nedersaksies) */
 $magicWords['nds-nl'] = array(
-	'categorytree' => array( 0, 'kattegerieboom', 'categorieboom', 'categorytree' ),
+	'categorytree' => array( 0, 'kategorieboom', 'categorieboom' ),
 );
 
 /** Dutch (Nederlands) */
@@ -106,34 +156,64 @@ $magicWords['nl'] = array(
 	'categorytree' => array( 0, 'categorieboom' ),
 );
 
-/** Norwegian (bokmål)‬ (‪Norsk (bokmål)‬) */
-$magicWords['no'] = array(
-	'categorytree' => array( 0, 'kategoritre', 'categorytree' ),
+/** Polish (polski) */
+$magicWords['pl'] = array(
+	'categorytree' => array( 0, 'drzewokategorii' ),
 );
 
-/** Russian (Русский) */
+/** Romanian (română) */
+$magicWords['ro'] = array(
+	'categorytree' => array( 0, 'arborecategorie' ),
+);
+
+/** Russian (русский) */
 $magicWords['ru'] = array(
-	'categorytree' => array( 0, 'деревокатегорий', 'categorytree' ),
+	'categorytree' => array( 0, 'деревокатегорий' ),
 );
 
-/** Swedish (Svenska) */
+/** Serbian (Cyrillic script) (српски (ћирилица)‎) */
+$magicWords['sr-ec'] = array(
+	'categorytree' => array( 0, 'стаблокатегорије', 'стабло_категорије' ),
+);
+
+/** Serbian (Latin script) (srpski (latinica)‎) */
+$magicWords['sr-el'] = array(
+	'categorytree' => array( 0, 'stablokategorije', 'stablo_kategorije' ),
+);
+
+/** Swedish (svenska) */
 $magicWords['sv'] = array(
 	'categorytree' => array( 0, 'kategoriträd', 'categorytree' ),
 );
 
 /** Turkish (Türkçe) */
 $magicWords['tr'] = array(
-	'categorytree' => array( 0, 'kategorihiyerarşisi', 'categorytree' ),
+	'categorytree' => array( 0, 'kategorihiyerarşisi', 'kategoriağacı', 'ulamhiyerarşisi', 'ulamağacı' ),
 );
 
-/** Татарча (Татарча) */
+/** Tatar (Cyrillic script) (татарча) */
 $magicWords['tt-cyrl'] = array(
-	'categorytree' => array( 0, 'төркемнәр_шәҗәрәсе', 'деревокатегорий' ),
+	'categorytree' => array( 0, 'төркемнәр_шәҗәрәсе' ),
 );
 
-/** Ukrainian (Українська) */
+/** Tuvinian (тыва дыл) */
+$magicWords['tyv'] = array(
+	'categorytree' => array( 0, 'аңгылал_ыяжы' ),
+);
+
+/** Ukrainian (українська) */
 $magicWords['uk'] = array(
-	'categorytree' => array( 0, 'деревокатегорій', 'деревокатегорий', 'categorytree' ),
+	'categorytree' => array( 0, 'деревокатегорій' ),
+);
+
+/** Urdu (اردو) */
+$magicWords['ur'] = array(
+	'categorytree' => array( 0, 'شجر_زمرہ' ),
+);
+
+/** Uzbek (oʻzbekcha) */
+$magicWords['uz'] = array(
+	'categorytree' => array( 0, 'turkumiyerarxiyasi', 'turkumdaraxti' ),
 );
 
 /** Vietnamese (Tiếng Việt) */
@@ -141,7 +221,7 @@ $magicWords['vi'] = array(
 	'categorytree' => array( 0, 'câythểloại' ),
 );
 
-/** Simplified Chinese (‪中文(简体)‬) */
+/** Simplified Chinese (中文（简体）‎) */
 $magicWords['zh-hans'] = array(
-	'categorytree' => array( 0, '分类树', 'categorytree' ),
+	'categorytree' => array( 0, '分类树' ),
 );
