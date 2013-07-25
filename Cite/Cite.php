@@ -67,7 +67,7 @@ function wfCite( $parser ) {
 // Resources
 $citeResourceTemplate = array(
 	'localBasePath' => dirname(__FILE__) . '/modules',
-	'remoteExtPath' => 'Cite/modules'
+	'remoteExtPath' => 'BlueSpiceDistribution/Cite/modules'
 );
 
 $wgResourceModules['ext.cite'] = $citeResourceTemplate + array(
