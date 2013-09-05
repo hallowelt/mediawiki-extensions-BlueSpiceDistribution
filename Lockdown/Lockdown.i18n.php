@@ -17,9 +17,10 @@ $messages['en'] = array(
 
 /** Message documentation (Message documentation)
  * @author Fryed-peach
+ * @author Shirayuki
  */
 $messages['qqq'] = array(
-	'lockdown-desc' => '{{desc}}',
+	'lockdown-desc' => '{{desc|name=Lockdown|url=http://www.mediawiki.org/wiki/Extension:Lockdown}}',
 );
 
 /** Afrikaans (Afrikaans)
@@ -36,7 +37,14 @@ $messages['ar'] = array(
 	'lockdown-desc' => 'سماحات لكل مجموعة نطاق',
 );
 
-/** Belarusian (Taraškievica orthography) (Беларуская (тарашкевіца))
+/** Asturian (asturianu)
+ * @author Xuacu
+ */
+$messages['ast'] = array(
+	'lockdown-desc' => 'Permisos de grupu por espaciu de nomes',
+);
+
+/** Belarusian (Taraškievica orthography) (беларуская (тарашкевіца)‎)
  * @author EugeneZelenko
  * @author Jim-by
  */
@@ -44,28 +52,43 @@ $messages['be-tarask'] = array(
 	'lockdown-desc' => 'Групавыя дазволы па прасторах назваў',
 );
 
-/** Breton (Brezhoneg)
+/** Breton (brezhoneg)
  * @author Fulup
  */
 $messages['br'] = array(
 	'lockdown-desc' => 'Aotreoù moned dre esaouenn anv',
 );
 
-/** Bosnian (Bosanski)
+/** Bosnian (bosanski)
  * @author CERminator
  */
 $messages['bs'] = array(
 	'lockdown-desc' => 'Po dopuštenjima grupa imenskih prostora',
 );
 
-/** German (Deutsch)
- * @author Imre
+/** Catalan (català)
+ * @author Paucabot
  */
-$messages['de'] = array(
-	'lockdown-desc' => 'Gruppenrechte nach Namensraum',
+$messages['ca'] = array(
+	'lockdown-desc' => 'Permisos de grup per espai de noms',
 );
 
-/** Lower Sorbian (Dolnoserbski)
+/** Czech (česky)
+ * @author Mormegil
+ */
+$messages['cs'] = array(
+	'lockdown-desc' => 'Oprávnění pro skupiny uživatelů závisející na jmenném prostoru',
+);
+
+/** German (Deutsch)
+ * @author Imre
+ * @author Kghbln
+ */
+$messages['de'] = array(
+	'lockdown-desc' => 'Ermöglicht die benutzergruppenspezifische Vergabe von Berechtigungen für Namensräume, Spezialseiten und Aktionen',
+);
+
+/** Lower Sorbian (dolnoserbski)
  * @author Michawiki
  */
 $messages['dsb'] = array(
@@ -79,7 +102,7 @@ $messages['el'] = array(
 	'lockdown-desc' => 'Άδειες πρόσβασεις ανά ονοματικό χώρο',
 );
 
-/** Spanish (Español)
+/** Spanish (español)
  * @author Crazymadlover
  * @author McDutchie
  */
@@ -87,21 +110,28 @@ $messages['es'] = array(
 	'lockdown-desc' => 'Permisos de grupo por espacio de nombres',
 );
 
-/** Finnish (Suomi)
+/** Finnish (suomi)
  * @author Centerlink
  */
 $messages['fi'] = array(
 	'lockdown-desc' => 'Ryhmäoikeudet nimiavaruuksittain',
 );
 
-/** French (Français)
+/** French (français)
  * @author IAlex
  */
 $messages['fr'] = array(
 	'lockdown-desc' => "Permissions d'accès par espace de noms",
 );
 
-/** Galician (Galego)
+/** Franco-Provençal (arpetan)
+ * @author ChrisPtDe
+ */
+$messages['frp'] = array(
+	'lockdown-desc' => 'Pèrmissions d’accès per èspâço de noms.',
+);
+
+/** Galician (galego)
  * @author Toliño
  */
 $messages['gl'] = array(
@@ -122,21 +152,21 @@ $messages['he'] = array(
 	'lockdown-desc' => 'הרשאות קבוצה לפי מרחב שם',
 );
 
-/** Upper Sorbian (Hornjoserbsce)
+/** Upper Sorbian (hornjoserbsce)
  * @author Michawiki
  */
 $messages['hsb'] = array(
 	'lockdown-desc' => 'Skupinske prawa za mjenowy rum',
 );
 
-/** Hungarian (Magyar)
+/** Hungarian (magyar)
  * @author Glanthor Reviol
  */
 $messages['hu'] = array(
 	'lockdown-desc' => 'Névterenkénti csoportjogosultságok',
 );
 
-/** Interlingua (Interlingua)
+/** Interlingua (interlingua)
  * @author McDutchie
  */
 $messages['ia'] = array(
@@ -150,6 +180,13 @@ $messages['id'] = array(
 	'lockdown-desc' => 'Per hak akses grup ruang nama',
 );
 
+/** Italian (italiano)
+ * @author Civvì
+ */
+$messages['it'] = array(
+	'lockdown-desc' => 'Autorizzazioni di gruppo per namespace',
+);
+
 /** Japanese (日本語)
  * @author Fryed-peach
  */
@@ -157,7 +194,14 @@ $messages['ja'] = array(
 	'lockdown-desc' => '名前空間ごとのグループ許可',
 );
 
-/** Ripoarisch (Ripoarisch)
+/** Korean (한국어)
+ * @author 아라
+ */
+$messages['ko'] = array(
+	'lockdown-desc' => '이름공간 그룹 권한마다',
+);
+
+/** Colognian (Ripoarisch)
  * @author Purodha
  */
 $messages['ksh'] = array(
@@ -171,11 +215,25 @@ $messages['lb'] = array(
 	'lockdown-desc' => 'Gruppen-Autorisatioune pro Nummraum',
 );
 
-/** Macedonian (Македонски)
+/** Macedonian (македонски)
  * @author Bjankuloski06
  */
 $messages['mk'] = array(
 	'lockdown-desc' => 'Групни дозволи по именски простор',
+);
+
+/** Malay (Bahasa Melayu)
+ * @author Anakmalaysia
+ */
+$messages['ms'] = array(
+	'lockdown-desc' => 'Keizinan kumpulan seruang nama',
+);
+
+/** Norwegian Bokmål (norsk (bokmål)‎)
+ * @author Nghtwlkr
+ */
+$messages['nb'] = array(
+	'lockdown-desc' => 'Per navneromsgruppetillatelser',
 );
 
 /** Dutch (Nederlands)
@@ -185,21 +243,14 @@ $messages['nl'] = array(
 	'lockdown-desc' => 'Groepsrechten per naamruimte',
 );
 
-/** Norwegian (bokmål)‬ (‪Norsk (bokmål)‬)
- * @author Nghtwlkr
- */
-$messages['no'] = array(
-	'lockdown-desc' => 'Per navneromsgruppetillatelser',
-);
-
-/** Occitan (Occitan)
+/** Occitan (occitan)
  * @author Cedric31
  */
 $messages['oc'] = array(
 	'lockdown-desc' => "Permissions d'accès per espaci de noms",
 );
 
-/** Polish (Polski)
+/** Polish (polski)
  * @author Sp5uhe
  */
 $messages['pl'] = array(
@@ -213,53 +264,83 @@ $messages['pms'] = array(
 	'lockdown-desc' => 'Përmess për partìe dë spassi nominaj',
 );
 
-/** Portuguese (Português)
+/** Portuguese (português)
+ * @author Hamilton Abreu
  * @author Indech
+ * @author Waldir
  */
 $messages['pt'] = array(
-	'lockdown-desc' => 'Por permissões grupais de domínio',
+	'lockdown-desc' => 'Permissões de grupo por espaço nominal',
 );
 
-/** Tarandíne (Tarandíne)
+/** Brazilian Portuguese (português do Brasil)
+ * @author Giro720
+ */
+$messages['pt-br'] = array(
+	'lockdown-desc' => 'Permissões de grupo por domínio',
+);
+
+/** tarandíne (tarandíne)
  * @author Joetaras
  */
 $messages['roa-tara'] = array(
 	'lockdown-desc' => 'Permesse pe le gruppe de le namespace',
 );
 
-/** Russian (Русский)
+/** Russian (русский)
  * @author Александр Сигачёв
  */
 $messages['ru'] = array(
 	'lockdown-desc' => 'Групповые права по пространствам имён',
 );
 
-/** Slovak (Slovenčina)
+/** Sinhala (සිංහල)
+ * @author පසිඳු කාවින්ද
+ */
+$messages['si'] = array(
+	'lockdown-desc' => 'එක් එක් නාමඅවකාශයකට සමූහ අවසර',
+);
+
+/** Slovak (slovenčina)
  * @author Helix84
  */
 $messages['sk'] = array(
 	'lockdown-desc' => 'Skupinové oprávnenia špecifické podľa menného priestoru',
 );
 
-/** Serbian Cyrillic ekavian (Српски (ћирилица))
+/** Serbian (Cyrillic script) (српски (ћирилица)‎)
  * @author Михајло Анђелковић
  */
 $messages['sr-ec'] = array(
 	'lockdown-desc' => 'Групне дозволе по именским просторима',
 );
 
-/** Serbian Latin ekavian (Srpski (latinica))
+/** Serbian (Latin script) (srpski (latinica)‎)
  * @author Liangent
  */
 $messages['sr-el'] = array(
 	'lockdown-desc' => 'Grupne dozvole po imenskim prostorima',
 );
 
-/** Swedish (Svenska)
+/** Swedish (svenska)
  * @author Per
  */
 $messages['sv'] = array(
 	'lockdown-desc' => 'Grupprättigheter per namnrymd',
+);
+
+/** Telugu (తెలుగు)
+ * @author Veeven
+ */
+$messages['te'] = array(
+	'lockdown-desc' => 'పేరుబరి వారీగా గుంపు అనుమతులు',
+);
+
+/** Tagalog (Tagalog)
+ * @author AnakngAraw
+ */
+$messages['tl'] = array(
+	'lockdown-desc' => 'Ayon sa mga pagpayag ng pangkat na pampuwang ng pangalan',
 );
 
 /** Turkish (Türkçe)
@@ -269,10 +350,24 @@ $messages['tr'] = array(
 	'lockdown-desc' => 'Alan adlarına göre grup izinleri',
 );
 
-/** Ukrainian (Українська)
+/** Ukrainian (українська)
  * @author Prima klasy4na
  */
 $messages['uk'] = array(
 	'lockdown-desc' => 'Групові права за просторами назв',
 );
 
+/** Simplified Chinese (中文（简体）‎)
+ * @author PhiLiP
+ */
+$messages['zh-hans'] = array(
+	'lockdown-desc' => '按名字空间的用户组权限',
+);
+
+/** Traditional Chinese (中文（繁體）‎)
+ * @author Frankou
+ * @author Mark85296341
+ */
+$messages['zh-hant'] = array(
+	'lockdown-desc' => '每個命名空間群組的權限',
+);
