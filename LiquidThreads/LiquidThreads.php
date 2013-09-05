@@ -29,8 +29,6 @@ $wgExtensionMessagesFiles['LiquidThreadsNamespaces'] = $dir . '/i18n/Lqt.namespa
 $wgExtensionMessagesFiles['LiquidThreadsAlias'] = $dir . '/i18n/Lqt.alias.php';
 
 $lqtMessages = array(
-	'lqt-quote-intro',
-	'lqt-quote',
 	'lqt-ajax-updated',
 	'lqt-ajax-update-link',
 	'watch',
@@ -85,6 +83,7 @@ $wgResourceModules['ext.liquidThreads'] = $lqtResourceTemplate + array(
 		'jquery.ui.dialog',
 		'jquery.ui.droppable',
 		'mediawiki.action.edit.preview',
+		'mediawiki.api.watch',
 	),
 	'messages' => $lqtMessages
 );
@@ -172,6 +171,9 @@ $wgHooks['MakeGlobalVariablesScript'][] = 'LqtHooks::onMakeGlobalVariablesScript
 // API
 $wgHooks['APIQueryAfterExecute'][] = 'LqtHooks::onAPIQueryAfterExecute';
 
+// Info
+$wgHooks['InfoAction'][] = 'LqtHooks::onInfoAction';
+
 // Special pages
 $wgSpecialPages['MoveThread'] = 'SpecialMoveThread';
 $wgSpecialPages['NewMessages'] = 'SpecialNewMessages';
@@ -234,7 +236,7 @@ $wgLogTypes[] = 'liquidthreads';
 $wgLogNames['liquidthreads']		  = 'lqt-log-name';
 $wgLogHeaders['liquidthreads']		  = 'lqt-log-header';
 
-foreach ( array( 'move', 'split', 'merge', 'subjectedit', 'resort' ) as $action ) {
+foreach ( array( 'move', 'split', 'merge', 'subjectedit', 'resort', 'signatureedit' ) as $action ) {
 	$wgLogActionsHandlers["liquidthreads/$action"] = 'LqtLogFormatter::formatLogEntry';
 }
 
