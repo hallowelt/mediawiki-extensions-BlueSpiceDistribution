@@ -1,0 +1,65 @@
+.mw-echo-title {
+	font-size: 13px;
+	line-height: 16px;
+	font-weight: normal;
+}
+.mw-echo-content {
+	font-size: 13px;
+	line-height: 16px;
+	overflow: hidden;
+}
+.mw-echo-payload {
+	margin-top: 0.5em;
+}
+.mw-echo-timestamp {
+	color: #A5A5A5;
+	margin-top: 0.1em;
+	font-size: 9px;
+}
+.mw-echo-notifications {
+	background-color: #EEEEEE;
+}
+.mw-echo-notification {
+	clear: both;
+	display: block;
+	color: #6D6D6D;
+	line-height: 90%;
+	margin: 0;
+	min-height: 60px;
+	background-color: white;
+	position: relative;
+	/* Force container to expand to height of floated contents */
+	overflow: hidden;
+	zoom: 1;
+}
+.mw-echo-close-box {
+	position: absolute;
+	right: 10px;
+	top: 10px;
+	width: 23px;
+	height: 23px;
+	z-index: 3;
+	/* @embed */
+	background-image: url(DismissOnRowHover.png);
+	background-repeat: no-repeat;
+}
+.mw-echo-close-box:hover {
+	/* @embed */
+	background-image: url(DismissOnHover.png);
+}
+.mw-echo-dismiss {
+	padding: 10px 40px 5px 60px;
+	background-color: #EDEDEE;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 1;
+}
+.mw-echo-prefs-dismiss-message {
+	font-size: 10px;
+	line-height: 14px;
+}
+.mw-echo-cancel-link {
+	margin-left: 1em;
+	cursor: pointer;
+}

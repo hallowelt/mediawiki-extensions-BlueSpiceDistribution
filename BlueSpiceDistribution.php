@@ -17,4 +17,5 @@ require_once( __DIR__."/RSS/RSS.php" );
 require_once( __DIR__."/SyntaxHighlight_GeSHi/SyntaxHighlight_GeSHi.php" );
 //require_once( __DIR__."/RSS-Topdate/Rss.php" );
 require_once( __DIR__."/WikiCategoryTagCloud/WikiCategoryTagCloud.php" );
+require_once( __DIR__."/Echo/Echo.php" );
 $wgCiteEnablePopups = true;
