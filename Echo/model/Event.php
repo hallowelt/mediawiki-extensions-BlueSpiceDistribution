@@ -61,44 +61,43 @@ class EchoEvent {
 	 */
 	public static function create( $info = array() ) {
 		global $wgEchoNotifications;
-error_log( __LINE__ );
+
 		$obj = new EchoEvent;
 		static $validFields = array( 'type', 'variant', 'agent', 'title', 'extra' );
-error_log( __LINE__ );
+
 		if ( empty( $info['type'] ) ) {
 			throw new MWException( "'type' parameter is mandatory" );
 		}
-error_log( __LINE__ );
+
 		if ( !isset( $wgEchoNotifications[$info['type']] ) ) {
 			return false;
 		}
-error_log( __LINE__ );
+
 		$obj->id = false;
 		$obj->timestamp = wfTimestampNow();
-error_log( __LINE__ );
+
 		foreach ( $validFields as $field ) {
 			if ( isset( $info[$field] ) ) {
 				$obj->$field = $info[$field];
 			}
 		}
-error_log( __LINE__ );
+
 		if ( $obj->title && !$obj->title instanceof Title ) {
 			throw new MWException( "Invalid title parameter" );
 		}
-error_log( __LINE__ );
+
 		if ( $obj->agent && !
 		( $obj->agent instanceof User ||
 			$obj->agent instanceof StubObject )
 		) {
 			throw new MWException( "Invalid user parameter" );
 		}
-error_log( __LINE__ );
+
 		$obj->insert();
 
 		global $wgEchoUseJobQueue;
-error_log( __LINE__ );
 		EchoNotificationController::notify( $obj, $wgEchoUseJobQueue  );
-error_log( __LINE__ );
+
 		return $obj;
 	}
 

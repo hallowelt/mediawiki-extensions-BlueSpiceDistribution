@@ -183,7 +183,6 @@ class EchoNotificationController {
 	 * @param $defer bool Defer to job queue
 	 */
 	public static function notify( $event, $defer = true ) {
-error_log( __METHOD__. '::'.__LINE__ );
 		if ( $defer ) {
 			$title = $event->getTitle() ? $event->getTitle() : Title::newMainPage();
 
@@ -191,20 +190,17 @@ error_log( __METHOD__. '::'.__LINE__ );
 			$job->insert();
 			return;
 		}
-error_log( __METHOD__. '::'.__LINE__ );
 
 		// Check if the event object has valid event type.  Events with invalid
 		// event types left in the job queue should not be processed
 		if ( !$event->isEnabledEvent() ) {
 			return;
 		}
-error_log( __METHOD__. '::'.__LINE__ );
+		
 		if ( $event->getType() == 'welcome' ) { // Welcome events should only be sent to the new user, no need for subscriptions.
 			self::doNotification( $event, $event->getAgent(), 'web' );
-error_log( __METHOD__. '::'.__LINE__ );
 		} else {
 			$subscriptions = self::getSubscriptionsForEvent( $event );
-error_log( __METHOD__. '::'.__LINE__ );
 			foreach ( $subscriptions as $subscription ) {
 				$user = $subscription->getUser();
 
@@ -218,9 +214,8 @@ error_log( __METHOD__. '::'.__LINE__ );
 				$notifyTypes = array_keys( array_filter( $notifyTypes ) );
 
 				wfRunHooks( 'EchoGetNotificationTypes', array( $subscription, $event, &$notifyTypes ) );
-error_log( __METHOD__. '::'.__LINE__ );
+				
 				foreach ( $notifyTypes as $type ) {
-error_log( __METHOD__. '::'.__LINE__ );
 					self::doNotification( $event, $user, $type );
 				}
 			}
@@ -237,13 +232,11 @@ error_log( __METHOD__. '::'.__LINE__ );
 	 */
 	public static function doNotification( $event, $user, $type ) {
 		global $wgEchoNotifiers;
-error_log( __METHOD__.'::'.__LINE__ );
+		
 		if ( !isset( $wgEchoNotifiers[$type] ) ) {
-error_log( __METHOD__.'::'.__LINE__ );
 			throw new MWException( "Invalid notification type $type" );
 		}
-error_log( __METHOD__.'::'.__LINE__ );
-error_log( var_export( $wgEchoNotifiers[$type], 1 ) );
+
 		call_user_func_array( $wgEchoNotifiers[$type], array( $user, $event ) );
 	}
 
@@ -255,14 +248,14 @@ error_log( var_export( $wgEchoNotifiers[$type], 1 ) );
 	 */
 	protected static function getSubscriptionsForEvent( $event ) {
 		global $wgEchoBackend;
-error_log( __METHOD__.'::'.__LINE__ );
+
 		$conds = array( 'sub_event_type' => $event->getType() );
 
 		if ( $event->getTitle() ) {
 			$conds['sub_page_namespace'] = $event->getTitle()->getNamespace();
 			$conds['sub_page_title'] = $event->getTitle()->getDBkey();
 		}
-error_log( __METHOD__.'::'.__LINE__ );
+
 		$res = $wgEchoBackend->loadSubscription( $conds );
 
 		$subscriptions = array();
@@ -270,7 +263,6 @@ error_log( __METHOD__.'::'.__LINE__ );
 		$lastUser = null;
 
 		foreach ( $res as $row ) {
-error_log( __METHOD__.'::'.__LINE__ );
 			if ( $lastUser && $row->sub_user != $lastUser ) {
 				$subscriptions[$lastUser] = EchoSubscription::newFromRows( $rowCollection );
 				$rowCollection = array();
@@ -285,22 +277,20 @@ error_log( __METHOD__.'::'.__LINE__ );
 		}
 
 		$users = array();
-error_log( __METHOD__.'::'.__LINE__ );
+
 		wfRunHooks( 'EchoGetDefaultNotifiedUsers', array( $event, &$users ) );
-		error_log( var_export( $users, 1) );
 		foreach ( $users as $u ) {
 			if ( !isset( $subscriptions[$u->getId()] ) ) {
 				$subscriptions[$u->getId()] = new EchoSubscription( $u, $event->getType(), $event->getTitle() );
 			}
 		}
-error_log( __METHOD__.'::'.__LINE__ );
 
 		// Don't notify the person who made the edit unless the event extra says to do so, that's a bit silly.
 		$extra = $event->getExtra();
 		if ( ( !isset( $extra['notifyAgent'] ) || !$extra['notifyAgent'] ) && $event->getAgent() ) {
 			unset( $subscriptions[$event->getAgent()->getId()] );
 		}
-error_log( __METHOD__.'::'.__LINE__ );
+
 		return $subscriptions;
 	}
 
