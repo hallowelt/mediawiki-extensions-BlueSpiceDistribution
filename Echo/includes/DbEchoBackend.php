@@ -15,9 +15,21 @@ class MWDbEchoBackend extends MWEchoBackend {
 		$this->dbr = wfGetDB( DB_SLAVE );
 		$this->dbw = wfGetDB( DB_MASTER );
 	}
+	
+	public function __sleep() {
+//		unset($this->dbr);
+//		unset($this->dbw);
+//		return parent::__sleep();
+		return array();
+	}
+	
+	public function __wakeup() {
+		$this->dbr = wfGetDB( DB_SLAVE );
+		$this->dbw = wfGetDB( DB_MASTER );
+	}
 
 	/**
-	 * @param $row array
+	 * @param $row array,
 	 */
 	public function createNotification( $row ) {
 		$row['notification_timestamp'] = $this->dbw->timestamp( $row['notification_timestamp'] );
