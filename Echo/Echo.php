@@ -93,8 +93,9 @@ $wgHooks['ResourceLoaderRegisterModules'][] = 'EchoHooks::onResourceLoaderRegist
 $wgExtensionFunctions[] = 'EchoHooks::initEchoExtension';
 
 $echoResourceTemplate = array(
+	
 	'localBasePath' => $dir . 'modules',
-	'remoteExtPath' => 'Echo/modules',
+	'remoteExtPath' => 'BlueSpiceDistribution/Echo/modules',
 	'group' => 'ext.echo',
 );
 
