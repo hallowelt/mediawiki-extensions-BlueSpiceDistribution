@@ -529,7 +529,8 @@ class EchoHooks {
 			$text = $msg->params( EchoNotificationController::formatNotificationCount( $notificationCount ) )->text();
 		} else {
 			// Just add a number
-			$text = wfMessage( 'parentheses', $notificationCount )->plain();
+			//$text = wfMessage( 'parentheses', $notificationCount )->plain();
+			$text = $notificationCount;
 		}
 		$url = SpecialPage::getTitleFor( 'Notifications' )->getLocalURL();
 

@@ -559,6 +559,7 @@ abstract class EchoDiscussionParser {
 		$new_lines = explode( "\n", $newText );
 
 		// First break down the diff into additions and subtractions
+
 		$diff_lines = explode( "\n", $diff );
 		$left_pos = 0;
 		$right_pos = 0;
@@ -608,7 +609,7 @@ abstract class EchoDiscussionParser {
 				}
 
 				// Consistency check
-				if ( $old_lines[$left_pos - 1] != $subtracted_line ) {
+				if ( trim( $old_lines[$left_pos - 1] ) != trim( $subtracted_line ) ) {
 					throw new MWException( "Left offset consistency error.\nOffset: $right_pos\nExpected: {$old_lines[$left_pos-1]}\nActual: $subtracted_line" );
 				}
 				++$left_pos;
@@ -637,7 +638,7 @@ abstract class EchoDiscussionParser {
 				}
 
 				// Consistency check
-				if ( $new_lines[$right_pos - 1] != $added_line ) {
+				if ( trim( $new_lines[$right_pos - 1] ) != trim( $added_line ) ) {
 					throw new MWException( "Right offset consistency error.\nOffset: $right_pos\nExpected: {$new_lines[$right_pos-1]}\nActual: $added_line\n" );
 				}
 				++$right_pos;
