@@ -1346,7 +1346,7 @@ class Calendar extends CalendarArticles
 		if($wgCalendarURLPath){
 			return $wgCalendarURLPath;
 		}else{
-			return $wgScriptPath . "/bluespice-mw/ext-dist/Calendar";
+			return $wgScriptPath . "/extensions/BlueSpiceDistribution/Calendar";
 		}
 	}
 	
