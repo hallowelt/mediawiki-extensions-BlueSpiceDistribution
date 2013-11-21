@@ -1,5 +1,6 @@
 /*global window:false */
 ( function( $, mw ) {
+	if( wgUserName === null ) return;
 	'use strict';
 
 	mw.echo.overlay = {
@@ -146,7 +147,7 @@
 			} );
 		}
 	};
-
+	
 	mw.echo.overlay.notification_count = mw.echo.overlay.configuration['notification-count'];
 
 	$( function() {
