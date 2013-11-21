@@ -79,23 +79,23 @@ class ApiEchoNotifications extends ApiQueryBase {
 				$date = wfMessage( 'echo-date-yesterday' )->escaped();
 			} else {
 				$month = array(
-					'01' => 'january-gen',
-					'02' => 'february-gen',
-					'03' => 'march-gen',
-					'04' => 'april-gen',
-					'05' => 'may-gen',
-					'06' => 'june-gen',
-					'07' => 'july-gen',
-					'08' => 'august-gen',
-					'09' => 'september-gen',
-					'10' => 'october-gen',
-					'11' => 'november-gen',
-					'12' => 'december-gen'
+					'01' => 'january',
+					'02' => 'february',
+					'03' => 'march',
+					'04' => 'april',
+					'05' => 'may',
+					'06' => 'june',
+					'07' => 'july',
+					'08' => 'august',
+					'09' => 'september',
+					'10' => 'october',
+					'11' => 'november',
+					'12' => 'december'
 				);
 
 				$headerMonth = wfMessage( $month[substr( $timestampMw, 4, 2 )] )->text();
 				$headerDate  = substr( $timestampMw, 6, 2 );
-				$date = wfMessage( 'echo-date-header' )->params( $headerMonth )->numParams( $headerDate )->escaped();
+				$date = wfMessage( 'echo-date-header' )->numParam( $headerDate )->params( $headerMonth )->escaped();
 			}
 			// end creating date section header
 

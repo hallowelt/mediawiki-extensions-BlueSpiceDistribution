@@ -1,6 +1,6 @@
 /*global window:false */
 ( function( $, mw ) {
-	if( wgUserName === null ) return;
+	if( typeof wgUserId === 'undefined' ) return;
 	'use strict';
 
 	mw.echo.overlay = {
