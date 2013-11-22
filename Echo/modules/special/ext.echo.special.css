@@ -68,18 +68,18 @@ ul#mw-echo-special-container {
 	padding: 15px 35px 10px 0;
 }
 #mw-echo-special-container .mw-echo-notification {
-	background-color: #F0F0F0;
+	background-color: white;/*#F0F0F0;*/
 }
 #mw-echo-special-container .mw-echo-notification:hover {
 	background-color: #F8F8F8;
 }
 #mw-echo-special-container .mw-echo-notification.mw-echo-unread,
 #mw-echo-special-container .mw-echo-notification.mw-echo-unread:hover {
-	background-color: white;
+	background-color: #F8F8F8;
 }
 #mw-echo-special-container .mw-echo-notification .mw-echo-state {
-	filter: alpha(opacity=50);
-	opacity: 0.5;
+	/*filter: alpha(opacity=50);
+	opacity: 0.5;*/
 }
 #mw-echo-special-container .mw-echo-notification.mw-echo-unread .mw-echo-state {
 	filter: alpha(opacity=100);
