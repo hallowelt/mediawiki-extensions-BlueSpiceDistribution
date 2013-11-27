@@ -107,7 +107,7 @@
 }
 
 #pt-notifications a.mw-echo-short-link .mw-badge {
-	margin-left: -5px;
+	margin: -1px 0 0 -5px;
 }
 
 .mw-echo-overlay-none {
