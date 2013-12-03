@@ -63,7 +63,7 @@ CREATE TABLE `hw_user_attributes` (
 																"userPrincipalName"=>"userPrincipalName") );
  */
 
-require_once('includes/AuthPlugin.php');
+require_once($IP.'/includes/AuthPlugin.php');
 
 //constants for search base
 define("GROUPDN", 0);
