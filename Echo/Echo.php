@@ -350,7 +350,7 @@ $wgEchoNotifications = array(
 $wgDefaultUserOptions['echo-notify-link'] = 'true';
 
 // By default, send emails for each notification as they come in
-$wgDefaultUserOptions['echo-email-frequency'] = EchoHooks::EMAIL_IMMEDIATELY;
+$wgDefaultUserOptions['echo-email-frequency'] = 0; // HW EchoHooks::EMAIL_IMMEDIATELY;
 
 // Set all of the events to notify by web and email by default (won't affect events that don't email)
 foreach ( $wgEchoNotificationCategories as $category => $categoryData ) {
