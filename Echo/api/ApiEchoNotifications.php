@@ -94,7 +94,7 @@ class ApiEchoNotifications extends ApiQueryBase {
 				);
 
 				$headerMonth = wfMessage( $month[substr( $timestampMw, 4, 2 )] )->text();
-				$headerDate  = substr( $timestampMw, 6, 2 );
+				$headerDate  = substr( $timestampMw, 6, 2 ).'. ';
 				$date = wfMessage( 'echo-date-header' )->params( $headerDate, $headerMonth )->escaped();
 			}
 			// end creating date section header

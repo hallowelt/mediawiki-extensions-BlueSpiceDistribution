@@ -63,7 +63,7 @@ CREATE TABLE `hw_user_attributes` (
 																"userPrincipalName"=>"userPrincipalName") );
  */
 
-require_once('includes/AuthPlugin.php');
+require_once($IP.'/includes/AuthPlugin.php');
 
 //constants for search base
 define("GROUPDN", 0);
@@ -576,7 +576,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 	 * @param UserLoginTemplate $template
 	 * @access public
 	 */
-	function modifyUITemplate( &$template ) {
+	function modifyUITemplate( &$template, &$type ) {
 		global $wgLDAPDomainNames, $wgLDAPUseLocal;
 		global $wgLDAPAddLDAPUsers;
 		global $wgLDAPAutoAuthDomain;
@@ -636,7 +636,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 	 * @return bool
 	 * @access public
 	 */
-	function setPassword( $user, &$password ) {
+	function setPassword( $user, $password ) {
 		global $wgLDAPUpdateLDAP, $wgLDAPWriterDN, $wgLDAPWriterPassword;
 
 		$this->printDebug( "Entering setPassword", NONSENSITIVE );
@@ -823,7 +823,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 	 * @return bool
 	 * @access public
 	 */
-	function addUser( $user, $password ) {
+	function addUser( $user, $password, $email = '', $realname = '' ) {
 		global $wgLDAPAddLDAPUsers, $wgLDAPWriterDN, $wgLDAPWriterPassword;
 		global $wgLDAPSearchAttributes;
 		global $wgLDAPWriteLocation;
@@ -1038,7 +1038,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 	 * @access public
 	 * TODO: fix setExternalID stuff
 	 */
-	function initUser( &$user ) {
+	function initUser( &$user, $autocreate = false ) {
 		global $wgLDAPUseLDAPGroups;
 
 		$this->printDebug( "Entering initUser", NONSENSITIVE );
@@ -1114,12 +1114,12 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 				//Change username to lowercase so that multiple user accounts
 				//won't be created for the same user.
 				//But don't do it for the local domain!
-				$username = strtolower( $username );
+				$username = mb_strtolower( $username );
 			}
 
 			//The wiki considers an all lowercase name to be invalid; need to
 			//uppercase the first letter
-			$username[0] = strtoupper( $username[0] );
+			$username[0] = mb_strtoupper( $username[0] );
 		}
 
 		$this->printDebug( "Munged username: $username", NONSENSITIVE );

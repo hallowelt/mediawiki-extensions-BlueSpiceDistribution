@@ -1076,12 +1076,12 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 				//Change username to lowercase so that multiple user accounts
 				//won't be created for the same user.
 				//But don't do it for the local domain!
-				$username = strtolower( $username );
+				$username = mb_strtolower( $username );
 			}
 
 			//The wiki considers an all lowercase name to be invalid; need to
 			//uppercase the first letter
-			$username[0] = strtoupper( $username[0] );
+			$username[0] = mb_strtoupper( $username[0] );
 		}
 
 		$this->printDebug( "Munged username: $username", NONSENSITIVE );
