@@ -56,8 +56,8 @@ class LdapAutoAuthentication {
             $mungedUsername = $wgAuth->getCanonicalName( $wgLDAPAutoAuthUsername );
 
             $wgAuth->printDebug( "User exists in LDAP; finding the user by name ($mungedUsername) in MediaWiki.", NONSENSITIVE );
-
-        $localId = User::idFromName( $mungedUsername );
+            $mungedUsername = str_replace( "_", " ", $mungedUsername ); // HW fix for underscores
+            $localId = User::idFromName( $mungedUsername );
             $wgAuth->printDebug( "Got id ($localId).", NONSENSITIVE );
 
             //Is the user already in the database?
