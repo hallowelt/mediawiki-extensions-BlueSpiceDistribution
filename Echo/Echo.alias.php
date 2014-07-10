@@ -5,12 +5,33 @@
  * @file
  * @ingroup Extensions
  */
+// @codingStandardsIgnoreFile
 
 $specialPageAliases = array();
 
 /** English (English) */
 $specialPageAliases['en'] = array(
 	'Notifications' => array( 'Notifications' ),
+);
+
+/** Arabic (العربية) */
+$specialPageAliases['ar'] = array(
+	'Notifications' => array( 'إشعارات' ),
+);
+
+/** Egyptian Spoken Arabic (مصرى) */
+$specialPageAliases['arz'] = array(
+	'Notifications' => array( 'اخطارات' ),
+);
+
+/** Min Dong Chinese (Mìng-dĕ̤ng-ngṳ̄) */
+$specialPageAliases['cdo'] = array(
+	'Notifications' => array( '提醒' ),
+);
+
+/** Chechen (нохчийн) */
+$specialPageAliases['ce'] = array(
+	'Notifications' => array( 'ДӀахаийтар' ),
 );
 
 /** German (Deutsch) */
@@ -20,17 +41,57 @@ $specialPageAliases['de'] = array(
 
 /** Zazaki (Zazaki) */
 $specialPageAliases['diq'] = array(
-	'Notifications' => array( 'Tebliği' ),
+	'Notifications' => array( 'Mengeney' ),
+);
+
+/** Greek (Ελληνικά) */
+$specialPageAliases['el'] = array(
+	'Notifications' => array( 'Ειδοποιήσεις' ),
+);
+
+/** Esperanto (Esperanto) */
+$specialPageAliases['eo'] = array(
+	'Notifications' => array( 'Atentigoj' ),
+);
+
+/** Spanish (español) */
+$specialPageAliases['es'] = array(
+	'Notifications' => array( 'Notificaciones' ),
+);
+
+/** Estonian (eesti) */
+$specialPageAliases['et'] = array(
+	'Notifications' => array( 'Teavitused' ),
 );
 
 /** Persian (فارسی) */
 $specialPageAliases['fa'] = array(
-	'Notifications' => array( 'آگهی‌ها' ),
+	'Notifications' => array( 'آگاه‌سازی‌ها' ),
 );
 
 /** Finnish (suomi) */
 $specialPageAliases['fi'] = array(
 	'Notifications' => array( 'Ilmoitukset' ),
+);
+
+/** Galician (galego) */
+$specialPageAliases['gl'] = array(
+	'Notifications' => array( 'Notificacións' ),
+);
+
+/** Hawaiian (Hawai`i) */
+$specialPageAliases['haw'] = array(
+	'Notifications' => array( 'Notikala' ),
+);
+
+/** Hebrew (עברית) */
+$specialPageAliases['he'] = array(
+	'Notifications' => array( 'הודעות', 'כל_ההודעות' ),
+);
+
+/** Upper Sorbian (hornjoserbsce) */
+$specialPageAliases['hsb'] = array(
+	'Notifications' => array( 'Zdźělenja' ),
 );
 
 /** Indonesian (Bahasa Indonesia) */
@@ -58,6 +119,11 @@ $specialPageAliases['kw'] = array(
 	'Notifications' => array( 'Argemynow' ),
 );
 
+/** Luxembourgish (Lëtzebuergesch) */
+$specialPageAliases['lb'] = array(
+	'Notifications' => array( 'Notifikatiounen' ),
+);
+
 /** Macedonian (македонски) */
 $specialPageAliases['mk'] = array(
 	'Notifications' => array( 'Известувања' ),
@@ -66,6 +132,16 @@ $specialPageAliases['mk'] = array(
 /** Malayalam (മലയാളം) */
 $specialPageAliases['ml'] = array(
 	'Notifications' => array( 'അറിയിപ്പുകൾ' ),
+);
+
+/** Maltese (Malti) */
+$specialPageAliases['mt'] = array(
+	'Notifications' => array( 'Notifiki' ),
+);
+
+/** Norwegian Bokmål (norsk bokmål) */
+$specialPageAliases['nb'] = array(
+	'Notifications' => array( 'Varsler' ),
 );
 
 /** Dutch (Nederlands) */
@@ -78,8 +154,53 @@ $specialPageAliases['pa'] = array(
 	'Notifications' => array( 'ਇਤਲਾਹਾਂ' ),
 );
 
+/** Polish (polski) */
+$specialPageAliases['pl'] = array(
+	'Notifications' => array( 'Powiadomienia' ),
+);
+
+/** Portuguese (português) */
+$specialPageAliases['pt'] = array(
+	'Notifications' => array( 'Notificações' ),
+);
+
+/** Brazilian Portuguese (português do Brasil) */
+$specialPageAliases['pt-br'] = array(
+	'Notifications' => array( 'Notificações' ),
+);
+
+/** Quechua (Runa Simi) */
+$specialPageAliases['qu'] = array(
+	'Notifications' => array( 'Willaykuykuna' ),
+);
+
+/** Russian (русский) */
+$specialPageAliases['ru'] = array(
+	'Notifications' => array( 'Уведомления' ),
+);
+
 /** Sicilian (sicilianu) */
 $specialPageAliases['scn'] = array(
+	'Notifications' => array( 'Notifiche' ),
+);
+
+/** Serbian (Cyrillic script) (српски (ћирилица)‎) */
+$specialPageAliases['sr-ec'] = array(
+	'Notifications' => array( 'Обавештења' ),
+);
+
+/** Swedish (svenska) */
+$specialPageAliases['sv'] = array(
+	'Notifications' => array( 'Meddelanden' ),
+);
+
+/** Ukrainian (українська) */
+$specialPageAliases['uk'] = array(
+	'Notifications' => array( 'Сповіщення' ),
+);
+
+/** vèneto (vèneto) */
+$specialPageAliases['vec'] = array(
 	'Notifications' => array( 'Notifiche' ),
 );
 

@@ -1,6 +1,6 @@
 .mw-echo-title {
 	font-size: 13px;
-	line-height: 16px;
+	line-height: 14px;
 	font-weight: normal;
 }
 .mw-echo-content {
@@ -9,12 +9,13 @@
 	overflow: hidden;
 }
 .mw-echo-payload {
-	margin-top: 0.5em;
+	margin-top: 0.3em;
 }
-.mw-echo-timestamp {
-	color: #A5A5A5;
-	margin-top: 0.1em;
-	font-size: 9px;
+/* Including .mw-echo-timestamp for backwards compat */
+.mw-echo-timestamp, .mw-echo-notification-footer {
+	color: #6D6D6D;
+	font-size: 11px;
+	margin-top: 0.2em;
 }
 .mw-echo-notifications {
 	background-color: #EEEEEE;
@@ -25,41 +26,26 @@
 	color: #6D6D6D;
 	line-height: 90%;
 	margin: 0;
-	min-height: 60px;
+	min-height: 30px;
 	background-color: white;
 	position: relative;
+	padding-top: 15px;
+	padding-bottom: 10px;
 	/* Force container to expand to height of floated contents */
 	overflow: hidden;
 	zoom: 1;
 }
-.mw-echo-close-box {
-	position: absolute;
-	right: 10px;
-	top: 10px;
-	width: 0px;
-	height: 0px;
-	z-index: 3;
-	/* @embed */
-	background-image: url(DismissOnRowHover.png);
-	background-repeat: no-repeat;
+.mw-echo-notification.mw-echo-unread {
+	color: #252525;
 }
-.mw-echo-close-box:hover {
-	/* @embed */
-	background-image: url(DismissOnHover.png);
+.mw-echo-notification span.autocomment {
+	color: inherit;
+	font-style: normal;
 }
-.mw-echo-dismiss {
-	padding: 10px 40px 5px 60px;
-	background-color: #EDEDEE;
-	position: absolute;
-	top: 0;
-	left: 0;
-	z-index: 1;
-}
-.mw-echo-prefs-dismiss-message {
-	font-size: 10px;
-	line-height: 14px;
-}
-.mw-echo-cancel-link {
-	margin-left: 1em;
-	cursor: pointer;
+.mw-echo-icon {
+	width: 30px;
+	height: 30px;
+	float: left;
+	margin-right: 10px;
+	margin-left: 10px;
 }

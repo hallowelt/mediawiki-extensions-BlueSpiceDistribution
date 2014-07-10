@@ -1,6 +1,7 @@
 <?php
 /**
  * MediaWiki Extension: Echo
+ * http://www.mediawiki.org/wiki/Extension:Echo
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,7 +20,8 @@
  *
  * @file
  * @ingroup Extensions
- * @author Andrew Garrett
+ * @author Andrew Garrett, Benny Situ, Ryan Kaldari, Erik Bernhardson
+ * @licence MIT License
  */
 
 # Alert the user that this is not a valid entry point to MediaWiki if they try to access the special pages file directly.
@@ -41,35 +43,57 @@ $wgExtensionCredits['specialpage'][] = array(
 );
 
 $dir = dirname( __FILE__ ) . '/';
+$wgMessagesDirs['Echo'] = __DIR__ . '/i18n';
 $wgExtensionMessagesFiles['Echo'] = $dir . 'Echo.i18n.php';
 $wgExtensionMessagesFiles['EchoAliases'] = $dir . 'Echo.alias.php';
 
 $wgAutoloadClasses['EchoHooks'] = $dir . 'Hooks.php';
-$wgAutoloadClasses['EchoSubscription'] = $dir . 'model/Subscription.php';
 $wgAutoloadClasses['EchoEvent'] = $dir . 'model/Event.php';
 $wgAutoloadClasses['EchoNotification'] = $dir . 'model/Notification.php';
 $wgAutoloadClasses['MWEchoEmailBatch'] = $dir . 'includes/EmailBatch.php';
 $wgAutoloadClasses['MWDbEchoEmailBatch'] = $dir . 'includes/DbEmailBatch.php';
+$wgAutoloadClasses['MWEchoEmailBundler'] = $dir . 'includes/EmailBundler.php';
+$wgAutoloadClasses['MWDbEchoEmailBundler'] = $dir . 'includes/DbEmailBundler.php';
+$wgAutoloadClasses['MWEchoEventLogging'] = $dir . 'includes/EventLogging.php';
 
 // Formatters
 $wgAutoloadClasses['EchoNotificationFormatter'] = $dir . 'formatters/NotificationFormatter.php';
 $wgAutoloadClasses['EchoBasicFormatter'] = $dir . 'formatters/BasicFormatter.php';
 $wgAutoloadClasses['EchoEditFormatter'] = $dir . 'formatters/EditFormatter.php';
 $wgAutoloadClasses['EchoCommentFormatter'] = $dir . 'formatters/CommentFormatter.php';
-$wgAutoloadClasses['EchoArticleLinkedFormatter'] = $dir . 'formatters/ArticleLinkedFormatter.php';
+$wgAutoloadClasses['EchoMentionFormatter'] = $dir . 'formatters/MentionFormatter.php';
+$wgAutoloadClasses['EchoUserRightsFormatter'] = $dir . 'formatters/UserRightsFormatter.php';
+$wgAutoloadClasses['EchoPageLinkFormatter'] = $dir . 'formatters/PageLinkFormatter.php';
+$wgAutoloadClasses['EchoEditUserTalkFormatter'] = $dir . 'formatters/EditUserTalkFormatter.php';
+
+// Email formatters
+$wgAutoloadClasses['EchoEmailFormatter'] = $dir . 'includes/EmailFormatter.php';
+$wgAutoloadClasses['EchoTextEmailFormatter'] = $dir . 'includes/EmailFormatter.php';
+$wgAutoloadClasses['EchoHTMLEmailFormatter'] = $dir . 'includes/EmailFormatter.php';
+$wgAutoloadClasses['EchoEmailMode'] = $dir . 'includes/EmailFormatter.php';
+$wgAutoloadClasses['EchoEmailSingle'] = $dir . 'includes/EmailFormatter.php';
+$wgAutoloadClasses['EchoEmailDigest'] = $dir . 'includes/EmailFormatter.php';
+$wgAutoloadClasses['EchoEmailDecorator'] = $dir . 'includes/EmailFormatter.php';
+$wgAutoloadClasses['EchoTextEmailDecorator'] = $dir . 'includes/EmailFormatter.php';
+$wgAutoloadClasses['EchoHTMLEmailDecorator'] = $dir . 'includes/EmailFormatter.php';
 
 // Internal stuff
 $wgAutoloadClasses['EchoNotifier'] = $dir . 'Notifier.php';
 $wgAutoloadClasses['EchoNotificationController'] = $dir . 'controller/NotificationController.php';
 $wgAutoloadClasses['EchoDiscussionParser'] = $dir . 'includes/DiscussionParser.php';
+$wgAutoloadClasses['EchoDiffParser'] = $dir . 'includes/DiffParser.php';
 
 // Job queue
 $wgAutoloadClasses['EchoNotificationJob'] = $dir . 'jobs/NotificationJob.php';
 $wgJobClasses['EchoNotificationJob'] = 'EchoNotificationJob';
+$wgAutoloadClasses['MWEchoNotificationEmailBundleJob'] = $dir . 'jobs/NotificationEmailBundleJob.php';
+$wgJobClasses['MWEchoNotificationEmailBundleJob'] = 'MWEchoNotificationEmailBundleJob';
 
 // API
-$wgAutoloadClasses['ApiEchoNotifications'] =  $dir . 'api/ApiEchoNotifications.php';
+$wgAutoloadClasses['ApiEchoNotifications'] = $dir . 'api/ApiEchoNotifications.php';
 $wgAPIMetaModules['notifications'] = 'ApiEchoNotifications';
+$wgAutoloadClasses['ApiEchoMarkRead'] = $dir . 'api/ApiEchoMarkRead.php';
+$wgAPIModules['echomarkread'] = 'ApiEchoMarkRead';
 
 // Special page
 $wgAutoloadClasses['SpecialNotifications'] = $dir . 'special/SpecialNotifications.php';
@@ -79,6 +103,22 @@ $wgSpecialPageGroups['Notifications'] = 'users';
 // Backend support
 $wgAutoloadClasses['MWEchoBackend'] = $dir . 'includes/EchoBackend.php';
 $wgAutoloadClasses['MWDbEchoBackend'] = $dir . 'includes/DbEchoBackend.php';
+$wgAutoloadClasses['MWEchoDbFactory'] = $dir . 'includes/EchoDbFactory.php';
+$wgAutoloadClasses['MWEchoNotifUser'] = $dir . 'includes/NotifUser.php';
+
+// Whitelist and Blacklist
+$wgAutoloadClasses['EchoContainmentList'] = $dir . 'includes/ContainmentSet.php';
+$wgAutoloadClasses['EchoContainmentSet'] = $dir . 'includes/ContainmentSet.php';
+$wgAutoloadClasses['EchoArrayList'] = $dir . 'includes/ContainmentSet.php';
+$wgAutoloadClasses['EchoOnWikiList'] = $dir . 'includes/ContainmentSet.php';
+$wgAutoloadClasses['EchoCachedList'] = $dir . 'includes/ContainmentSet.php';
+
+// Maintenance testing
+$wgAutoloadClasses['EchoBatchRowUpdate'] = $dir . 'includes/BatchRowUpdate.php';
+$wgAutoloadClasses['EchoBatchRowWriter'] = $dir . 'includes/BatchRowUpdate.php';
+$wgAutoloadClasses['EchoBatchRowIterator'] = $dir . 'includes/BatchRowUpdate.php';
+$wgAutoloadClasses['EchoRowUpdateGenerator'] = $dir . 'includes/BatchRowUpdate.php';
+$wgAutoloadClasses['EchoSuppressionRowUpdateGenerator'] = $dir . 'includes/schemaUpdate.php';
 
 // Housekeeping hooks
 $wgHooks['LoadExtensionSchemaUpdates'][] = 'EchoHooks::getSchemaUpdates';
@@ -88,29 +128,40 @@ $wgHooks['BeforePageDisplay'][] = 'EchoHooks::beforePageDisplay';
 $wgHooks['MakeGlobalVariablesScript'][] = 'EchoHooks::makeGlobalVariablesScript';
 $wgHooks['UnitTestsList'][] = 'EchoHooks::getUnitTests';
 $wgHooks['ResourceLoaderRegisterModules'][] = 'EchoHooks::onResourceLoaderRegisterModules';
+$wgHooks['UserRights'][] = 'EchoHooks::onUserRights';
+$wgHooks['UserLoadOptions'][] = 'EchoHooks::onUserLoadOptions';
+$wgHooks['UserSaveOptions'][] = 'EchoHooks::onUserSaveOptions';
+$wgHooks['UserClearNewTalkNotification'][] = 'EchoHooks::onUserClearNewTalkNotification';
+$wgHooks['ParserTestTables'][] = 'EchoHooks::onParserTestTables';
 
 // Extension initialization
 $wgExtensionFunctions[] = 'EchoHooks::initEchoExtension';
 
 $echoResourceTemplate = array(
-	
 	'localBasePath' => $dir . 'modules',
-	'remoteExtPath' => 'BlueSpiceDistribution/Echo/modules',
-	'group' => 'ext.echo',
+	'remoteExtPath' => 'Echo/modules',
 );
 
 $wgResourceModules += array(
+	// ext.echo.base is used by mobile notifications as well, so be sure not to add any
+	// dependencies that do not target mobile.
 	'ext.echo.base' => $echoResourceTemplate + array(
 		'styles' => 'base/ext.echo.base.css',
 		'scripts' => 'base/ext.echo.base.js',
-		'dependencies' => array(
-			'jquery.ui.button',
-		),
 		'messages' => array(
-			'cancel',
-			'echo-dismiss-button',
 			'echo-error-preference',
 			'echo-error-token',
+		),
+		'targets' => array( 'desktop', 'mobile' ),
+	),
+	'ext.echo.desktop' => $echoResourceTemplate + array(
+		'scripts' => 'desktop/ext.echo.desktop.js',
+		'dependencies' => array(
+			'ext.echo.base',
+			'mediawiki.api',
+			'mediawiki.Uri',
+			'mediawiki.jqueryMsg',
+			'mediawiki.user',
 		),
 	),
 	'ext.echo.overlay' => $echoResourceTemplate + array(
@@ -118,20 +169,23 @@ $wgResourceModules += array(
 			'overlay/ext.echo.overlay.js',
 		),
 		'styles' => 'overlay/ext.echo.overlay.css',
+		'skinStyles' => array(
+			'modern' => 'overlay/ext.echo.overlay.modern.css',
+			'monobook' => 'overlay/ext.echo.overlay.monobook.css',
+		),
 		'dependencies' => array(
-			'ext.echo.base',
-			'mediawiki.api',
-			'mediawiki.jqueryMsg',
-			'jquery.badge',
-			'ext.echo.icons',
+			'ext.echo.desktop',
+			'mediawiki.util',
+			'mediawiki.language',
 		),
 		'messages' => array(
-			'echo-link-new',
-			'echo-link',
 			'echo-overlay-title',
 			'echo-overlay-title-overflow',
 			'echo-overlay-link',
 			'echo-none',
+			'echo-mark-all-as-read',
+			'echo-more-info',
+			'echo-feedback',
 		),
 	),
 	'ext.echo.special' => $echoResourceTemplate + array(
@@ -140,18 +194,29 @@ $wgResourceModules += array(
 		),
 		'styles' => 'special/ext.echo.special.css',
 		'dependencies' => array(
-			'ext.echo.base',
-			'mediawiki.api',
-			'mediawiki.jqueryMsg',
-			'ext.echo.icons',
+			'ext.echo.desktop',
+			'mediawiki.ui.button',
 		),
 		'messages' => array(
 			'echo-load-more-error',
 			'echo-more-info',
+			'echo-feedback',
+		),
+		'position' => 'top',
+	),
+	'ext.echo.alert' => $echoResourceTemplate + array(
+		'styles' => 'alert/ext.echo.alert.css',
+		'skinStyles' => array(
+			'modern' => 'alert/ext.echo.alert.modern.css',
+			'monobook' => 'alert/ext.echo.alert.monobook.css',
 		),
 	),
-	'ext.echo.icons' => $echoResourceTemplate + array(
-		'styles' => 'icons/icons.css',
+	'ext.echo.badge' => $echoResourceTemplate + array(
+		'styles' => 'badge/ext.echo.badge.css',
+		'skinStyles' => array(
+			'modern' => 'badge/ext.echo.badge.modern.css',
+			'monobook' => 'badge/ext.echo.badge.monobook.css',
+		),
 	),
 );
 
@@ -164,17 +229,21 @@ $wgResourceModules += array(
  */
 $wgHooks['EchoGetDefaultNotifiedUsers'][] = 'EchoHooks::getDefaultNotifiedUsers';
 $wgHooks['EchoGetNotificationTypes'][] = 'EchoHooks::getNotificationTypes';
+$wgHooks['EchoGetBundleRules'][] = 'EchoHooks::onEchoGetBundleRules';
+$wgHooks['EchoAbortEmailNotification'][] = 'EchoHooks::onEchoAbortEmailNotification';
+$wgHooks['EchoCreateNotificationComplete'][] = 'EchoHooks::onEchoCreateNotificationComplete';
 
 // Hook appropriate events
 $wgHooks['ArticleSaveComplete'][] = 'EchoHooks::onArticleSaved';
 $wgHooks['AddNewAccount'][] = 'EchoHooks::onAccountCreated';
 $wgHooks['ArticleRollbackComplete'][] = 'EchoHooks::onRollbackComplete';
+$wgHooks['UserSaveSettings'][] = 'EchoHooks::onUserSaveSettings';
 
 // Disable ordinary user talk page email notifications
-$wgHooks['AbortEmailNotification'][] = 'EchoHooks::disableStandUserTalkEnotif';
-$wgHooks['UpdateUserMailerFormattedPageStatus'][] = 'EchoHooks::disableStandUserTalkEnotif';
+$wgHooks['AbortTalkPageEmailNotification'][] = 'EchoHooks::onAbortTalkPageEmailNotification';
+$wgHooks['SendWatchlistEmailNotification'][] = 'EchoHooks::onSendWatchlistEmailNotification';
 // Disable the yellow bar of death
-$wgHooks['ArticleEditUpdateNewTalk'][] = 'EchoHooks::abortNewTalkNotification';
+$wgHooks['GetNewMessagesAlert'][] = 'EchoHooks::abortNewMessagesAlert';
 $wgHooks['LinksUpdateAfterInsert'][] = 'EchoHooks::onLinksUpdateAfterInsert';
 
 // Configuration
@@ -191,10 +260,6 @@ $wgEchoBackend = null;
 // Whether to turn on email batch function
 $wgEchoEnableEmailBatch = true;
 
-// Show a 'Notifications' link with badge in the user toolbar at the top of the page.
-// Otherwise, only show a badge next to the username.
-$wgEchoShowFullNotificationsLink = false;
-
 // URL for more information about the Echo notification system
 $wgEchoHelpPage = '//www.mediawiki.org/wiki/Special:MyLanguage/Help:Extension:Echo';
 
@@ -207,8 +272,36 @@ $wgEchoUseJobQueue = false;
 // The organization address, the value should be defined in LocalSettings.php
 $wgEchoEmailFooterAddress = '';
 
+// The email address for both "from" and "reply to" on email notifications.
+// Should be defined in LocalSettings.php
+$wgNotificationSender = $wgPasswordSender;
+// Name for "from" on email notifications. Should be defined in LocalSettings.php
+// if null, uses 'emailsender' message
+$wgNotificationSenderName = null;
+// Name for "reply to" on email notifications. Should be defined in LocalSettings.php
+$wgNotificationReplyName = 'No Reply';
+
+// Use the main db if this is set to false, to use a specific external db, just
+// use any key defined in $wgExternalServers
+$wgEchoCluster = false;
+
 // The max notification count showed in badge
+// The max number showed in bundled message, eg, <user> and 99+ others <action>
 $wgEchoMaxNotificationCount = 99;
+
+// The time interval between each bundle email in seconds
+// set a small number for test wikis, should set this to 0 to disable email bundling
+// if there is no delay queue support
+$wgEchoBundleEmailInterval = 0;
+
+// Whether or not to enable a new talk page message alert for logged in users
+$wgEchoNewMsgAlert = true;
+
+// Cohort study period.  This array should consist of 3 TS_MW format timestamps
+// in ascending order, the 1st one is when the bucketing and study start, the 2nd
+// one is when the bucketing ends, the 3rd one is when the study ends.  Set this
+// to empty array to disable Cohort study, this should be defined in LocalSettings.php
+$wgEchoCohortInterval = array();
 
 // Define which output formats are available for each notification category
 $wgEchoDefaultNotificationTypes = array(
@@ -226,9 +319,20 @@ $wgEchoNotifiers = array(
 	'email' => array( 'EchoNotifier', 'notifyWithEmail' ),
 );
 
+// List of usernames that will not trigger notification creation. This is initially
+// for bots that perform automated edits that are not important enough to regularly
+// spam people with notifications. Set to empty array when not in use.
+$wgEchoAgentBlacklist = array();
+
+// Page location of community maintained blacklist within NS_MEDIAWIKI.  Set to null to disable.
+$wgEchoOnWikiBlacklist = 'Echo-blacklist';
+
+// sprintf format of per-user notification agent whitelists. Set to null to disable.
+$wgEchoPerUserWhitelistFormat = '%s/Echo-whitelist';
+
 // Define the categories that notifications can belong to. Categories can be
-// assigned the following parameters: priority, nodismiss, and usergroups. All
-// parameters are optional.
+// assigned the following parameters: priority, nodismiss, tooltip, and usergroups.
+// All parameters are optional.
 // If a notifications type doesn't have a category parameter, it is
 // automatically assigned to the 'other' category which is lowest priority and
 // has no preferences or dismissibility.
@@ -246,21 +350,79 @@ $wgEchoNotificationCategories = array(
 		'priority' => 9,
 		'no-dismiss' => array( 'all' ),
 	),
+	'user-rights' => array( // bug 55337
+		'priority' => 9,
+		'tooltip' => 'echo-pref-tooltip-user-rights',
+	),
 	'other' => array(
 		'no-dismiss' => array( 'all' ),
 	),
 	'edit-user-talk' => array(
 		'priority' => 1,
 		'no-dismiss' => array( 'web' ),
+		'tooltip' => 'echo-pref-tooltip-edit-user-talk',
 	),
 	'reverted' => array(
 		'priority' => 9,
+		'tooltip' => 'echo-pref-tooltip-reverted',
 	),
 	'article-linked' => array(
 		'priority' => 5,
+		'tooltip' => 'echo-pref-tooltip-article-linked',
 	),
 	'mention' => array(
 		'priority' => 4,
+		'tooltip' => 'echo-pref-tooltip-mention',
+	),
+);
+
+$echoIconPath = "Echo/modules/icons";
+
+// Defines icons, which are 30x30 images. This is passed to BeforeCreateEchoEvent so
+// extensions can define their own icons with the same structure.  It is recommended that
+// extensions prefix their icon key. An example is myextension-name.  This will help
+// avoid namespace conflicts.
+//
+// You can use either a path or a url, but not both.
+// The value of 'path' is relative to $wgExtensionAssetsPath.
+//
+// The value of 'url' should be a URL.
+//
+// You should customize the site icon URL, which is:
+// $wgEchoNotificationIcons['site']['url']
+$wgEchoNotificationIcons = array(
+	'placeholder' => array(
+		'path' => "$echoIconPath/Generic.png",
+	),
+	'trash' => array(
+		'path' => "$echoIconPath/Deletion.png",
+	),
+	'chat' => array(
+		'path' => "$echoIconPath/Talk.png",
+	),
+	'linked' => array(
+		'path' => "$echoIconPath/CrossReferenced.png",
+	),
+	'featured' => array(
+		'path' => "$echoIconPath/Featured.png",
+	),
+	'reviewed' => array(
+		'path' => "$echoIconPath/Reviewed.png",
+	),
+	'tagged' => array(
+		'path' => "$echoIconPath/ReviewedWithTags.png",
+	),
+	'revert' => array(
+		'path' => "$echoIconPath/Revert.png",
+	),
+	'checkmark' => array(
+		'path' => "$echoIconPath/Reviewed.png",
+	),
+	'gratitude' => array(
+		'path' => "$echoIconPath/Gratitude.png",
+	),
+	'site' => array(
+		'url' => false
 	),
 );
 
@@ -272,103 +434,139 @@ $wgEchoNotifications = array(
 		'group' => 'positive',
 		'title-message' => 'notification-new-user',
 		'title-params' => array( 'agent' ),
-		'payload' => array( 'welcome' ),
-		'icon' => 'w',
+		'icon' => 'site',
 	),
 	'edit-user-talk' => array(
+		'primary-link' => array( 'message' => 'notification-link-text-view-message', 'destination' => 'section' ),
+		'secondary-link' => array( 'message' => 'notification-link-text-view-changes', 'destination' => 'diff' ),
 		'category' => 'edit-user-talk',
 		'group' => 'interactive',
-		'formatter-class' => 'EchoEditFormatter',
+		'bundle' => array( 'web' => true, 'email' => false ),
+		'formatter-class' => 'EchoEditUserTalkFormatter',
 		'title-message' => 'notification-edit-talk-page2',
-		'title-params' => array( 'agent', 'user' ),
-		'payload' => array( 'summary' ),
+		'title-params' => array( 'agent', 'user', 'subject-anchor' ),
+		'bundle-message' => 'notification-edit-talk-page-bundle',
+		'bundle-params' => array( 'agent', 'user', 'agent-other-display', 'agent-other-count' ),
 		'flyout-message' => 'notification-edit-talk-page-flyout2',
-		'flyout-params' => array( 'agent', 'user' ),
+		'flyout-params' => array( 'agent', 'user', 'subject-anchor' ),
 		'email-subject-message' => 'notification-edit-talk-page-email-subject2',
-		'email-body-message' => 'notification-edit-talk-page-email-body2',
-		'email-body-params' => array( 'agent', 'titlelink', 'summary', 'email-footer' ),
+		'email-subject-params' => array( 'agent' ),
 		'email-body-batch-message' => 'notification-edit-talk-page-email-batch-body2',
-		'email-body-batch-params' => array( 'agent', 'difflink', 'summary' ),
+		'email-body-batch-params' => array( 'agent' ),
+		'email-body-batch-bundle-message' => 'notification-edit-user-talk-email-batch-bundle-body',
+		'email-body-batch-bundle-params' => array( 'agent', 'agent-other-display', 'agent-other-count' ),
 		'icon' => 'chat',
 	),
 	'reverted' => array(
+		'primary-link' => array( 'message' => 'notification-link-text-view-edit', 'destination' => 'diff' ),
 		'category' => 'reverted',
 		'group' => 'negative',
 		'formatter-class' => 'EchoEditFormatter',
 		'title-message' => 'notification-reverted2',
 		'title-params' => array( 'agent', 'title', 'difflink', 'number' ),
-		'payload' => array( 'summary' ),
 		'flyout-message' => 'notification-reverted-flyout2',
 		'flyout-params' => array( 'agent', 'title', 'difflink', 'number' ),
 		'email-subject-message' => 'notification-reverted-email-subject2',
 		'email-subject-params' => array( 'agent', 'title', 'number' ),
-		'email-body-message' => 'notification-reverted-email-body2',
-		'email-body-params' => array( 'agent', 'title', 'difflink', 'user', 'summary', 'email-footer', 'number' ),
 		'email-body-batch-message' => 'notification-reverted-email-batch-body2',
 		'email-body-batch-params' => array( 'agent', 'title', 'number' ),
 		'icon' => 'revert',
 	),
-	'article-linked' => array(
+	'page-linked' => array(
+		'primary-link' => array( 'message' => 'notification-link-text-view-page', 'destination' => 'link-from-page' ),
 		'category' => 'article-linked',
-		'group' => 'positive',
-		'formatter-class' => 'EchoArticleLinkedFormatter',
-		'title-message' => 'notification-article-linked2',
-		'title-params' => array( 'agent', 'title',  'title-linked' ),
-		'payload' => array( 'summary' ),
-		'flyout-message' => 'notification-article-linked-flyout2',
-		'flyout-params' => array( 'agent', 'title',  'title-linked' ),
-		'email-subject-message' => 'notification-article-linked-email-subject2',
-		'email-subject-params' => array( 'title-linked' ),
-		'email-body-message' => 'notification-article-linked-email-body2',
-		'email-body-params' => array( 'agent', 'title', 'titlelink', 'title-linked', 'email-footer' ),
-		'email-body-batch-message' => 'notification-article-linked-email-batch-body2',
-		'email-body-batch-params' => array( 'agent', 'title-linked' ),
+		'group' => 'neutral',
+		'bundle' => array( 'web' => true, 'email' => true ),
+		'formatter-class' => 'EchoPageLinkFormatter',
+		'title-message' => 'notification-page-linked',
+		'title-params' => array( 'agent', 'title', 'link-from-page' ),
+		'bundle-message' => 'notification-page-linked-bundle',
+		'bundle-params' => array( 'agent', 'title', 'link-from-page', 'link-from-page-other-display', 'link-from-page-other-count' ),
+		'flyout-message' => 'notification-page-linked-flyout',
+		'flyout-params' => array( 'agent', 'title', 'link-from-page' ),
+		'email-subject-message' => 'notification-page-linked-email-subject',
+		'email-subject-params' => array(),
+		'email-body-batch-message' => 'notification-page-linked-email-batch-body',
+		'email-body-batch-params' => array( 'agent', 'title', 'link-from-page' ),
+		'email-body-batch-bundle-message' => 'notification-page-linked-email-batch-bundle-body',
+		'email-body-batch-bundle-params' => array( 'agent', 'title', 'link-from-page', 'link-from-page-other-display', 'link-from-page-other-count' ),
 		'icon' => 'linked',
 	),
 	'mention' => array(
+		'primary-link' => array( 'message' => 'notification-link-text-view-mention', 'destination' => 'section' ),
+		'secondary-link' => array( 'message' => 'notification-link-text-view-changes', 'destination' => 'diff' ),
 		'category' => 'mention',
 		'group' => 'interactive',
-		'formatter-class' => 'EchoCommentFormatter',
+		'formatter-class' => 'EchoMentionFormatter',
 		'title-message' => 'notification-mention',
-		'title-params' => array( 'agent', 'subject', 'title' ),
-		'payload' => array( 'summary' ),
+		'title-params' => array( 'agent', 'subject-anchor', 'title', 'section-title', 'main-title-text' ),
 		'flyout-message' => 'notification-mention-flyout',
-		'flyout-params' => array( 'agent', 'subject',  'title' ),
+		'flyout-params' => array( 'agent', 'subject-anchor',  'title', 'section-title', 'main-title-text' ),
 		'email-subject-message' => 'notification-mention-email-subject',
 		'email-subject-params' => array( 'agent' ),
-		'email-body-message' => 'notification-mention-email-body',
-		'email-body-params' => array( 'agent', 'title', 'summary', 'subject-link', 'email-footer' ),
 		'email-body-batch-message' => 'notification-mention-email-batch-body',
-		'email-body-batch-params' => array( 'agent', 'title' ),
-		'content-message' => 'notification-talkpage-content',
-		'content-params' => array( 'commentText' ),
+		'email-body-batch-params' => array( 'agent', 'title', 'section-title', 'main-title-text' ),
 		'icon' => 'chat',
-	)
+	),
+	'user-rights' => array(
+		'primary-link' => array( 'message' => 'echo-learn-more', 'destination' => 'user-rights-list' ),
+		'category' => 'user-rights',
+		'group' => 'neutral',
+		'formatter-class' => 'EchoUserRightsFormatter',
+		'title-message' => 'notification-user-rights',
+		'title-params' => array( 'agent', 'user-rights-list' ),
+		'flyout-message' => 'notification-user-rights-flyout',
+		'flyout-params' => array( 'agent', 'user-rights-list' ),
+		'email-subject-message' => 'notification-user-rights-email-subject',
+		'email-subject-params' => array(),
+		'email-body-batch-message' => 'notification-user-rights-email-batch-body',
+		'email-body-batch-params' => array( 'agent', 'user-rights-list' ),
+		'icon' => 'site',
+	),
 );
 
 // Enable notifications for all logged in users by default
-$wgDefaultUserOptions['echo-notify-link'] = 'true';
+$wgDefaultUserOptions['echo-notify-show-link'] = true;
+
+// Enable new talk page messages alert for all logged in users by default
+$wgDefaultUserOptions['echo-show-alert'] = true;
 
 // By default, send emails for each notification as they come in
-$wgDefaultUserOptions['echo-email-frequency'] = 0; // HW EchoHooks::EMAIL_IMMEDIATELY;
+$wgDefaultUserOptions['echo-email-frequency'] = 0; /*EchoHooks::EMAIL_IMMEDIATELY*/
 
-// Set all of the events to notify by web and email by default (won't affect events that don't email)
-foreach ( $wgEchoNotificationCategories as $category => $categoryData ) {
-	foreach ( $wgEchoNotifiers as $notifierType => $notifierData ) {
-		$wgDefaultUserOptions["echo-subscriptions-{$notifierType}-{$category}"] = true;
-	}
+if ( $wgAllowHTMLEmail ) {
+	$wgDefaultUserOptions['echo-email-format'] = 'html'; /*EchoHooks::EMAIL_FORMAT_HTML*/
+} else {
+	$wgDefaultUserOptions['echo-email-format'] = 'plain-text'; /*EchoHooks::EMAIL_FORMAT_PLAIN_TEXT*/
 }
-// unset default email for reverted, article-linked (change them to opt-in)
-$wgDefaultUserOptions['echo-subscriptions-email-reverted'] = false;
-$wgDefaultUserOptions['echo-subscriptions-email-article-linked'] = false;
+
+// Set all of the events to notify by web but not email by default (won't affect events that don't email)
+foreach ( $wgEchoNotificationCategories as $category => $categoryData ) {
+	$wgDefaultUserOptions["echo-subscriptions-email-{$category}"] = false;
+	$wgDefaultUserOptions["echo-subscriptions-web-{$category}"] = true;
+}
+
+// most settings default to web on, email off, but override these
+$wgDefaultUserOptions['echo-subscriptions-email-system'] = true;
+$wgDefaultUserOptions['echo-subscriptions-email-user-rights'] = true;
+$wgDefaultUserOptions['echo-subscriptions-web-article-linked'] = false;
 
 // Echo Configuration for EventLogging
 $wgEchoConfig = array(
-	'version' => '1.0',
+	'version' => '1.5',
+	// default all eventlogging off, overwrite them in site configuration
 	'eventlogging' => array (
 		'Echo' => array (
 			'enabled' => false,
-			'revision' => 5285750
-		)
+			'revision' => 7572295,
+		),
+		'EchoMail' => array (
+			'enabled' => false,
+			'revision' => 5467650
+		),
+		'EchoInteraction' => array (
+			'enabled' => false,
+			'revision' => 5782287
+		),
 	)
 );

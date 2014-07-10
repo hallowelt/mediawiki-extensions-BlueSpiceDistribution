@@ -12,13 +12,24 @@ abstract class EchoNotificationFormatter {
 	 * List of valid output format
 	 * @var array
 	 */
-	protected $validOutputFormats = array( 'text', 'flyout', 'html', 'email' );
+	protected $validOutputFormats = array( 'text', 'flyout', 'html', 'email', 'htmlemail' );
+
+	/**
+	 * List of valid distribution type
+	 */
+	protected $validDistributionType = array( 'web', 'email', 'emaildigest' );
 
 	/**
 	 * Current output format, default is 'text'
 	 * @var string
 	 */
 	protected $outputFormat = 'text';
+
+	/**
+	 * Distribution type, default is 'web'
+	 * @var string
+	 */
+	protected $distributionType = 'web';
 
 	/**
 	 * List of parameters for constructing messages
@@ -62,7 +73,7 @@ abstract class EchoNotificationFormatter {
 
 	/**
 	 * Set the output format that the notification will be displayed in.
-	 * @param $format string A valid output format (by default, 'text', 'html', and 'email' are allowed)
+	 * @param $format string A valid output format (by default, 'text', 'html', 'flyout', and 'email' are allowed)
 	 * @throws MWException
 	 */
 	public function setOutputFormat( $format ) {
@@ -71,6 +82,14 @@ abstract class EchoNotificationFormatter {
 		}
 
 		$this->outputFormat = $format;
+	}
+
+	public function setDistributionType( $type ) {
+		if ( !in_array( $type, $this->validDistributionType, true ) ) {
+			throw new Exception( "Invalid distribution type $type" );
+		}
+
+		$this->distributionType = $type;
 	}
 
 	/**
@@ -100,69 +119,36 @@ abstract class EchoNotificationFormatter {
 	 * @param $title Title object
 	 * @return string Text suitable for output format
 	 */
-	protected function formatTitle( $title ) {
+	protected function formatTitle( Title $title ) {
 		return $title->getPrefixedText();
 	}
 
 	/**
-	 * Formats a timestamp (in a human-readable format if supported by
-	 * MediaWiki)
+	 * Formats a timestamp in a human-readable format
 	 * @param $ts string Timestamp in some format compatible with wfTimestamp()
-	 * @return string Type description
+	 * @return string Human-readable timestamp
 	 */
 	protected function formatTimestamp( $ts ) {
 		$timestamp = new MWTimestamp( $ts );
 		$ts = $timestamp->getHumanTimestamp();
-
-		if ( $this->outputFormat === 'html' || $this->outputFormat === 'flyout' ) {
-			return Xml::element( 'div', array( 'class' => 'mw-echo-timestamp' ), $ts );
-		} else {
-			return $ts;
-		}
+		return $ts;
 	}
 
 	/**
-	 * Formats an edit summary
-	 * TODO: implement parsed option for notifications archive page (where we can use all the html)
-	 * @param $event EchoEvent that the notification is for.
-	 * @param $user User to format the notification for.
-	 * @return string The edit summary (or empty string)
+	 * Returns a revision snippet
+	 * @param EchoEvent $event The event that the notification is for.
+	 * @param User $user The user to format the notification for.
+	 * @return String The revision snippet (or empty string)
 	 */
-	protected function formatSummary( $event, $user ) {
-		$eventData = $event->getExtra();
-		if ( !isset( $eventData['revid'] ) ) {
+	public function getRevisionSnippet( $event, $user ) {
+		$extra = $event->getExtra();
+		if ( !isset( $extra['section-text'] ) || !$event->userCan( Revision::DELETED_TEXT, $user ) ) {
 			return '';
 		}
-		$revision = Revision::newFromId( $eventData['revid'] );
-		if ( $revision ) {
-			$summary = $revision->getComment( Revision::FOR_THIS_USER, $user );
 
-			if ( $this->outputFormat === 'html' || $this->outputFormat === 'flyout' ) {
-				if ( $this->outputFormat === 'html' ) {
-					// Parse the edit summary
-					$summary = Linker::formatComment( $summary, $revision->getTitle() );
-				} else {
-					// Strip wikitext from the edit summary and manually convert autocomments
-					$summary = FeedItem::stripComment( $summary );
-					$summary = trim( htmlspecialchars( $summary ) );
-					// Convert section titles to proper HTML
-					preg_match( "!(.*)/\*\s*(.*?)\s*\*/(.*)!", $summary, $matches );
-					if ( $matches ) {
-						$section = $matches[2];
-						if ( $matches[3] ) {
-							// Add a colon after the section name
-							$section .= wfMessage( 'colon-separator' )->inContentLanguage()->escaped();
-						}
-						$summary = $matches[1] . "<span class='autocomment'>" . $section . "</span>" . $matches[3];
-					}
-				}
-				$summary = Xml::tags( 'span', array( 'class' => 'comment' ), $summary );
-				$summary = Xml::tags( 'div', array( 'class' => 'mw-echo-summary' ), $summary );
-			}
+		$snippet = trim( $extra['section-text'] );
 
-			return $summary;
-		}
-		return '';
+		return $snippet;
 	}
 
 }

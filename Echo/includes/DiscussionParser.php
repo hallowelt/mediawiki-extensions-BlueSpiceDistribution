@@ -1,9 +1,10 @@
 <?php
 
 abstract class EchoDiscussionParser {
-	static $timestampRegex;
-	static $headerRegex = '^\=\=\s*([^=].*)\s*\=\=$';
-	static $revisionInterpretationCache = array();
+	static protected $timestampRegex;
+	static protected $headerRegex = '^(==+)\s*([^=].*)\s*\1$';
+	static protected $revisionInterpretationCache = array();
+	static protected $diffParser;
 
 	/**
 	 * Given a Revision object, generates EchoEvent objects for
@@ -76,15 +77,62 @@ abstract class EchoDiscussionParser {
 
 		if ( !$createdEvents && $title->getNamespace() == NS_USER_TALK ) {
 			$notifyUser = User::newFromName( $title->getText() );
-			if ( $notifyUser && $notifyUser->getID() ) {
-				EchoEvent::create( array(
-					'type' => 'edit-user-talk',
-					'title' => $title,
-					'extra' => array( 'revid' => $revision->getID() ),
-					'agent' => $user,
-				) );
+			// If the recipient is a valid non-anonymous user and hasn't turned
+			// off thier notifications, generate a talk page post Echo notification.
+			if ( $notifyUser && $notifyUser->getID() && $notifyUser->getOption( 'echo-notify-show-link' ) ) {
+				// if this is a minor edit, only notify if the agent doesn't have talk page minor edit notification blocked
+				if ( !$revision->isMinor() || !$user->isAllowed( 'nominornewtalk' ) ) {
+					$section = self::detectSectionTitleAndText( $interpretation );
+					EchoEvent::create( array(
+						'type' => 'edit-user-talk',
+						'title' => $title,
+						'extra' => array(
+							'revid' => $revision->getID(),
+							'minoredit' => $revision->isMinor(),
+							'section-title' => $section['section-title'],
+							'section-text' => $section['section-text']
+						),
+						'agent' => $user,
+					) );
+				}
 			}
 		}
+	}
+
+	/**
+	 * Attempts to determine what section title the edit was performed under (if any)
+	 *
+	 * @param $interpretation array Results of self::getChangeInterpretationForRevision
+	 * @return array Array containing section title and text
+	 */
+	public static function detectSectionTitleAndText( array $interpretation ) {
+		$header = $snippet = '';
+		$found = false;
+
+		foreach ( $interpretation as $action ) {
+			switch( $action['type'] ) {
+				case 'add-comment':
+					$header  = self::extractHeader( $action['full-section'] );
+					$snippet = self::getTextSnippet( self::stripSignature( self::stripHeader( $action['content'] ) ), 150 );
+					break;
+				case 'new-section-with-comment':
+					$header  = self::extractHeader( $action['content'] );
+					$snippet = self::getTextSnippet( self::stripSignature( self::stripHeader( $action['content'] ) ), 150 );
+					break;
+			}
+			if ( $header ) {
+				// If we find multiple headers within the same change interpretation then
+				// we cannot choose just 1 to link to
+				if ( $found ) {
+					return array( 'section-title' => '', 'section-text' => '' );
+				}
+				$found = $header;
+			}
+		}
+		if ( $found ) {
+			return array( 'section-title' => $header, 'section-text' => $snippet );
+		}
+		return array( 'section-title' => '', 'section-text' => '' );
 	}
 
 	/**
@@ -103,6 +151,10 @@ abstract class EchoDiscussionParser {
 
 		$output = self::parseNonEditWikitext( $content, new Article( $title ) );
 		$links = $output->getLinks();
+
+		if ( !isset( $links[NS_USER] ) || !is_array( $links[NS_USER] ) ) {
+			return;
+		}
 		$mentionedUsers = array();
 		$count = 0;
 
@@ -122,7 +174,7 @@ abstract class EchoDiscussionParser {
 			$mentionedUsers[$user->getId()] = $user->getId();
 			$count++;
 			// This is an unbounded list, put a cap on the allowable mentioned user list
-			if ( $count > 300 ) {
+			if ( $count > 100 ) {
 				break;
 			}
 		}
@@ -387,7 +439,7 @@ abstract class EchoDiscussionParser {
 			}
 		}
 
-		return $content;
+		return trim( $content, "\n" );
 	}
 
 	/**
@@ -406,7 +458,7 @@ abstract class EchoDiscussionParser {
 	}
 
 	/**
-	 * Gets the title of a section
+	 * Gets the title of a section or sub section
 	 *
 	 * @param $text string The text of the section.
 	 * @return string The title of the section.
@@ -416,11 +468,11 @@ abstract class EchoDiscussionParser {
 
 		$matches = array();
 
-		if ( !preg_match( '/' . self::$headerRegex . '/um', $text, $matches ) ) {
+		if ( !preg_match_all( '/' . self::$headerRegex . '/um', $text, $matches ) ) {
 			return false;
 		}
 
-		return trim( $matches[1] );
+		return trim( end( $matches[2] ) );
 	}
 
 	/**
@@ -442,10 +494,10 @@ abstract class EchoDiscussionParser {
 			return substr( $text, 0, $timestampPos );
 		}
 
-		// Strip off signature with HTML truncation method.
-		// This way tags which are opened will be closed.
+		// Use truncate() instead of truncateHTML() because truncateHTML()
+		// would not strip signature if the text conatins < or &
 		global $wgContLang;
-		$truncated_text = $wgContLang->truncateHtml( $text, $output[0], '' );
+		$truncated_text = $wgContLang->truncate( $text, $output[0], '' );
 
 		return $truncated_text;
 	}
@@ -506,7 +558,7 @@ abstract class EchoDiscussionParser {
 			return true;
 		}
 
-		list( $signaturePos, $foundUser ) = $userData;
+		list( , $foundUser ) = $userData;
 
 		return User::getCanonicalName( $foundUser, false ) === User::getCanonicalName( $user, false );
 	}
@@ -530,7 +582,7 @@ abstract class EchoDiscussionParser {
 			return false;
 		}
 
-		return $tsMatches[0][0];
+		return $tsMatches[0][1];
 	}
 
 	/**
@@ -551,108 +603,10 @@ abstract class EchoDiscussionParser {
 	 * * 'left_pos' and 'right_pos' (in lines) of the change.
 	 */
 	static function getMachineReadableDiff( $oldText, $newText ) {
-		$oldText = trim( $oldText ) . "\n";
-		$newText = trim( $newText ) . "\n";
-		$diff = wfDiff( $oldText, $newText, '-u -w' );
-
-		$old_lines = explode( "\n", $oldText );
-		$new_lines = explode( "\n", $newText );
-
-		// First break down the diff into additions and subtractions
-
-		$diff_lines = explode( "\n", $diff );
-		$left_pos = 0;
-		$right_pos = 0;
-		$changes = array();
-		$change_run = false;
-		$sub_lines = 0;
-
-		for ( $i = 0; $i < count( $diff_lines ); ++$i ) {
-			$line = $diff_lines[$i];
-
-			if ( strlen( $line ) == 0 ) {
-				continue;
-			}
-
-			$line_type = $line[0];
-
-			if ( $line_type == ' ' ) {
-				++$left_pos;
-				++$right_pos;
-			} elseif ( $line_type == '@' ) {
-				list( $at, $lhs_pos, $rhs_pos, $at ) = explode( ' ', $line );
-				$lhs_pos = substr( $lhs_pos, 1 );
-				$rhs_pos = substr( $rhs_pos, 1 );
-				list( $left_pos ) = explode( ',', $lhs_pos );
-				list( $right_pos ) = explode( ',', $rhs_pos );
-				$change_run = false;
-			} elseif ( $line_type == '-' ) {
-				$subtracted_line = substr( $line, 1 );
-
-				if ( trim( $subtracted_line ) === '' ) {
-					++$left_pos;
-					continue;
-				}
-
-				if ( $change_run && $changes[$change_run]['action'] == 'subtract' ) {
-					++$sub_lines;
-					$changes[$change_run]['content'] .= "\n" . $subtracted_line;
-				} else {
-					$sub_lines = 1;
-					$changes[] = array(
-						'action' => 'subtract',
-						'left-pos' => $left_pos,
-						'right-pos' => $right_pos,
-						'content' => $subtracted_line,
-					);
-					$change_run = count( $changes ) - 1;
-				}
-
-				// Consistency check
-				if ( trim( $old_lines[$left_pos - 1] ) != trim( $subtracted_line ) ) {
-					throw new MWException( "Left offset consistency error.\nOffset: $right_pos\nExpected: {$old_lines[$left_pos-1]}\nActual: $subtracted_line" );
-				}
-				++$left_pos;
-			} elseif ( $line_type == '+' ) {
-				$added_line = substr( $line, 1 );
-
-				if ( $change_run !== false && $changes[$change_run]['action'] == 'add' ) {
-					$changes[$change_run]['content'] .= "\n" . $added_line;
-				} elseif ( $change_run !== false && $changes[$change_run]['action'] == 'subtract' ) {
-					$changes[$change_run]['action'] = 'change';
-					$changes[$change_run]['old_content'] = $changes[$change_run]['content'];
-					$changes[$change_run]['new_content'] = $added_line;
-					--$sub_lines;
-					unset( $changes[$change_run]['content'] );
-				} elseif ( $change_run !== false && $changes[$change_run]['action'] == 'change' && $sub_lines > 0 ) {
-					--$sub_lines;
-					$changes[$change_run]['new_content'] .= "\n" . $added_line;
-				} else {
-					$changes[] = array(
-						'action' => 'add',
-						'left-pos' => $left_pos,
-						'right-pos' => $right_pos,
-						'content' => $added_line,
-					);
-					$change_run = count( $changes ) - 1;
-				}
-
-				// Consistency check
-				if ( trim( $new_lines[$right_pos - 1] ) != trim( $added_line ) ) {
-					throw new MWException( "Right offset consistency error.\nOffset: $right_pos\nExpected: {$new_lines[$right_pos-1]}\nActual: $added_line\n" );
-				}
-				++$right_pos;
-			}
+		if ( !isset( self::$diffParser ) ) {
+			self::$diffParser = new EchoDiffParser;
 		}
-
-		$changes['_info'] = array(
-			'lhs-length' => count( $old_lines ),
-			'rhs-length' => count( $new_lines ),
-			'lhs' => $old_lines,
-			'rhs' => $new_lines,
-		);
-
-		return $changes;
+		return self::$diffParser->getChangeSet( $oldText, $newText );
 	}
 
 	/**
@@ -664,8 +618,6 @@ abstract class EchoDiscussionParser {
 	 */
 	static function extractSignatures( $text ) {
 		$lines = explode( "\n", $text );
-		$timestampRegex = self::getTimestampRegex();
-		$endOfLine = self::getLineEndingRegex();
 
 		$output = array();
 
@@ -673,13 +625,8 @@ abstract class EchoDiscussionParser {
 
 		foreach ( $lines as $line ) {
 			++$lineNumber;
-			$tsMatches = array();
-			if ( !preg_match(
-				"/$timestampRegex$endOfLine/mu",
-				$line,
-				$tsMatches,
-				PREG_OFFSET_CAPTURE
-			) ) {
+			$timestampPos = self::getTimestampPosition( $line );
+			if ( !$timestampPos ) {
 				// Ignore lines that don't finish with a timestamp
 				// print "I\tNo timestamp\n";
 				// print "$line\n";
@@ -688,7 +635,7 @@ abstract class EchoDiscussionParser {
 
 			// Now that we know we have a timestamp, look for
 			// the last user link on the line.
-			$userData = self::getUserFromLine( $line, $tsMatches[0][0] );
+			$userData = self::getUserFromLine( $line, $timestampPos );
 			if ( $userData === false ) {
 				// print "F\t$lineNumber\t$line\n";
 				continue;
@@ -717,11 +664,31 @@ abstract class EchoDiscussionParser {
 	 */
 	static function getUserFromLine( $line, $timestampPos ) {
 		global $wgContLang;
-		$possiblePrefixes = array( // Later entries have a higher precedence
-			'[[' . $wgContLang->getNsText( NS_USER ) . ':',
-			'[[' . $wgContLang->getNsText( NS_USER_TALK ) . ':',
-			'[[' . SpecialPage::getTitleFor( 'Contributions' )->getPrefixedText() . '/',
-		);
+
+		// Later entries have a higher precedence
+		// @todo FIXME: handle optional whitespace in links
+		$languages = array( $wgContLang );
+		if ( $wgContLang->getCode() !== 'en' ) {
+			$languages[] = Language::factory( 'en' );
+		}
+
+		$possiblePrefixes = array();
+
+		foreach ( $languages as $language ) {
+			$nsNames = $language->getNamespaces();
+			$possiblePrefixes[] = '[[' . $nsNames[NS_USER] . ':';
+			$possiblePrefixes[] = '[[' . $nsNames[NS_USER_TALK] . ':';
+
+			$nsAliases = $language->getNamespaceAliases();
+			foreach ( $nsAliases as $text => $id ) {
+				if ( $id == NS_USER || $id == NS_USER_TALK ) {
+					$possiblePrefixes[] = '[[' . $text . ':';
+				}
+			}
+		}
+
+		// @todo FIXME: Check aliases too
+		$possiblePrefixes[] = '[[' . SpecialPage::getTitleFor( 'Contributions' )->getPrefixedText() . '/';
 
 		foreach ( $possiblePrefixes as $prefix ) {
 			if ( strpos( $prefix, '_' ) !== false ) {
@@ -784,6 +751,11 @@ abstract class EchoDiscussionParser {
 		// If extraction failed at another offset, try again.
 		if ( $failureOffset !== false ) {
 			$offset = $failureOffset - strlen( $line ) - 1;
+		}
+
+		// Avoid PHP warning: Offset is greater than the length of haystack string
+		if ( abs( $offset ) > strlen( $line ) ) {
+			return false;
 		}
 
 		$linkPos = strripos( $line, $linkPrefix, $offset );
@@ -936,10 +908,19 @@ abstract class EchoDiscussionParser {
 			$attempt++;
 		}
 
-		$text = trim( strip_tags( htmlspecialchars_decode( MessageCache::singleton()->parse( $text )->getText() ) ) );
+		// See Parser::parse() function, &#160; is replaced specifically, replace it back here
+		// with a space as this html entity won't be handled by htmlspecialchars_decode()
+		$text = str_replace( '&#160;', ' ', MessageCache::singleton()->parse( $text )->getText() );
+		$text = trim( strip_tags( htmlspecialchars_decode( $text ) ) );
 		// strip out non-useful data for snippet
 		$text = str_replace( array( '{', '}' ), '', $text );
+		$text = $wgLang->truncate( $text, $length );
 
-		return $wgLang->truncate( $text, $length );
+		// Return empty string if there is undecoded char left
+		if ( strpos( $text, '&#' ) !== false ) {
+			$text = '';
+		}
+
+		return $text;
 	}
 }

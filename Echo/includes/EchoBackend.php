@@ -7,8 +7,6 @@
  */
 abstract class MWEchoBackend {
 
-	private static $cache = array();
-
 	/**
 	 * Factory to initialize a backend class
 	 * @param $backend string
@@ -24,35 +22,32 @@ abstract class MWEchoBackend {
 			throw new MWException( "$backend backend is not supported" );
 		}
 
-		if ( !isset( self::$cache[$backend] ) ) {
-			self::$cache[$backend] = new $className();
-		}
-
-		return self::$cache[$backend];
+		return new $className();
 	}
 
 	/**
-	 * Get the enabled events for a user, which excludes user-dismissed events
-	 * from the general enabled events
-	 * @param $user User
-	 * @param $outputFormat string
-	 * @return array
+	 * Extract the offset used for notification list
+	 *
+	 * @param $continue String Used for offset
+	 *
+	 * @throws MWException
+	 * @return int[]
 	 */
-	protected function getUserEnabledEvents( $user, $outputFormat ) {
-		global $wgEchoNotifications;
-		$eventTypesToLoad = $wgEchoNotifications;
-		foreach ( $eventTypesToLoad as $eventType => $eventData ) {
-			$category = EchoNotificationController::getNotificationCategory( $eventType );
-			// Make sure the user is eligible to recieve this type of notification
-			if ( !EchoNotificationController::getCategoryEligibility( $user, $category ) ) {
-				unset( $eventTypesToLoad[$eventType] );
+	protected function extractQueryOffset( $continue ) {
+		$offset = array (
+			'timestamp' => 0,
+			'offset' => 0,
+		);
+		if ( $continue ) {
+			$values = explode( '|', $continue, 3 );
+			if ( count( $values ) !== 2 ) {
+				throw new MWException( 'Invalid continue param: ' . $continue );
 			}
-			if ( !$user->getOption( 'echo-subscriptions-' . $outputFormat . '-' . $category ) ) {
-				unset( $eventTypesToLoad[$eventType] );
-			}
+			$offset['timestamp'] = (int)$values[0];
+			$offset['offset'] = (int)$values[1];
 		}
 
-		return array_keys( $eventTypesToLoad );
+		return $offset;
 	}
 
 	/**
@@ -64,13 +59,31 @@ abstract class MWEchoBackend {
 	/**
 	 * Load notifications based on the parameters
 	 * @param $user User the user to get notifications for
-	 * @param $unread bool true to get only unread notifications
 	 * @param $limit int The maximum number of notifications to return
-	 * @param $timestamp int The timestamp to start from
-	 * @param $offset int The notification event id to start from
+	 * @param $continue string Used for offset
+	 * @param $outputFormat string The output format of the notifications (web, email, etc.)
 	 * @return array
 	 */
-	abstract public function loadNotifications( $user, $unread, $limit, $timestamp, $offset );
+	abstract public function loadNotifications( $user, $limit, $continue, $outputFormat = 'web' );
+
+	/**
+	 * Get the bundle data for user/hash
+	 * @param $user User
+	 * @param $bundleHash string The hash used to identify a set of bundle-able events
+	 * @param $type string 'web'/'email'
+	 * @param $order 'ASC'/'DESC' Sort the result in ascending/descending order
+	 * @param $limit int the number of records to retrieve
+	 * @return ResultWrapper|bool
+	 */
+	abstract public function getRawBundleData( $user, $bundleHash, $type = 'web', $order = 'DESC', $limit = 250 );
+
+	/**
+	 * Get the last bundle stat - read_timestamp & bundle_display_hash
+	 * @param $user User
+	 * @param $bundleHash string The hash used to identify a set of bundle-able events
+	 * @return ResultWrapper|bool
+	 */
+	abstract public function getLastBundleStat( $user, $bundleHash );
 
 	/**
 	 * Create an Echo event
@@ -93,20 +106,6 @@ abstract class MWEchoBackend {
 	abstract public function updateEventExtra( $event );
 
 	/**
-	 * Create an Echo subscription
-	 * @param $conds array
-	 * @param $rows array
-	 */
-	abstract public function createSubscription( $conds, $rows );
-
-	/**
-	 * Load an Echo subscription
-	 * @param $conds array
-	 * @return ResultWrapper
-	 */
-	abstract public function loadSubscription( $conds );
-
-	/**
 	 * Mark notifications as read for a user
 	 * @param $user User
 	 * @param $eventIDs array
@@ -114,11 +113,26 @@ abstract class MWEchoBackend {
 	abstract public function markRead( $user, $eventIDs );
 
 	/**
+	 * Mark all unread notifications as read for a user
+	 * @param $user User
+	 */
+	abstract public function markAllRead( $user );
+
+	/**
 	 * Retrieves number of unread notifications that a user has.
 	 * @param $user User object to check notifications for
 	 * @param $dbSource string use master or slave storage to pull count
-	 * @return ResultWrapper|bool
+	 * @return int
 	 */
 	abstract public function getNotificationCount( $user, $dbSource );
+
+	/**
+	 * Get the event ids for corresponding unread notifications for an
+	 * event type
+	 * @param $user User object to check notification for
+	 * @param $type string event type
+	 * @return array
+	 */
+	abstract public function getUnreadNotifications( $user, $type );
 
 }

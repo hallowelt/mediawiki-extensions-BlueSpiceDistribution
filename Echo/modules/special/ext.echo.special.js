@@ -1,159 +1,160 @@
-( function( $, mw ) {
+( function ( $, mw ) {
 	'use strict';
 
 	mw.echo.special = {
 
-		'timestamp': 0,
-		'offset': 0,
-		'header': '',
-		'processing': false,
-		'moreData': '0',
+		notcontinue: null,
+		header: '',
+		processing: false,
 
 		/**
 		 * Initialize the property in special notification page.
 		 */
-		'initialize': function() {
-			var _this = this;
-			$( '#mw-echo-more' ).click(
-				function( e ) {
+		initialize: function () {
+			var skin = mw.config.get('skin');
+
+			// Convert more link into a button
+			$( '#mw-echo-more' )
+				.addClass( 'mw-ui-button mw-ui-primary' )
+				.css( 'margin', '0.5em 0 0 0' )
+				.click( function ( e ) {
 					e.preventDefault();
-					if ( !_this.processing ) {
-						_this.processing = true;
-						_this.loadMore();
+					if ( !mw.echo.special.processing ) {
+						mw.echo.special.processing = true;
+						mw.echo.special.loadMore();
 					}
 				}
 			);
-			_this.timestamp = mw.config.get( 'wgEchoStartTimestamp' );
-			_this.offset = mw.config.get( 'wgEchoStartOffset' );
-			_this.header = mw.config.get( 'wgEchoDateHeader' );
+			mw.echo.special.notcontinue = mw.config.get( 'wgEchoNextContinue' );
+			mw.echo.special.header = mw.config.get( 'wgEchoDateHeader' );
 
-			// Set up each individual notification with a close box and dismiss
-			// interface if it is dismissable.
-			$( '.mw-echo-notification' ).each( function() {
+			// Set up each individual notification with eventlogging, a close
+			// box and dismiss interface if it is dismissable.
+			$( '.mw-echo-notification' ).each( function () {
+				mw.echo.setupNotificationLogging( $( this ), 'archive' );
 				if ( $( this ).find( '.mw-echo-dismiss' ).length ) {
 					mw.echo.setUpDismissability( this );
 				}
 			} );
 
-			$( '<a/>' )
-				.attr( 'href', mw.config.get( 'wgEchoHelpPage' ) )
-				.attr( 'title', mw.msg( 'echo-more-info' ) )
-				.attr( 'id', 'mw-echo-moreinfo-link' )
-				.prop( 'target', '_blank' )
-				.appendTo( $( '#firstHeading' ) );
+			$( '#mw-echo-moreinfo-link' ).click( function () {
+				mw.echo.logInteraction( 'ui-help-click', 'archive' );
+			} );
+			$( '#mw-echo-pref-link' ).click( function () {
+				mw.echo.logInteraction( 'ui-prefs-click', 'archive' );
+			} );
 
-			$( '#mw-echo-pref-link' )
-				.appendTo( $( '#firstHeading' ) );
+			// Convert subtitle links into header icons for Vector and Monobook skins
+			if ( skin === 'vector' || skin === 'monobook' ) {
+				$( '#mw-echo-moreinfo-link, #mw-echo-pref-link' )
+					.empty()
+					.appendTo( '#firstHeading' );
+				$( '#contentSub' ).empty();
+			}
+
 		},
 
 		/**
 		 * Load more notification records.
 		 */
-		'loadMore': function() {
-			var api = new mw.Api(), notifications, data, container, $li, _this = this, unread = [];
+		loadMore: function () {
+			var api = new mw.Api( { ajax: { cache: false } } ),
+				notifications, data, container, $li, that = this, unread = [], apiData;
 
-			api.get(
-				{
-					'action' : 'query',
-					'meta' : 'notifications',
-					'notformat' : 'html',
-					'notprop' : 'index|list',
-					'nottimestamp': this.timestamp,
-					'notoffset': this.offset,
-					'notlimit': mw.config.get( 'wgEchoDisplayNum' )
-				},
-				{
-					'ok' : function( result ) {
-						container = $( '#mw-echo-special-container' );
-						notifications = result.query.notifications;
-						unread = [];
+			apiData = {
+				'action' : 'query',
+				'meta' : 'notifications',
+				'notformat' : 'html',
+				'notprop' : 'index|list',
+				'notcontinue': this.notcontinue,
+				'notlimit': mw.config.get( 'wgEchoDisplayNum' )
+			};
 
-						$.each( notifications.index, function( index, id ) {
-							data = notifications.list[id];
+			api.get( mw.echo.desktop.appendUseLang( apiData ) ).done( function ( result ) {
+				container = $( '#mw-echo-special-container' );
+				notifications = result.query.notifications;
+				unread = [];
 
-							if ( _this.header !== data.timestamp.date ) {
-								_this.header = data.timestamp.date;
-								$( '<li></li>' ).addClass( 'mw-echo-date-section' ).append( _this.header ).appendTo( container );
-							}
+				$.each( notifications.index, function ( index, id ) {
+					data = notifications.list[id];
 
-							$li = $( '<li></li>' )
-								.data( 'details', data )
-								.data( 'id', id )
-								.addClass( 'mw-echo-notification' )
-								.attr( 'data-notification-category', data.category )
-								.append( data['*'] )
-								.appendTo( container );
-
-							if ( !data.read ) {
-								$li.addClass( 'mw-echo-unread' );
-								unread.push( id );
-							}
-
-							if ( $li.find( '.mw-echo-dismiss' ).length ) {
-								mw.echo.setUpDismissability( $li );
-							}
-
-							// update the timestamp and offset to get data from
-							// this is used for next data retrieval
-							_this.timestamp = data.timestamp.unix;
-							_this.offset = data.id;
-						} );
-
-						_this.moreData = notifications.more;
-						if ( unread.length > 0 ) {
-							_this.markAsRead( unread );
-						} else {
-							_this.onSuccess();
-						}
-					},
-					'err' : function() {
-						_this.onError();
+					if ( that.header !== data.timestamp.date ) {
+						that.header = data.timestamp.date;
+						$( '<li></li>' ).addClass( 'mw-echo-date-section' ).append( that.header ).appendTo( container );
 					}
+
+					$li = $( '<li></li>' )
+						.data( 'details', data )
+						.data( 'id', id )
+						.addClass( 'mw-echo-notification' )
+						.attr( {
+							'data-notification-category': data.category,
+							'data-notification-event': data.id,
+							'data-notification-type': data.type
+						} )
+						.append( data['*'] )
+						.appendTo( container );
+
+					if ( !data.read ) {
+						$li.addClass( 'mw-echo-unread' );
+						unread.push( id );
+					}
+
+					mw.echo.setupNotificationLogging( $li, 'archive' );
+
+					if ( $li.find( '.mw-echo-dismiss' ).length ) {
+						mw.echo.setUpDismissability( $li );
+					}
+				} );
+
+				that.notcontinue = notifications['continue'];
+				if ( unread.length > 0 ) {
+					that.markAsRead( unread );
+				} else {
+					that.onSuccess();
 				}
-			);
+			} ).fail( function () {
+				that.onError();
+			} );
 		},
 
 		/**
 		 * Mark notifications as read.
 		 */
-		'markAsRead': function( unread ) {
-			var api = new mw.Api(), _this = this;
+		markAsRead: function ( unread ) {
+			var api = new mw.Api(), that = this;
 
-			api.get( {
-				'action' : 'query',
-				'meta' : 'notifications',
-				'notmarkread' : unread.join( '|' ),
-				'notprop' : 'count'
-			}, {
-				'ok' : function( result ) {
-					// update the badge if the link is enabled
-					if ( typeof result.query.notifications.count !== 'undefined' &&
-						$( '#pt-notifications').length && typeof mw.echo.overlay === 'object'
-					) {
-						mw.echo.overlay.updateCount( result.query.notifications.count );
-					}
-					_this.onSuccess();
-				},
-				'err': function() {
-					_this.onError();
+			api.post( mw.echo.desktop.appendUseLang( {
+				'action' : 'echomarkread',
+				'list' : unread.join( '|' ),
+				'token': mw.user.tokens.get( 'editToken' )
+			} ) ).done( function ( result ) {
+				// update the badge if the link is enabled
+				if ( result.query.echomarkread.count !== undefined &&
+					$( '#pt-notifications').length && typeof mw.echo.overlay === 'object'
+				) {
+					mw.echo.overlay.updateCount( result.query.echomarkread.count, result.query.echomarkread.rawcount );
 				}
+				that.onSuccess();
+			} ).fail( function () {
+				that.onError();
 			} );
 		},
 
-		'onSuccess': function() {
-			if ( this.moreData == '0' ) {
+		onSuccess: function () {
+			if ( !this.notcontinue ) {
 				$( '#mw-echo-more' ).hide();
 			}
 			this.processing = false;
 		},
 
-		'onError': function() {
+		onError: function () {
 			// Todo: Show detail error message based on error code
 			$( '#mw-echo-more' ).text( mw.msg( 'echo-load-more-error' ) );
 			this.processing = false;
 		}
 	};
 
-	mw.echo.special.initialize();
+	$( document ).ready( mw.echo.special.initialize );
 
 } )( jQuery, mediaWiki );
