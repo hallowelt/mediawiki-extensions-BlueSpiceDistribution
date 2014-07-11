@@ -84,7 +84,7 @@ class MWDbEchoBackend extends MWEchoBackend {
 				'echo_event' => array( 'LEFT JOIN', 'notification_event=event_id' ),
 			)
 		);
-
+error_log( $dbr->lastQuery() );
 		return iterator_to_array( $res, false );
 	}
 

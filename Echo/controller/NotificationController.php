@@ -361,7 +361,7 @@ class EchoNotificationController {
 	/**
 	 * INTERNAL.  Must be public to be callable by the php error handling methods.
 	 *
-	 * Converts E_RECOVERABLE_ERROR, such as passing null to a method expecting 
+	 * Converts E_RECOVERABLE_ERROR, such as passing null to a method expecting
 	 * a non-null object, into exceptions.
 	 */
 	public static function formatterErrorHandler( $errno, $errstr, $errfile, $errline ) {

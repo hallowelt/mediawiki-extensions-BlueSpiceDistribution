@@ -192,6 +192,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 				// Fallback in case icon is not configured; mainly intended for 'site'
 				$iconInfo = $wgEchoNotificationIcons['placeholder'];
 			}
+
 			if ( is_array( $iconInfo['path'] ) ) {
 				$dir = $wgLang->getDir();
 				if ( isset( $iconInfo['path'][$dir] ) ) {

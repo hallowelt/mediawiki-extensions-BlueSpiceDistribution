@@ -139,7 +139,7 @@ $wgExtensionFunctions[] = 'EchoHooks::initEchoExtension';
 
 $echoResourceTemplate = array(
 	'localBasePath' => $dir . 'modules',
-	'remoteExtPath' => 'Echo/modules',
+	'remoteExtPath' => 'BlueSpiceDistribution/Echo/modules',
 );
 
 $wgResourceModules += array(
@@ -376,7 +376,7 @@ $wgEchoNotificationCategories = array(
 	),
 );
 
-$echoIconPath = "Echo/modules/icons";
+$echoIconPath = "BlueSpiceDistribution/Echo/modules/icons";
 
 // Defines icons, which are 30x30 images. This is passed to BeforeCreateEchoEvent so
 // extensions can define their own icons with the same structure.  It is recommended that
