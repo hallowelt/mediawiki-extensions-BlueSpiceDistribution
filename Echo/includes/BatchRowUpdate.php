@@ -108,8 +108,6 @@ class EchoBatchRowUpdate {
 	 * string status updates
 	 *
 	 * @param callable $output A callback taking a single string parameter to output
-	 *
-	 * @throws MWException
 	 */
 	public function setOutput( $output ) {
 		if ( !is_callable( $output ) ) {
@@ -176,7 +174,7 @@ class EchoBatchRowWriter {
 	/**
 	 * @param DatabaseBase $db          The database to write to
 	 * @param string       $table       The name of the table to update
-	 * @param string|bool  $clusterName A cluster name valid for use with LBFactory
+	 * @param string       $clusterName A cluster name valid for use with LBFactory
 	 */
 	public function __construct( DatabaseBase $db, $table, $clusterName = false ) {
 		$this->db = $db;
@@ -192,7 +190,7 @@ class EchoBatchRowWriter {
 	public function write( array $updates ) {
 		$this->db->begin();
 
-		foreach ( $updates as $update ) {
+		foreach ( $updates as $id => $update ) {
 			//echo "Updating: ";var_dump( $update['primaryKey'] );
 			//echo "With values: ";var_dump( $update['changes'] );
 			$this->db->update(
@@ -265,8 +263,6 @@ class EchoBatchRowIterator implements Iterator {
 	 * @param string       $table      The name of the table to read from
 	 * @param string|array $primaryKey The name or names of the primary key columns
 	 * @param integer      $batchSize  The number of rows to fetch per iteration
-	 *
-	 * @throws MWException
 	 */
 	public function __construct( DatabaseBase $db, $table, $primaryKey, $batchSize ) {
 		if ( $batchSize < 1 ) {

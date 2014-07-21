@@ -46,12 +46,6 @@ TEXT
 		$this->assertEquals( 1, $match );
 	}
 
-	public function testGetTimestampPosition() {
-		$line = 'Hello World. '. self::getExemplarTimestamp();
-		$pos = EchoDiscussionParser::getTimestampPosition( $line );
-		$this->assertEquals( 13, $pos );
-	}
-
 	/**
 	 * @dataProvider signingDetectionData
 	 * FIXME some of the app logic is in the test...
@@ -415,6 +409,7 @@ TEXT
 
 	static public function provider_detectSectionTitleAndText() {
 		$name = 'TestUser';
+		$mention = 'Someone';
 		$comment = self::signedMessage( $name );
 
 		return array(

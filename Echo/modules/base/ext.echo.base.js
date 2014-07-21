@@ -7,11 +7,10 @@
 
 		/**
 		 * Set up event logging for individual notification
-		 * @param {jQuery} notification JQuery representing a single notification
+		 * @param {JQuery} notification JQuery representing a single notification
 		 * @param {string} context 'flyout'/'archive'
-		 * @param {boolean} [mobile] True if interaction was on a mobile device
 		 */
-		setupNotificationLogging: function ( notification, context, mobile ) {
+		setupNotificationLogging: function ( notification, context ) {
 			var eventId = +notification.attr( 'data-notification-event' ),
 				eventType = notification.attr( 'data-notification-type' );
 
@@ -20,22 +19,21 @@
 				return;
 			}
 			// Log the impression
-			mw.echo.logInteraction( 'notification-impression', context, eventId, eventType, mobile );
+			mw.echo.logInteraction( 'notification-impression', context, eventId, eventType );
 			// Set up logging for clickthrough
 			notification.find( 'a' ).click( function () {
-				mw.echo.logInteraction( 'notification-link-click', context, eventId, eventType, mobile );
+				mw.echo.logInteraction( 'notification-link-click', context, eventId, eventType );
 			} );
 		},
 
 		/**
 		 * Log all Echo interaction related events
-		 * @param {string} action The interaction
-		 * @param {string} [context] 'flyout'/'archive' or undefined for the badge
-		 * @param {int} [eventId] Notification event id
-		 * @param {string} [eventType] notification type
-		 * @param {boolean} [mobile] True if interaction was on a mobile device
+		 * @param {string} clickAction The interaction
+		 * @param {string} context 'flyout'/'archive' or undefined for the badge
+		 * @param {int} eventId Notification event id
+		 * @param {string} eventType notification type
 		 */
-		logInteraction: function ( action, context, eventId, eventType, mobile ) {
+		logInteraction: function ( action, context, eventId, eventType ) {
 			// Check if Schema:EchoInteraction is enabled
 			if ( !mw.echo.clickThroughEnabled ) {
 				return;
@@ -45,7 +43,7 @@
 				action: action
 			};
 
-			// All the fields below are optional
+			// All the three fields below are optional
 			if ( context ) {
 				myEvt.context = context;
 			}
@@ -54,9 +52,6 @@
 			}
 			if ( eventType ) {
 				myEvt.notificationType = eventType;
-			}
-			if ( mobile ) {
-				myEvt.mobile = mobile;
 			}
 			mw.loader.using( 'ext.eventLogging', function() {
 				mw.eventLog.logEvent( 'EchoInteraction', myEvt );

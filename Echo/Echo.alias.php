@@ -19,11 +19,6 @@ $specialPageAliases['ar'] = array(
 	'Notifications' => array( 'إشعارات' ),
 );
 
-/** Egyptian Spoken Arabic (مصرى) */
-$specialPageAliases['arz'] = array(
-	'Notifications' => array( 'اخطارات' ),
-);
-
 /** Min Dong Chinese (Mìng-dĕ̤ng-ngṳ̄) */
 $specialPageAliases['cdo'] = array(
 	'Notifications' => array( '提醒' ),
@@ -41,7 +36,7 @@ $specialPageAliases['de'] = array(
 
 /** Zazaki (Zazaki) */
 $specialPageAliases['diq'] = array(
-	'Notifications' => array( 'Mengeney' ),
+	'Notifications' => array( 'Tebliği' ),
 );
 
 /** Greek (Ελληνικά) */
@@ -77,21 +72,6 @@ $specialPageAliases['fi'] = array(
 /** Galician (galego) */
 $specialPageAliases['gl'] = array(
 	'Notifications' => array( 'Notificacións' ),
-);
-
-/** Hawaiian (Hawai`i) */
-$specialPageAliases['haw'] = array(
-	'Notifications' => array( 'Notikala' ),
-);
-
-/** Hebrew (עברית) */
-$specialPageAliases['he'] = array(
-	'Notifications' => array( 'הודעות', 'כל_ההודעות' ),
-);
-
-/** Upper Sorbian (hornjoserbsce) */
-$specialPageAliases['hsb'] = array(
-	'Notifications' => array( 'Zdźělenja' ),
 );
 
 /** Indonesian (Bahasa Indonesia) */
@@ -134,16 +114,6 @@ $specialPageAliases['ml'] = array(
 	'Notifications' => array( 'അറിയിപ്പുകൾ' ),
 );
 
-/** Maltese (Malti) */
-$specialPageAliases['mt'] = array(
-	'Notifications' => array( 'Notifiki' ),
-);
-
-/** Norwegian Bokmål (norsk bokmål) */
-$specialPageAliases['nb'] = array(
-	'Notifications' => array( 'Varsler' ),
-);
-
 /** Dutch (Nederlands) */
 $specialPageAliases['nl'] = array(
 	'Notifications' => array( 'Meldingen' ),
@@ -169,11 +139,6 @@ $specialPageAliases['pt-br'] = array(
 	'Notifications' => array( 'Notificações' ),
 );
 
-/** Quechua (Runa Simi) */
-$specialPageAliases['qu'] = array(
-	'Notifications' => array( 'Willaykuykuna' ),
-);
-
 /** Russian (русский) */
 $specialPageAliases['ru'] = array(
 	'Notifications' => array( 'Уведомления' ),
@@ -182,16 +147,6 @@ $specialPageAliases['ru'] = array(
 /** Sicilian (sicilianu) */
 $specialPageAliases['scn'] = array(
 	'Notifications' => array( 'Notifiche' ),
-);
-
-/** Serbian (Cyrillic script) (српски (ћирилица)‎) */
-$specialPageAliases['sr-ec'] = array(
-	'Notifications' => array( 'Обавештења' ),
-);
-
-/** Swedish (svenska) */
-$specialPageAliases['sv'] = array(
-	'Notifications' => array( 'Meddelanden' ),
 );
 
 /** Ukrainian (українська) */

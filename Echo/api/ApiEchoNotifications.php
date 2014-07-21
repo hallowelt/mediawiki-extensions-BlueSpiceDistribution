@@ -1,7 +1,6 @@
 <?php
 
 class ApiEchoNotifications extends ApiQueryBase {
-
 	public function __construct( $query, $moduleName ) {
 		parent::__construct( $query, $moduleName, 'not' );
 	}
@@ -18,6 +17,21 @@ class ApiEchoNotifications extends ApiQueryBase {
 		$notifUser = MWEchoNotifUser::newFromUser( $user );
 
 		$params = $this->extractRequestParams();
+
+		// @Todo - markread/markallread has been migrated to a separate new API module,
+		// any related code in this API should be removed in a follow-up patch so that
+		// anything integrated with markread will have time to switch to the new markread
+		// API, also to give client js code enough time to refresh
+		//
+		// There is no need to trigger markRead if all notifications are read
+		if ( $notifUser->getNotificationCount() > 0 ) {
+			if ( count( $params['markread'] ) ) {
+				// Make sure there is a limit to the update
+				$notifUser->markRead( array_slice( $params['markread'], 0, ApiBase::LIMIT_SML2 ) );
+			} elseif ( $params['markallread'] ) {
+				$notifUser->markAllRead();
+			}
+		}
 
 		$prop = $params['prop'];
 
@@ -60,10 +74,9 @@ class ApiEchoNotifications extends ApiQueryBase {
 	 * Get a list of notifications based on the passed parameters
 	 *
 	 * @param $user User the user to get notifications for
-	 * @param $format string|bool false to not format any notifications, string to a specific output format
+	 * @param $format string/bool false to not format any notifications, string to a specific output format
 	 * @param $limit int The maximum number of notifications to return
 	 * @param $continue string Used for offset
-	 *
 	 * @return array
 	 */
 	public static function getNotifications( $user, $format = false, $limit = 20, $continue = null ) {
@@ -126,14 +139,10 @@ class ApiEchoNotifications extends ApiQueryBase {
 			}
 
 			if ( $event->getAgent() ) {
-				if ( $event->userCan( Revision::DELETED_USER, $user ) ) {
-					$thisEvent['agent'] = array(
-						'id' => $event->getAgent()->getId(),
-						'name' => $event->getAgent()->getName(),
-					);
-				} else {
-					$thisEvent['agent'] = array( 'userhidden' => '' );
-				}
+				$thisEvent['agent'] = array(
+					'id' => $event->getAgent()->getId(),
+					'name' => $event->getAgent()->getName(),
+				);
 			}
 
 			if ( $row->notification_read_timestamp ) {
@@ -153,12 +162,9 @@ class ApiEchoNotifications extends ApiQueryBase {
 
 	/**
 	 * Internal helper function for converting UTC timezone to a user's timezone
-	 *
 	 * @param $user User
 	 * @param $ts string
-	 * @param $format int output format
-	 *
-	 * @return string
+	 * @param $format output format
 	 */
 	private static function getUserLocalTime( $user, $ts, $format = TS_MW ) {
 		$timestamp = new MWTimestamp( $ts );
@@ -176,6 +182,15 @@ class ApiEchoNotifications extends ApiQueryBase {
 					'index',
 				),
 				ApiBase::PARAM_DFLT => 'list',
+			),
+			'markread' => array(
+				ApiBase::PARAM_ISMULTI => true,
+				ApiBase::PARAM_DEPRECATED => true,
+			),
+			'markallread' => array(
+				ApiBase::PARAM_REQUIRED => false,
+				ApiBase::PARAM_TYPE => 'boolean',
+				ApiBase::PARAM_DEPRECATED => true,
 			),
 			'format' => array(
 				ApiBase::PARAM_TYPE => array(
@@ -200,6 +215,8 @@ class ApiEchoNotifications extends ApiQueryBase {
 	public function getParamDescription() {
 		return array(
 			'prop' => 'Details to request.',
+			'markread' => 'A list of notification IDs to mark as read',
+			'markallread' => "If set to true, marks all of a user's notifications as read",
 			'format' => 'If specified, notifications will be returned formatted this way.',
 			'index' => 'If specified, a list of notification IDs, in order, will be returned.',
 			'limit' => 'The maximum number of notifications to return.',
@@ -216,6 +233,7 @@ class ApiEchoNotifications extends ApiQueryBase {
 		return array(
 			'api.php?action=query&meta=notifications',
 			'api.php?action=query&meta=notifications&notprop=count',
+			'api.php?action=query&meta=notifications&notmarkread=8',
 		);
 	}
 

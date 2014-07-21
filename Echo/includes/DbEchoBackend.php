@@ -14,7 +14,7 @@ class MWDbEchoBackend extends MWEchoBackend {
 		$fname = __METHOD__;
 		$dbw->onTransactionIdle(
 			function() use ( $dbw, $row, $fname ) {
-				$dbw->startAtomic( $fname );
+				$dbw->begin( $fname );
 				// reset the base if this notification has a display hash
 				if ( $row['notification_bundle_display_hash'] ) {
 					$dbw->update(
@@ -31,7 +31,7 @@ class MWDbEchoBackend extends MWEchoBackend {
 
 				$row['notification_timestamp'] = $dbw->timestamp( $row['notification_timestamp'] );
 				$dbw->insert( 'echo_notification', $row, $fname );
-				$dbw->endAtomic( $fname );
+				$dbw->commit( $fname );
 
 				$user = User::newFromId( $row['notification_user'] );
 				MWEchoNotifUser::newFromUser( $user )->resetNotificationCount( DB_MASTER );
@@ -84,7 +84,7 @@ class MWDbEchoBackend extends MWEchoBackend {
 				'echo_event' => array( 'LEFT JOIN', 'notification_event=event_id' ),
 			)
 		);
-error_log( $dbr->lastQuery() );
+
 		return iterator_to_array( $res, false );
 	}
 

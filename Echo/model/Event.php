@@ -108,20 +108,17 @@ class EchoEvent {
 			}
 		}
 
-		// If the extra size is more than 50000 bytes, that means there is
-		// probably a problem with the design of this notification type.
-		// There might be data loss if the size exceeds the DB column size of
-		// event_extra.
-		if ( strlen( $obj->serializeExtra() ) > 50000 ) {
-			wfDebugLog( __CLASS__, __FUNCTION__ . ': event extra data is too huge for ' . $info['type'] );
-			return false;
-		}
-
 		if ( $obj->title ) {
 			if ( !$obj->title instanceof Title ) {
 				throw new MWException( 'Invalid title parameter' );
 			}
-			$obj->setTitle( $obj->title );
+			$pageId = $obj->title->getArticleId();
+			if ( $pageId ) {
+				$obj->pageId = $pageId;
+			} else {
+				$obj->extra['page_title'] = $obj->title->getDBKey();
+				$obj->extra['page_namespace'] = $obj->title->getNamespace();
+			}
 		}
 
 		if ( $obj->agent && !
@@ -194,7 +191,7 @@ class EchoEvent {
 	/**
 	 * Loads data from the provided $row into this object.
 	 *
-	 * @param $row stdClass row object from echo_event
+	 * @param $row Database row object from echo_event
 	 */
 	public function loadFromRow( $row ) {
 		$this->id = $row->event_id;
@@ -243,7 +240,7 @@ class EchoEvent {
 	/**
 	 * Creates an EchoEvent from a row object
 	 *
-	 * @param $row stdClass row object from echo_event
+	 * @param $row Database row object from echo_event
 	 * @return EchoEvent object.
 	 */
 	public static function newFromRow( $row ) {
@@ -295,7 +292,7 @@ class EchoEvent {
 	/**
 	 * Check if the event is dismissable for the given distribution type
 	 *
-	 * @param string $distribution notification distribution web/email
+	 * @param $distribution notification distribution web/email
 	 * @return bool
 	 */
 	public function isDismissable( $distribution ) {
@@ -390,9 +387,9 @@ class EchoEvent {
 		} elseif ( $this->pageId ) {
 			return $this->title = Title::newFromId( $this->pageId );
 		} elseif ( isset( $this->extra['page_title'], $this->extra['page_namespace'] ) ) {
-			return $this->title = Title::makeTitleSafe(
-				$this->extra['page_namespace'],
-				$this->extra['page_title']
+			return $this->title = Title::newFromText(
+				$this->extra['page_title'],
+				$this->extra['page_namespace']
 			);
 		}
 		return null;
@@ -416,34 +413,6 @@ class EchoEvent {
 	 */
 	public function getCategory() {
 		return EchoNotificationController::getNotificationCategory( $this->type );
-	}
-
-	public function setType( $type ) {
-		$this->type = $type;
-	}
-
-	public function setVariant( $variant ) {
-		$this->variant = $variant;
-	}
-
-	public function setAgent( User $agent ) {
-		$this->agent = $agent;
-	}
-
-	public function setTitle( Title $title ) {
-		$this->title = $title;
-		$pageId = $title->getArticleId();
-		if ( $pageId ) {
-			$this->pageId = $pageId;
-		} else {
-			$this->extra['page_title'] = $title->getDBKey();
-			$this->extra['page_namespace'] = $title->getNamespace();
-		}
-
-	}
-
-	public function setExtra( $name, $value ) {
-		$this->extra[$name] = $value;
 	}
 
 	/**

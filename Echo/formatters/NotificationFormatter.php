@@ -119,7 +119,7 @@ abstract class EchoNotificationFormatter {
 	 * @param $title Title object
 	 * @return string Text suitable for output format
 	 */
-	protected function formatTitle( Title $title ) {
+	protected function formatTitle( $title ) {
 		return $title->getPrefixedText();
 	}
 

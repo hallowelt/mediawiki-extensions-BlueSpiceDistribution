@@ -37,7 +37,7 @@ class EchoPageLinkFormatter extends EchoBasicFormatter {
 	 * link from Page B and X other pages
 	 * @param $event EchoEvent
 	 * @param $user User
-	 * @param $type string deprecated
+	 * @deprecated $type
 	 */
 	protected function generateBundleData( $event, $user, $type ) {
 		global $wgEchoMaxNotificationCount;
@@ -146,11 +146,11 @@ class EchoPageLinkFormatter extends EchoBasicFormatter {
 				if ( $this->bundleData['link-from-page-other-count'] > $wgEchoMaxNotificationCount ) {
 					$message->params(
 						$this->getMessage( 'echo-notification-count' )
-						->numParams( $wgEchoMaxNotificationCount )
+						->params( $wgEchoMaxNotificationCount )
 						->text()
 					);
 				} else {
-					$message->numParams( $this->bundleData['link-from-page-other-count'] );
+					$message->params( $this->bundleData['link-from-page-other-count'] );
 				}
 				break;
 

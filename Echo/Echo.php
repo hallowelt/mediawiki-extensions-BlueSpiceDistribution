@@ -43,7 +43,6 @@ $wgExtensionCredits['specialpage'][] = array(
 );
 
 $dir = dirname( __FILE__ ) . '/';
-$wgMessagesDirs['Echo'] = __DIR__ . '/i18n';
 $wgExtensionMessagesFiles['Echo'] = $dir . 'Echo.i18n.php';
 $wgExtensionMessagesFiles['EchoAliases'] = $dir . 'Echo.alias.php';
 
@@ -61,7 +60,6 @@ $wgAutoloadClasses['EchoNotificationFormatter'] = $dir . 'formatters/Notificatio
 $wgAutoloadClasses['EchoBasicFormatter'] = $dir . 'formatters/BasicFormatter.php';
 $wgAutoloadClasses['EchoEditFormatter'] = $dir . 'formatters/EditFormatter.php';
 $wgAutoloadClasses['EchoCommentFormatter'] = $dir . 'formatters/CommentFormatter.php';
-$wgAutoloadClasses['EchoMentionFormatter'] = $dir . 'formatters/MentionFormatter.php';
 $wgAutoloadClasses['EchoUserRightsFormatter'] = $dir . 'formatters/UserRightsFormatter.php';
 $wgAutoloadClasses['EchoPageLinkFormatter'] = $dir . 'formatters/PageLinkFormatter.php';
 $wgAutoloadClasses['EchoEditUserTalkFormatter'] = $dir . 'formatters/EditUserTalkFormatter.php';
@@ -132,14 +130,14 @@ $wgHooks['UserRights'][] = 'EchoHooks::onUserRights';
 $wgHooks['UserLoadOptions'][] = 'EchoHooks::onUserLoadOptions';
 $wgHooks['UserSaveOptions'][] = 'EchoHooks::onUserSaveOptions';
 $wgHooks['UserClearNewTalkNotification'][] = 'EchoHooks::onUserClearNewTalkNotification';
-$wgHooks['ParserTestTables'][] = 'EchoHooks::onParserTestTables';
 
 // Extension initialization
 $wgExtensionFunctions[] = 'EchoHooks::initEchoExtension';
 
 $echoResourceTemplate = array(
 	'localBasePath' => $dir . 'modules',
-	'remoteExtPath' => 'BlueSpiceDistribution/Echo/modules',
+	'remoteExtPath' => 'Echo/modules',
+	'group' => 'ext.echo',
 );
 
 $wgResourceModules += array(
@@ -195,7 +193,7 @@ $wgResourceModules += array(
 		'styles' => 'special/ext.echo.special.css',
 		'dependencies' => array(
 			'ext.echo.desktop',
-			'mediawiki.ui.button',
+			'mediawiki.ui',
 		),
 		'messages' => array(
 			'echo-load-more-error',
@@ -205,10 +203,16 @@ $wgResourceModules += array(
 		'position' => 'top',
 	),
 	'ext.echo.alert' => $echoResourceTemplate + array(
+		'scripts' => array(
+			'alert/ext.echo.alert.js',
+		),
 		'styles' => 'alert/ext.echo.alert.css',
 		'skinStyles' => array(
 			'modern' => 'alert/ext.echo.alert.modern.css',
 			'monobook' => 'alert/ext.echo.alert.monobook.css',
+		),
+		'messages' => array(
+			'echo-new-messages',
 		),
 	),
 	'ext.echo.badge' => $echoResourceTemplate + array(
@@ -241,7 +245,6 @@ $wgHooks['UserSaveSettings'][] = 'EchoHooks::onUserSaveSettings';
 
 // Disable ordinary user talk page email notifications
 $wgHooks['AbortTalkPageEmailNotification'][] = 'EchoHooks::onAbortTalkPageEmailNotification';
-$wgHooks['SendWatchlistEmailNotification'][] = 'EchoHooks::onSendWatchlistEmailNotification';
 // Disable the yellow bar of death
 $wgHooks['GetNewMessagesAlert'][] = 'EchoHooks::abortNewMessagesAlert';
 $wgHooks['LinksUpdateAfterInsert'][] = 'EchoHooks::onLinksUpdateAfterInsert';
@@ -276,8 +279,7 @@ $wgEchoEmailFooterAddress = '';
 // Should be defined in LocalSettings.php
 $wgNotificationSender = $wgPasswordSender;
 // Name for "from" on email notifications. Should be defined in LocalSettings.php
-// if null, uses 'emailsender' message
-$wgNotificationSenderName = null;
+$wgNotificationSenderName = $wgPasswordSenderName;
 // Name for "reply to" on email notifications. Should be defined in LocalSettings.php
 $wgNotificationReplyName = 'No Reply';
 
@@ -350,10 +352,6 @@ $wgEchoNotificationCategories = array(
 		'priority' => 9,
 		'no-dismiss' => array( 'all' ),
 	),
-	'user-rights' => array( // bug 55337
-		'priority' => 9,
-		'tooltip' => 'echo-pref-tooltip-user-rights',
-	),
 	'other' => array(
 		'no-dismiss' => array( 'all' ),
 	),
@@ -376,7 +374,7 @@ $wgEchoNotificationCategories = array(
 	),
 );
 
-$echoIconPath = "BlueSpiceDistribution/Echo/modules/icons";
+$echoIconPath = "Echo/modules/icons";
 
 // Defines icons, which are 30x30 images. This is passed to BeforeCreateEchoEvent so
 // extensions can define their own icons with the same structure.  It is recommended that
@@ -497,7 +495,7 @@ $wgEchoNotifications = array(
 		'secondary-link' => array( 'message' => 'notification-link-text-view-changes', 'destination' => 'diff' ),
 		'category' => 'mention',
 		'group' => 'interactive',
-		'formatter-class' => 'EchoMentionFormatter',
+		'formatter-class' => 'EchoCommentFormatter',
 		'title-message' => 'notification-mention',
 		'title-params' => array( 'agent', 'subject-anchor', 'title', 'section-title', 'main-title-text' ),
 		'flyout-message' => 'notification-mention-flyout',
@@ -510,7 +508,7 @@ $wgEchoNotifications = array(
 	),
 	'user-rights' => array(
 		'primary-link' => array( 'message' => 'echo-learn-more', 'destination' => 'user-rights-list' ),
-		'category' => 'user-rights',
+		'category' => 'system',
 		'group' => 'neutral',
 		'formatter-class' => 'EchoUserRightsFormatter',
 		'title-message' => 'notification-user-rights',
@@ -548,17 +546,16 @@ foreach ( $wgEchoNotificationCategories as $category => $categoryData ) {
 
 // most settings default to web on, email off, but override these
 $wgDefaultUserOptions['echo-subscriptions-email-system'] = true;
-$wgDefaultUserOptions['echo-subscriptions-email-user-rights'] = true;
 $wgDefaultUserOptions['echo-subscriptions-web-article-linked'] = false;
 
 // Echo Configuration for EventLogging
 $wgEchoConfig = array(
-	'version' => '1.5',
+	'version' => '1.4',
 	// default all eventlogging off, overwrite them in site configuration
 	'eventlogging' => array (
 		'Echo' => array (
 			'enabled' => false,
-			'revision' => 7572295,
+			'revision' => 5423520
 		),
 		'EchoMail' => array (
 			'enabled' => false,

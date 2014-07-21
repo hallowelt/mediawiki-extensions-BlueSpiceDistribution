@@ -558,7 +558,7 @@ abstract class EchoDiscussionParser {
 			return true;
 		}
 
-		list( , $foundUser ) = $userData;
+		list( $signaturePos, $foundUser ) = $userData;
 
 		return User::getCanonicalName( $foundUser, false ) === User::getCanonicalName( $user, false );
 	}
@@ -582,7 +582,7 @@ abstract class EchoDiscussionParser {
 			return false;
 		}
 
-		return $tsMatches[0][1];
+		return $tsMatches[0][0];
 	}
 
 	/**
@@ -618,6 +618,8 @@ abstract class EchoDiscussionParser {
 	 */
 	static function extractSignatures( $text ) {
 		$lines = explode( "\n", $text );
+		$timestampRegex = self::getTimestampRegex();
+		$endOfLine = self::getLineEndingRegex();
 
 		$output = array();
 
@@ -625,8 +627,13 @@ abstract class EchoDiscussionParser {
 
 		foreach ( $lines as $line ) {
 			++$lineNumber;
-			$timestampPos = self::getTimestampPosition( $line );
-			if ( !$timestampPos ) {
+			$tsMatches = array();
+			if ( !preg_match(
+				"/$timestampRegex$endOfLine/mu",
+				$line,
+				$tsMatches,
+				PREG_OFFSET_CAPTURE
+			) ) {
 				// Ignore lines that don't finish with a timestamp
 				// print "I\tNo timestamp\n";
 				// print "$line\n";
@@ -635,7 +642,7 @@ abstract class EchoDiscussionParser {
 
 			// Now that we know we have a timestamp, look for
 			// the last user link on the line.
-			$userData = self::getUserFromLine( $line, $timestampPos );
+			$userData = self::getUserFromLine( $line, $tsMatches[0][0] );
 			if ( $userData === false ) {
 				// print "F\t$lineNumber\t$line\n";
 				continue;
@@ -664,31 +671,11 @@ abstract class EchoDiscussionParser {
 	 */
 	static function getUserFromLine( $line, $timestampPos ) {
 		global $wgContLang;
-
-		// Later entries have a higher precedence
-		// @todo FIXME: handle optional whitespace in links
-		$languages = array( $wgContLang );
-		if ( $wgContLang->getCode() !== 'en' ) {
-			$languages[] = Language::factory( 'en' );
-		}
-
-		$possiblePrefixes = array();
-
-		foreach ( $languages as $language ) {
-			$nsNames = $language->getNamespaces();
-			$possiblePrefixes[] = '[[' . $nsNames[NS_USER] . ':';
-			$possiblePrefixes[] = '[[' . $nsNames[NS_USER_TALK] . ':';
-
-			$nsAliases = $language->getNamespaceAliases();
-			foreach ( $nsAliases as $text => $id ) {
-				if ( $id == NS_USER || $id == NS_USER_TALK ) {
-					$possiblePrefixes[] = '[[' . $text . ':';
-				}
-			}
-		}
-
-		// @todo FIXME: Check aliases too
-		$possiblePrefixes[] = '[[' . SpecialPage::getTitleFor( 'Contributions' )->getPrefixedText() . '/';
+		$possiblePrefixes = array( // Later entries have a higher precedence
+			'[[' . $wgContLang->getNsText( NS_USER ) . ':',
+			'[[' . $wgContLang->getNsText( NS_USER_TALK ) . ':',
+			'[[' . SpecialPage::getTitleFor( 'Contributions' )->getPrefixedText() . '/',
+		);
 
 		foreach ( $possiblePrefixes as $prefix ) {
 			if ( strpos( $prefix, '_' ) !== false ) {
@@ -751,11 +738,6 @@ abstract class EchoDiscussionParser {
 		// If extraction failed at another offset, try again.
 		if ( $failureOffset !== false ) {
 			$offset = $failureOffset - strlen( $line ) - 1;
-		}
-
-		// Avoid PHP warning: Offset is greater than the length of haystack string
-		if ( abs( $offset ) > strlen( $line ) ) {
-			return false;
 		}
 
 		$linkPos = strripos( $line, $linkPrefix, $offset );

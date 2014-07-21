@@ -2,6 +2,10 @@
 
 class ApiEchoMarkRead extends ApiBase {
 
+	public function __construct( $query, $moduleName ) {
+		parent::__construct( $query, $moduleName );
+	}
+
 	public function execute() {
 		// To avoid API warning, register the parameter used to bust browser cache
 		$this->getMain()->getVal( '_' );
