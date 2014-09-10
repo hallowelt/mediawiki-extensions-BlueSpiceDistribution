@@ -7,6 +7,7 @@ class BlueSpiceDistributionHooks {
 		if ( class_exists( "MobileContext" ) && MobileContext::singleton()->isMobileDevice() ) {
 			$out->addHeadItem( 'bluespice.mobile', "<link rel='stylesheet' href='" . $wgScriptPath . "/extensions/BlueSpiceDistribution/resources/bluespice.mobile.css'>" );
 		}
+		return true;
 	}
 
 	public static function onMinervaPreRender( MinervaTemplate $template ) {
@@ -36,6 +37,7 @@ class BlueSpiceDistributionHooks {
 			$wgResourceModules[$key]['remoteExtPath'] = "BlueSpiceDistribution/MobileFrontend";
 			$wgResourceModules[$key]['localTemplateBasePath'] = $IP . "/extensions/BlueSpiceDistribution/MobileFrontend/templates";
 		}
+		return true;
 	}
 
 }
