@@ -34,7 +34,9 @@ class MWDbEchoBackend extends MWEchoBackend {
 				$dbw->commit( $fname );
 
 				$user = User::newFromId( $row['notification_user'] );
-				MWEchoNotifUser::newFromUser( $user )->resetNotificationCount( DB_MASTER );
+				if ( !$user->isAnon() ) {
+					MWEchoNotifUser::newFromUser( $user )->resetNotificationCount( DB_MASTER );
+				}
 			}
 		);
 	}
