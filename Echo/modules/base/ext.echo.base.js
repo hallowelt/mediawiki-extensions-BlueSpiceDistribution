@@ -1,171 +1,72 @@
-( function ( $, mw ) {
+( function ( mw ) {
 	'use strict';
 
 	mw.echo = {
 
-		'optionsToken': '',
-
-		'dismissOutputFormats': ['web', 'email'],
+		clickThroughEnabled: mw.config.get( 'wgEchoConfig' ).eventlogging.EchoInteraction.enabled,
 
 		/**
-		 * Change the user's preferences related to this notification type and
-		 * reload the page.
+		 * Set up event logging for individual notification
+		 * @param {JQuery} notification JQuery representing a single notification
+		 * @param {string} context 'flyout'/'archive'
 		 */
-		'dismiss': function( notification ) {
-			var _this = this,
-				$notification = $( notification ),
-				eventCategory = $notification.attr( 'data-notification-category' ),
-				prefName = '',
-				prefs = [],
-				prefRequest = {};
-			$.each( mw.echo.dismissOutputFormats, function( index, format ) {
-				// Make sure output format pref exists for this event type
-				prefName = 'echo-subscriptions-' + format + '-' + eventCategory;
-				if ( mw.user.options.exists( prefName ) ) {
-					prefs.push( prefName + '=0' );
-				}
-			} );
-			prefRequest = {
-					'action': 'options',
-					'change': prefs.join( '|' ),
-					'token': mw.echo.optionsToken,
-					'format': 'json'
-				};
-			$.ajax( {
-				type: 'post',
-				url: mw.util.wikiScript( 'api' ),
-				data: prefRequest,
-				dataType: 'json',
-				success: function( data ) {
-					// If we're on the Notifications archive page, just refresh the page
-					if ( mw.config.get( 'wgCanonicalNamespace' ) === 'Special'
-						&& mw.config.get( 'wgCanonicalSpecialPageName' ) === 'Notifications' )
-					{
-						window.location.reload();
-					} else {
-						eventCategory = $notification.attr( 'data-notification-category' );
-						$( '.mw-echo-overlay li[data-notification-category="' + eventCategory + '"]' ).hide();
-						$notification.data( 'dismiss', false );
-					}
-				},
-				error: function() {
-					alert( mw.msg( 'echo-error-preference' ) );
-				}
+		setupNotificationLogging: function ( notification, context ) {
+			var eventId = +notification.attr( 'data-notification-event' ),
+				eventType = notification.attr( 'data-notification-type' );
+
+			// Check if Schema:EchoInteraction is enabled
+			if ( !mw.echo.clickThroughEnabled ) {
+				return;
+			}
+			// Log the impression
+			mw.echo.logInteraction( 'notification-impression', context, eventId, eventType );
+			// Set up logging for clickthrough
+			notification.find( 'a' ).click( function () {
+				mw.echo.logInteraction( 'notification-link-click', context, eventId, eventType );
 			} );
 		},
 
 		/**
-		 * Handle clicking the Dismiss button.
-		 * First we have to retrieve the options token.
+		 * Log all Echo interaction related events
+		 * @param {string} clickAction The interaction
+		 * @param {string} context 'flyout'/'archive' or undefined for the badge
+		 * @param {int} eventId Notification event id
+		 * @param {string} eventType notification type
 		 */
-		'setOptionsToken': function( callback, notification ) {
-			var _this = this;
-			var tokenRequest = {
-				'action': 'tokens',
-				'type' : 'options',
-				'format': 'json'
+		logInteraction: function ( action, context, eventId, eventType ) {
+			// Check if Schema:EchoInteraction is enabled
+			if ( !mw.echo.clickThroughEnabled ) {
+				return;
+			}
+
+			var myEvt = {
+				action: action
 			};
-			if ( this.optionsToken ) {
-				callback( notification );
-			} else {
-				$.ajax( {
-					type: 'get',
-					url: mw.util.wikiScript( 'api' ),
-					data: tokenRequest,
-					dataType: 'json',
-					success: function( data ) {
-						if ( typeof data.tokens.optionstoken === 'undefined' ) {
-							alert( mw.msg( 'echo-error-token' ) );
-						} else {
-							_this.optionsToken = data.tokens.optionstoken;
-							callback( notification );
-						}
-					},
-					error: function() {
-						alert( mw.msg( 'echo-error-token' ) );
-					}
-				} );
+
+			// All the three fields below are optional
+			if ( context ) {
+				myEvt.context = context;
 			}
-		},
-
-		/**
-		 * Show the dismiss interface (Dismiss and Cancel buttons).
-		 */
-		'showDismissOption': function( closeBox ) {
-			var $notification = $( closeBox ).parent();
-			$( closeBox ).hide();
-			$notification.data( 'dismiss', true );
-			$notification.height( $notification.find( '.mw-echo-dismiss' ).height() - 10 );
-			$notification.find( '.mw-echo-dismiss' )
-				// Make sure the dismiss interface exactly covers the notification
-				// Icon adds 45px to the notification
-				.width( $notification.width() - 45 )
-				.show();
-			// Temprorarily ungrey-out read notifications
-			if ( !$notification.hasClass( 'mw-echo-unread' ) ) {
-				$notification.find( '.mw-echo-state' ).css( 'filter', 'alpha(opacity=100)' );
-				$notification.find( '.mw-echo-state' ).css( 'opacity', '1.0' );
+			if ( eventId ) {
+				myEvt.eventId = eventId;
 			}
-		},
-
-		'setUpDismissability' : function( notification ) {
-			var $dismissButton,
-				$cancelButton,
-				_this = this,
-				$notification = $( notification );
-
-			// Add dismiss box
-			var $closebox = $( '<div/>' )
-				.addClass( 'mw-echo-close-box' )
-				.css( 'display', 'none' )
-				.click( function() {
-					_this.showDismissOption( this );
-				} );
-			$notification.append( $closebox );
-
-			// Add dismiss and cancel buttons
-			$dismissButton = $( '<button/>' )
-				.text( mw.msg( 'echo-dismiss-button' ) )
-				.addClass( 'mw-echo-dismiss-button' )
-				.addClass( 'ui-button-blue' )
-				.button( {
-					icons: { primary: "ui-icon-closethick" }
-				} )
-				.click( function () {
-					_this.setOptionsToken( _this.dismiss, $notification );
-				} );
-			$cancelButton = $( '<a/>' )
-				.text( mw.msg( 'cancel' ) )
-				.addClass( 'mw-echo-cancel-link' )
-				.click( function () {
-					$notification.data( 'dismiss', false );
-					$notification.find( '.mw-echo-dismiss' ).hide();
-					$notification.css( 'height', 'auto' );
-					$closebox.show();
-					// Restore greyed-out state for read notifications
-					if ( !$notification.hasClass( 'mw-echo-unread' ) ) {
-						$notification.find( '.mw-echo-state' ).css( 'filter', 'alpha(opacity=50)' );
-						$notification.find( '.mw-echo-state' ).css( 'opacity', '0.5' );
-					}
-				} );
-			$notification.find( '.mw-echo-dismiss' )
-				.append( $dismissButton )
-				.append( $cancelButton );
-
-			// Make each notification hot for dismissability
-			$notification.hover(
-				function() {
-					if ( !$( this ).data( 'dismiss' ) ) {
-						$( this ).find( '.mw-echo-close-box' ).show();
-					}
-				},
-				function() {
-					if ( !$( this ).data( 'dismiss' ) ) {
-						$( this ).find( '.mw-echo-close-box' ).hide();
-					}
-				}
-			);
+			if ( eventType ) {
+				myEvt.notificationType = eventType;
+			}
+			mw.loader.using( 'ext.eventLogging', function() {
+				mw.eventLog.logEvent( 'EchoInteraction', myEvt );
+			} );
 		}
 
 	};
-} )( jQuery, mediaWiki );
+
+	if ( mw.echo.clickThroughEnabled ) {
+		mw.loader.using( 'ext.eventLogging', function() {
+			mw.eventLog.setDefaults( 'EchoInteraction', {
+				version: mw.config.get( 'wgEchoConfig' ).version,
+				userId: +mw.config.get( 'wgUserId' ),
+				editCount: +mw.config.get( 'wgUserEditCount' )
+			} );
+		} );
+	}
+} )( mediaWiki );

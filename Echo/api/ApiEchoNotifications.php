@@ -6,37 +6,64 @@ class ApiEchoNotifications extends ApiQueryBase {
 	}
 
 	public function execute() {
+		// To avoid API warning, register the parameter used to bust browser cache
+		$this->getMain()->getVal( '_' );
+
 		$user = $this->getUser();
 		if ( $user->isAnon() ) {
 			$this->dieUsage( 'Login is required', 'login-required' );
 		}
 
+		$notifUser = MWEchoNotifUser::newFromUser( $user );
+
 		$params = $this->extractRequestParams();
-		if ( count( $params['markread'] ) ) {
-			EchoNotificationController::markRead( $user, $params['markread'] );
+
+		// @Todo - markread/markallread has been migrated to a separate new API module,
+		// any related code in this API should be removed in a follow-up patch so that
+		// anything integrated with markread will have time to switch to the new markread
+		// API, also to give client js code enough time to refresh
+		//
+		// There is no need to trigger markRead if all notifications are read
+		if ( $notifUser->getNotificationCount() > 0 ) {
+			if ( count( $params['markread'] ) ) {
+				// Make sure there is a limit to the update
+				$notifUser->markRead( array_slice( $params['markread'], 0, ApiBase::LIMIT_SML2 ) );
+			} elseif ( $params['markallread'] ) {
+				$notifUser->markAllRead();
+			}
 		}
 
 		$prop = $params['prop'];
 
 		$result = array();
 		if ( in_array( 'list', $prop ) ) {
-			$result['list'] = self::getNotifications( $user, $params['unread'], $params['format'], $params['limit'] + 1, $params['timestamp'], $params['offset'] );
+			$result['list'] = self::getNotifications( $user, $params['format'], $params['limit'] + 1, $params['continue'] );
 
 			// check if there is more elements than we request
 			if ( count( $result['list'] ) > $params['limit'] ) {
-				array_pop( $result['list'] );
-				$result['more'] = '1';
+				$lastItem = array_pop( $result['list'] );
+				$result['continue'] = $lastItem['timestamp']['utcunix'] . '|' . $lastItem['id'];
 			} else {
-				$result['more'] = '0';
+				$result['continue'] = null;
 			}
+			$this->getResult()->setIndexedTagName( $result['list'], 'notification' );
 		}
 
 		if ( in_array( 'count', $prop ) ) {
-			$result['count'] = EchoNotificationController::getFormattedNotificationCount( $user );
+			$rawCount = $notifUser->getNotificationCount();
+			$result['rawcount'] = $rawCount;
+			$result['count'] = EchoNotificationController::formatNotificationCount( $rawCount );
 		}
 
 		if ( in_array( 'index', $prop ) ) {
-			$result['index'] = array_keys( $result['list'] );
+			$result['index'] = array();
+			foreach ( array_keys( $result['list'] ) as $key ) {
+				// Don't include the XML tag name ('_element' key)
+				if ( $key != '_element' ) {
+					$result['index'][] = $key;
+				}
+			}
+			$this->getResult()->setIndexedTagName( $result['index'], 'id' );
 		}
 
 		$this->getResult()->setIndexedTagName( $result, 'notification' );
@@ -47,64 +74,52 @@ class ApiEchoNotifications extends ApiQueryBase {
 	 * Get a list of notifications based on the passed parameters
 	 *
 	 * @param $user User the user to get notifications for
-	 * @param $unread Boolean true to get only unread notifications
-	 * @param $format string|bool false to not format any notifications, string to a specific output format
+	 * @param $format string/bool false to not format any notifications, string to a specific output format
 	 * @param $limit int The maximum number of notifications to return
-	 * @param $timestamp int The timestamp to start from
-	 * @param $offset int The notification event id to start from
+	 * @param $continue string Used for offset
 	 * @return array
 	 */
-	public static function getNotifications( $user, $unread = false, $format = false, $limit = 20, $timestamp = 0, $offset = 0 ) {
+	public static function getNotifications( $user, $format = false, $limit = 20, $continue = null ) {
 		global $wgEchoBackend;
 
 		$output = array();
 
 		// TODO: Make 'web' based on a new API param?
-		$res = $wgEchoBackend->loadNotifications( $user, $unread, $limit, $timestamp, $offset, 'web' );
+		$res = $wgEchoBackend->loadNotifications( $user, $limit, $continue, 'web' );
 
 		foreach ( $res as $row ) {
 			$event = EchoEvent::newFromRow( $row );
+			if ( $row->notification_bundle_base && $row->notification_bundle_display_hash ) {
+				$event->setBundleHash( $row->notification_bundle_display_hash );
+			}
 
-			$timestamp = new MWTimestamp( $row->notification_timestamp );
-			$timestampUnix = $timestamp->getTimestamp( TS_UNIX );
-			$timestampMw = $timestamp->getTimestamp( TS_MW );
+			$timestampMw = self::getUserLocalTime( $user, $row->notification_timestamp );
 
-			// start creating date section header
-			$today = wfTimestamp( TS_MW );
-			$yesterday = wfTimestamp( TS_MW, wfTimestamp( TS_UNIX, $today ) - 24 * 3600 );
-
-			if ( substr( $today, 4, 4 ) === substr( $timestampMw, 4, 4 ) ) {
+			// Start creating date section header
+			$now = wfTimestamp();
+			$dateFormat = substr( $timestampMw, 0, 8 );
+			if ( substr( self::getUserLocalTime( $user, $now ), 0, 8 ) === $dateFormat ) {
+				// 'Today'
 				$date = wfMessage( 'echo-date-today' )->escaped();
-			} elseif ( substr( $yesterday, 4, 4 ) === substr( $timestampMw, 4, 4 ) ) {
+			} elseif ( substr( self::getUserLocalTime( $user, $now - 86400 ), 0, 8 ) === $dateFormat ) {
+				// 'Yesterday'
 				$date = wfMessage( 'echo-date-yesterday' )->escaped();
 			} else {
-				$month = array(
-					'01' => 'january',
-					'02' => 'february',
-					'03' => 'march',
-					'04' => 'april',
-					'05' => 'may',
-					'06' => 'june',
-					'07' => 'july',
-					'08' => 'august',
-					'09' => 'september',
-					'10' => 'october',
-					'11' => 'november',
-					'12' => 'december'
-				);
-
-				$headerMonth = wfMessage( $month[substr( $timestampMw, 4, 2 )] )->text();
-				$headerDate  = substr( $timestampMw, 6, 2 ).'. ';
-				$date = wfMessage( 'echo-date-header' )->params( $headerDate, $headerMonth )->escaped();
+				// 'May 10' or '10 May' (depending on user's date format preference)
+				$lang = RequestContext::getMain()->getLanguage();
+				$dateFormat = $lang->getDateFormatString( 'pretty', $user->getDatePreference() ?: 'default' );
+				$date = $lang->sprintfDate( $dateFormat, $timestampMw );
 			}
-			// end creating date section header
+			// End creating date section header
 
 			$thisEvent = array(
 				'id' => $event->getId(),
 				'type' => $event->getType(),
-				'category' => EchoNotificationController::getNotificationCategory( $event->getType() ),
+				'category' => $event->getCategory(),
 				'timestamp' => array(
-					'unix' => $timestampUnix,
+					// UTC timestamp in UNIX format used for loading more notification
+					'utcunix' => wfTimestamp( TS_UNIX, $row->notification_timestamp ),
+					'unix' => self::getUserLocalTime( $user, $row->notification_timestamp, TS_UNIX ),
 					'mw' => $timestampMw,
 					'date' => $date
 				),
@@ -145,6 +160,18 @@ class ApiEchoNotifications extends ApiQueryBase {
 		return $output;
 	}
 
+	/**
+	 * Internal helper function for converting UTC timezone to a user's timezone
+	 * @param $user User
+	 * @param $ts string
+	 * @param $format output format
+	 */
+	private static function getUserLocalTime( $user, $ts, $format = TS_MW ) {
+		$timestamp = new MWTimestamp( $ts );
+		$timestamp->offsetForUser( $user );
+		return $timestamp->getTimestamp( $format );
+	}
+
 	public function getAllowedParams() {
 		return array(
 			'prop' => array(
@@ -158,8 +185,13 @@ class ApiEchoNotifications extends ApiQueryBase {
 			),
 			'markread' => array(
 				ApiBase::PARAM_ISMULTI => true,
+				ApiBase::PARAM_DEPRECATED => true,
 			),
-			'unread' => false,
+			'markallread' => array(
+				ApiBase::PARAM_REQUIRED => false,
+				ApiBase::PARAM_TYPE => 'boolean',
+				ApiBase::PARAM_DEPRECATED => true,
+			),
 			'format' => array(
 				ApiBase::PARAM_TYPE => array(
 					'text',
@@ -168,18 +200,15 @@ class ApiEchoNotifications extends ApiQueryBase {
 				),
 			),
 			'limit' => array(
-				ApiBase::PARAM_TYPE => 'integer',
+				ApiBase::PARAM_TYPE => 'limit',
 				ApiBase::PARAM_DFLT => 20,
-				ApiBase::PARAM_MAX => 50,
 				ApiBase::PARAM_MIN => 1,
+				ApiBase::PARAM_MAX => ApiBase::LIMIT_SML1,
+				ApiBase::PARAM_MAX2 => ApiBase::LIMIT_SML2,
 			),
 			'index' => false,
-			'offset' => array(
-				ApiBase::PARAM_TYPE => 'integer',
-			),
-			'timestamp' => array(
-				ApiBase::PARAM_TYPE => 'integer',
-			),
+			'continue' => null,
+			'uselang' => null
 		);
 	}
 
@@ -187,12 +216,12 @@ class ApiEchoNotifications extends ApiQueryBase {
 		return array(
 			'prop' => 'Details to request.',
 			'markread' => 'A list of notification IDs to mark as read',
-			'unread' => 'Request only unread notifications',
+			'markallread' => "If set to true, marks all of a user's notifications as read",
 			'format' => 'If specified, notifications will be returned formatted this way.',
 			'index' => 'If specified, a list of notification IDs, in order, will be returned.',
 			'limit' => 'The maximum number of notifications to return.',
-			'offset' => 'Notification event id to start from (requires timestamp param to be passed as well)',
-			'timestamp' => 'Timestamp to start from',
+			'continue' => 'When more results are available, use this to continue',
+			'uselang' => 'the desired language to format the output'
 		);
 	}
 

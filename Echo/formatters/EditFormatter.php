@@ -9,34 +9,32 @@ class EchoEditFormatter extends EchoBasicFormatter {
 	 * @param $user User
 	 */
 	protected function processParam( $event, $param, $message, $user ) {
-		if ( $param === 'difflink' ) {
-			$eventData = $event->getExtra();
-			if ( !isset( $eventData['revid'] ) ) {
+		if ( $param === 'subject-anchor' ) {
+			$message->params( $this->formatSubjectAnchor( $event ) );
+		} elseif ( $param === 'section-title' ) {
+			$message->params( $this->getSectionTitle( $event, $user ) );
+		} elseif ( $param === 'difflink' ) {
+			$revid = $event->getExtraParam( 'revid' );
+			if ( !$revid ) {
 				$message->params( '' );
 				return;
 			}
 			$props = array(
-				'class' => 'mw-echo-diff',
-				'linkText' => wfMessage( 'parentheses', wfMessage( 'showdiff' )->text() )->escaped(),
+				'attribs' => array( 'class' => 'mw-echo-diff' ),
+				'linkText' => $this->getMessage( 'parentheses' )
+						->params(
+							$this->getMessage( 'showdiff' )->text()
+						)->escaped(),
 				'param' => array(
-					'oldid' => $eventData['revid'],
+					'oldid' => $revid,
 					'diff' => 'prev',
-				)
+				),
+				// Set fragment to empty string for diff links
+				'fragment' => ''
 			);
 			$this->setTitleLink( $event, $message, $props );
-		} elseif ( $param === 'titlelink' ) {
-			$this->setTitleLink( $event, $message );
 		} elseif ( $param === 'summary' ) {
-			$eventData = $event->getExtra();
-			if ( !isset( $eventData['revid'] ) ) {
-				$message->params( '' );
-				return;
-			}
-
-			$revision = Revision::newFromId( $eventData['revid'] );
-			if ( $revision ) {
-				$message->params( $revision->getComment( Revision::FOR_THIS_USER, $user ) );
-			}
+			$message->params( $this->getRevisionSnippet( $event, $user ) );
 		} elseif ( $param === 'number' ) {
 			$eventData = $event->getExtra();
 			// The folliwing is a bit of a hack...
@@ -52,5 +50,23 @@ class EchoEditFormatter extends EchoBasicFormatter {
 		} else {
 			parent::processParam( $event, $param, $message, $user );
 		}
+	}
+
+	/**
+	 * Get the section title for a talk page post
+	 * @param $event EchoEvent
+	 * @param $user User
+	 * @return string
+	 */
+	protected function getSectionTitle( $event, $user ) {
+		$extra = $event->getExtra();
+
+		if ( !empty( $extra['section-title'] ) ) {
+			if ( $event->userCan( Revision::DELETED_TEXT, $user ) ) {
+				return EchoDiscussionParser::getTextSnippet( $extra['section-title'], 30 );
+			}
+		}
+
+		return '';
 	}
 }

@@ -1,0 +1,7 @@
+.svn
+*~
+*.kate-swp
+.*.swp
+BlueSpiceDistribution.php
+/BlueSpiceDistribution.php
+Thumbs.db
