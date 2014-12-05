@@ -290,11 +290,19 @@ class RSSParser {
 		return $ret;
 	}
 
-	function sandboxParse($wikiText) {
-		global $wgTitle, $wgUser;
+	/**
+	 * @see https://bugzilla.wikimedia.org/show_bug.cgi?id=34763
+	 * @param string $wikiText
+	 * @param Parser $origParser
+	 * @return string
+	 */
+	protected function sandboxParse( $wikiText, $origParser ) {
 		$myParser = new Parser();
-		$myParserOptions = ParserOptions::newFromUser($wgUser);
-		$result = $myParser->parse($wikiText, $wgTitle, $myParserOptions);
+		$result = $myParser->parse(
+			$wikiText,
+			$origParser->getTitle(),
+			$origParser->getOptions()
+		);
 		return $result->getText();
 	}
 
@@ -328,7 +336,7 @@ class RSSParser {
 				}
 			}
 
-			$renderedFeed = $this->sandboxParse( $renderedFeed );
+			$renderedFeed = $this->sandboxParse( $renderedFeed, $parser );
 
 		}
 
@@ -355,31 +363,30 @@ class RSSParser {
 		// use the overloaded multi byte wrapper functions in GlobalFunctions.php
 
 		foreach ( array_keys( $item ) as $info ) {
-			switch ( $info ) {
-			// ATOM <id> elements and RSS <link> elements are item link urls
-			case 'id':
-				$txt = $this->sanitizeUrl( $item['id'] );
-				$renderedItem = str_replace( '{{{link}}}', $txt, $renderedItem );
-				break;
-			case 'link':
-				if ( !isset( $item['id'] ) ) {
+			if ( $item[$info] != "" ) {
+				switch ( $info ) {
+				// ATOM <id> elements and RSS <link> elements are item link urls
+				case 'id':
+					$txt = $this->sanitizeUrl( $item['id'] );
+					$renderedItem = str_replace( '{{{link}}}', $txt, $renderedItem );
+					break;
+				case 'link':
 					$txt = $this->sanitizeUrl( $item['link'] );
+					$renderedItem = str_replace( '{{{link}}}', $txt, $renderedItem );
+					break;
+				case 'date':
+					$tempTimezone = date_default_timezone_get();
+					date_default_timezone_set( 'UTC' );
+					$txt = date( $this->date, strtotime( $this->escapeTemplateParameter( $item['date'] ) ) );
+					date_default_timezone_set( $tempTimezone );
+					$renderedItem = str_replace( '{{{date}}}', $txt, $renderedItem );
+					break;
+				default:
+					$str = $this->escapeTemplateParameter( $item[$info] );
+					$str = $parser->getFunctionLang()->truncate( $str, $this->ItemMaxLength );
+					$str = $this->highlightTerms( $str );
+					$renderedItem = str_replace( '{{{' . $info . '}}}', $parser->insertStripItem( $str ), $renderedItem );
 				}
-				$renderedItem = str_replace( '{{{link}}}', $txt, $renderedItem );
-				break;
-			case 'date':
-				$tempTimezone = date_default_timezone_get();
-				date_default_timezone_set( 'UTC' );
-				$txt = date( $this->date, strtotime( $this->escapeTemplateParameter( $item['date'] ) ) );
-				date_default_timezone_set( $tempTimezone );
-				$renderedItem = str_replace( '{{{date}}}', $txt, $renderedItem );
-				break;
-			default:
-				$str = $this->escapeTemplateParameter( $item[$info] );
-				global $wgLang;
-				$str = $wgLang->truncate( $str, $this->ItemMaxLength );
-				$str = $this->highlightTerms( $str );
-				$renderedItem = str_replace( '{{{' . $info . '}}}', $parser->insertStripItem( $str ), $renderedItem );
 			}
 		}
 
@@ -399,7 +406,7 @@ class RSSParser {
 	 */
 	protected function sanitizeUrl( $url ) {
 		# Remove control characters
-		$url = preg_replace( '/[\000-\037\177]/', '', $url );
+		$url = preg_replace( '/[\000-\037\177]/', '', trim( $url ) );
 		# Escape other problematic characters
 		$out = '';
 		for ( $i = 0; $i < strlen( $url ); $i++ ) {
@@ -508,7 +515,10 @@ class RSSParser {
 			}
 
 			wfSuppressWarnings();
+			// Prevent loading external entities when parsing the XML (bug 46932)
+			$oldDisable = libxml_disable_entity_loader( true );
 			$this->xml->loadXML( $raw_xml );
+			libxml_disable_entity_loader( $oldDisable );
 			wfRestoreWarnings();
 
 			$this->rss = new RSSData( $this->xml );

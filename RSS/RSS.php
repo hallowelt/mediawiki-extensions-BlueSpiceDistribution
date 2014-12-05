@@ -4,7 +4,7 @@
  *
  * @file
  * @ingroup Extensions
- * @version 2.20
+ * @version 2.24
  * @author mutante, Daniel Kinzler, Rdb, Mafs, Thomas Gries, Alxndr, Chris Reigrut, K001
  * @author Kellan Elliott-McCrea <kellan@protest.net> -- author of MagpieRSS
  * @author Jeroen De Dauw
@@ -14,7 +14,7 @@
  * @link http://www.mediawiki.org/wiki/Extension:RSS Documentation
  */
 
-define( "EXTENSION_RSS_VERSION", "2.20 20130303" );
+define( "EXTENSION_RSS_VERSION", "2.25.0" );
 
 if ( !defined( 'MEDIAWIKI' ) ) {
 	die( "This is not a valid entry point.\n" );
@@ -34,12 +34,16 @@ $wgExtensionCredits['parserhook'][] = array(
 );
 
 // Internationalization file and autoloadable classes
-$dir = dirname( __FILE__ ) . '/';
+$dir = __DIR__ . '/';
+$wgMessagesDirs['RSS'] = __DIR__ . '/i18n';
 $wgExtensionMessagesFiles['RSS'] = $dir . 'RSS.i18n.php';
 $wgAutoloadClasses['RSSHooks'] = $dir . 'RSSHooks.php';
 $wgAutoloadClasses['RSSParser'] = $dir . 'RSSParser.php';
 $wgAutoloadClasses['RSSUtils'] = $dir . 'RSSParser.php';
 $wgAutoloadClasses['RSSData'] = $dir . 'RSSData.php';
+
+// List tracking category on Special:TrackingCategories
+$wgTrackingCategories[] = 'rss-tracking-category';
 
 $wgHooks['ParserFirstCallInit'][] = 'RSSHooks::parserInit';
 
