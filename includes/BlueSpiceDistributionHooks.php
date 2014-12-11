@@ -31,6 +31,7 @@ class BlueSpiceDistributionHooks {
 		//we don't want to hack our distribution extensions, so we're doing a modification here after it's been set
 		foreach ( $wgResourceModules as $key => $val ) {
 			$aKey = explode( ".", $key );
+			if ( !isset( $aKey[1] ) ) continue;
 			if ( $aKey[0] . "." . $aKey[1] != "skins.minerva" && $aKey[0] != "mobile" && $aKey[0] != "tablet" )
 				continue;
 			$wgResourceModules[$key]['localBasePath'] = $IP . "/extensions/BlueSpiceDistribution/MobileFrontend";
