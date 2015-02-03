@@ -2,7 +2,7 @@
 
 $IP = getenv( 'MW_INSTALL_PATH' );
 if ( $IP === false )
-	$IP = dirname( __FILE__ ) . '/../..';
+	$IP = dirname( __FILE__ ) . '/../../..';
 
 require_once( "$IP/maintenance/Maintenance.php" );
 
@@ -25,7 +25,7 @@ class RebuildTitleKeys extends Maintenance {
 		$dbr = $this->getDB( DB_SLAVE );
 
 		$maxId = $dbr->selectField( 'page', 'MAX(page_id)', '', __METHOD__ );
-		
+
 		$lastId = 0;
 		for( ; $start <= $maxId; $start += $this->mBatchSize ) {
 			if( $start != 0 ) {
@@ -38,7 +38,7 @@ class RebuildTitleKeys extends Maintenance {
 				array(
 					'ORDER BY' => 'page_id',
 					'LIMIT' => $this->mBatchSize ) );
-			
+
 			$titles = array();
 			foreach( $result as $row ) {
 				$titles[$row->page_id] =
@@ -46,9 +46,9 @@ class RebuildTitleKeys extends Maintenance {
 				$lastId = $row->page_id;
 			}
 			$result->free();
-			
+
 			TitleKey::setBatchKeys( $titles );
-			
+
 			wfWaitForSlaves( 20 );
 		}
 		if( $lastId ) {
