@@ -152,7 +152,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 *
 	 * @param $event EchoEvent that the notification is for.
 	 * @param $user User to format the notification for.
-	 * @deprecated $type
+	 * @param $type string deprecated
 	 */
 	protected function applyChangeBeforeFormatting( EchoEvent $event, User $user, $type ) {
 		// Use the bundle message if use-bundle is true and there is a bundle message
@@ -171,7 +171,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 * @return array|string
 	 */
 	public function format( $event, $user, $type ) {
-		global $wgExtensionAssetsPath, $wgEchoNotificationIcons;
+		global $wgExtensionAssetsPath, $wgEchoNotificationIcons, $wgLang;
 
 		$this->setDistributionType( $type );
 		$this->applyChangeBeforeFormatting( $event, $user, $type );
@@ -192,7 +192,18 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 				// Fallback in case icon is not configured; mainly intended for 'site'
 				$iconInfo = $wgEchoNotificationIcons['placeholder'];
 			}
-			$iconUrl = "$wgExtensionAssetsPath/{$iconInfo['path']}";
+			if ( is_array( $iconInfo['path'] ) ) {
+				$dir = $wgLang->getDir();
+				if ( isset( $iconInfo['path'][$dir] ) ) {
+					$path = $iconInfo['path'][$dir];
+				} else {
+					wfDebugLog( 'Echo', "The \"{$this->icon}\" icon does not have anything set for $dir direction." );
+					$path = $wgEchoNotificationIcons['placeholder']['path']; // Fallback
+				}
+			} else {
+				$path = $iconInfo['path'];
+			}
+			$iconUrl = "$wgExtensionAssetsPath/$path";
 		}
 
 		// Assume html as the format for the notification
@@ -257,7 +268,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 *
 	 * @param $event EchoEvent
 	 * @param $user User
-	 * @deprecated $type
+	 * @param $type string deprecated
 	 * @return array
 	 */
 	protected function formatEmail( $event, $user, $type ) {
@@ -534,7 +545,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 * Get raw bundle data for an event so it can be manipulated
 	 * @param $event EchoEvent
 	 * @param $user User
-	 * @deprecated $type
+	 * @param $type string deprecated
 	 * @return ResultWrapper|bool
 	 */
 	protected function getRawBundleData( $event, $user, $type ) {
@@ -565,7 +576,8 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 * this function to use a differnt group iterator such as title, namespace
 	 * @param $event EchoEvent
 	 * @param $user User
-	 * @deprecated $type
+	 * @param $type string deprecated
+	 * @throws MWException
 	 */
 	protected function generateBundleData( $event, $user, $type ) {
 		global $wgEchoMaxNotificationCount;
@@ -813,20 +825,20 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 				}
 			}
 		// example: {7} others, {99+} others
-		} elseif ( $param === 'agent-other-display') {
+		} elseif ( $param === 'agent-other-display' ) {
 			global $wgEchoMaxNotificationCount;
 
 			if ( $this->bundleData['agent-other-count'] > $wgEchoMaxNotificationCount ) {
 				$message->params(
 					$this->getMessage( 'echo-notification-count' )
-					->params( $wgEchoMaxNotificationCount )
+					->numParams( $wgEchoMaxNotificationCount )
 					->text()
 				);
 			} else {
-				$message->params( $this->bundleData['agent-other-count'] );
+				$message->numParams( $this->bundleData['agent-other-count'] );
 			}
 		// the number used for plural support
-		} elseif ( $param === 'agent-other-count') {
+		} elseif ( $param === 'agent-other-count' ) {
 			$message->params( $this->bundleData['agent-other-count'] );
 		} elseif ( $param === 'user' ) {
 			$message->params( $user->getName() );

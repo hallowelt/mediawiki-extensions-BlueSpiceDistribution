@@ -2,6 +2,9 @@
 ( function ( $, mw ) {
 	'use strict';
 
+	// backwards compatibility <= MW 1.21
+	var getUrl = mw.util.getUrl || mw.util.wikiGetlink;
+
 	mw.echo.overlay = {
 
 		/**
@@ -21,9 +24,15 @@
 
 		configuration: mw.config.get( 'wgEchoOverlayConfiguration' ),
 
+		removeOverlay: function () {
+			$( '.mw-echo-overlay, .mw-echo-overlay-pokey' ).fadeOut( 'fast',
+				function () { $( this ).remove(); }
+			);
+		},
+
 		buildOverlay: function ( callback ) {
 			var notificationLimit,
-				$overlay = $( '<div></div>' ).addClass( 'mw-echo-overlay' ),
+				$overlay = $( '<div>' ).addClass( 'mw-echo-overlay' ),
 				$prefLink = $( '#pt-preferences a' ),
 				count = 0,
 				apiData,
@@ -51,10 +60,10 @@
 					unread = [],
 					unreadTotalCount = result.query.notifications.count,
 					unreadRawTotalCount = result.query.notifications.rawcount,
-					$title = $( '<div class="mw-echo-overlay-title"></div>' ),
-					$ul = $( '<ul class="mw-echo-notifications"></ul>' ),
-					titleText = '',
-					overflow = false,
+					$title = $( '<div>' ).addClass( 'mw-echo-overlay-title' ),
+					$ul = $( '<ul>' ).addClass( 'mw-echo-notifications' ),
+					titleText,
+					overflow,
 					$overlayFooter,
 					$markReadButton;
 
@@ -65,7 +74,7 @@
 				$.each( notifications.index, function ( index, id ) {
 					var $wrapper,
 						data = notifications.list[id],
-						$li = $( '<li></li>' )
+						$li = $( '<li>' )
 							.data( 'details', data )
 							.data( 'id', id )
 							.attr( {
@@ -73,9 +82,19 @@
 								'data-notification-event': data.id,
 								'data-notification-type': data.type
 							} )
-							.addClass( 'mw-echo-notification' )
-							.append( data['*'] )
-							.appendTo( $ul );
+							.addClass( 'mw-echo-notification' );
+
+					if ( !data.read ) {
+						$li.addClass( 'mw-echo-unread' );
+						unread.push( id );
+					}
+
+					if ( !data['*'] ) {
+						return;
+					}
+
+					$li.append( data['*'] )
+						.appendTo( $ul );
 
 					// Grey links in the notification title and footer (except on hover)
 					$li.find( '.mw-echo-title a, .mw-echo-notification-footer a' )
@@ -109,11 +128,6 @@
 
 					mw.echo.setupNotificationLogging( $li, 'flyout' );
 
-					if ( !data.read ) {
-						$li.addClass( 'mw-echo-unread' );
-						unread.push( id );
-					}
-
 					// Set up each individual notification with a close box and dismiss
 					// interface if it is dismissable.
 					if ( $li.find( '.mw-echo-dismiss' ).length ) {
@@ -130,31 +144,12 @@
 						);
 						overflow = true;
 					} else {
-						titleText =  mw.msg( 'echo-overlay-title' );
+						titleText = mw.msg( 'echo-overlay-title' );
+						overflow = false;
 					}
 				} else {
 					titleText = mw.msg( 'echo-none' );
 				}
-
-				$markReadButton = $( '<button>' )
-					.addClass( 'mw-ui-button' )
-					.attr( 'id', 'mw-echo-mark-read-button' )
-					.text( mw.msg( 'echo-mark-all-as-read' ) )
-					.click( function ( e ) {
-						e.preventDefault();
-						api.post( mw.echo.desktop.appendUseLang( {
-							'action' : 'echomarkread',
-							'all' : true,
-							'token': mw.user.tokens.get( 'editToken' )
-						} ) ).done( function ( result ) {
-							if ( result.query.echomarkread.count !== undefined ) {
-								count = result.query.echomarkread.count;
-								mw.echo.overlay.updateCount( count, result.query.echomarkread.rawcount );
-								// Reset header to 'Notifications'
-								$( '#mw-echo-overlay-title-text').msg( 'echo-overlay-title' );
-							}
-						} );
-					} );
 
 				// If there are more unread notifications than can fit in the overlay,
 				// but fewer than the maximum count, show the 'mark all as read' button.
@@ -164,6 +159,25 @@
 				if ( overflow && unreadRawTotalCount < mw.echo.overlay.configuration['max-notification-count']
 				) {
 					// Add the 'mark all as read' button to the title area
+					$markReadButton = $( '<button>' )
+						.addClass( 'mw-ui-button' )
+						.attr( 'id', 'mw-echo-mark-read-button' )
+						.text( mw.msg( 'echo-mark-all-as-read' ) )
+						.click( function ( e ) {
+							e.preventDefault();
+							api.post( mw.echo.desktop.appendUseLang( {
+								'action' : 'echomarkread',
+								'all' : true,
+								'token': mw.user.tokens.get( 'editToken' )
+							} ) ).done( function ( result ) {
+								if ( result.query.echomarkread.count !== undefined ) {
+									count = result.query.echomarkread.count;
+									mw.echo.overlay.updateCount( count, result.query.echomarkread.rawcount );
+									// Reset header to 'Notifications'
+									$( '#mw-echo-overlay-title-text' ).html( mw.msg( 'echo-overlay-title' ) );
+								}
+							} );
+						} );
 					$title.append( $markReadButton );
 				}
 
@@ -199,7 +213,7 @@
 					$( '<a>' )
 						.attr( 'id', 'mw-echo-overlay-link' )
 						.addClass( 'mw-echo-grey-link' )
-						.attr( 'href', mw.util.wikiGetlink( 'Special:Notifications' ) )
+						.attr( 'href', getUrl( 'Special:Notifications' ) )
 						.text( mw.msg( 'echo-overlay-link' ) )
 						.click( function () {
 							mw.echo.logInteraction( 'ui-archive-link-click', 'flyout' );
@@ -264,52 +278,72 @@
 		}
 
 		$link.click( function ( e ) {
-			var $target, $overlay;
-
-			e.preventDefault();
+			var $target;
 
 			// log the badge click
 			mw.echo.logInteraction( 'ui-badge-link-click' );
 
+			// If the link is not near the top of the window, showing the overlay below it
+			// will likely look very silly, so let's not do this and just go the special page
+			if ( $link.offset().top > 0.2 * $( window ).height() ) {
+				return;
+			}
+
+			e.preventDefault();
+
 			$target = $( e.target );
-			// If the user clicked on the overlay or any child,
-			//  ignore the click
-			if ( $target.hasClass( 'mw-echo-overlay' ) ||
-				$target.is( 'mw-echo-overlay *' )
-			) {
+			// If the user clicked on the overlay or any child, ignore the click
+			if ( $target.hasClass( 'mw-echo-overlay' ) || $target.is( '.mw-echo-overlay *' ) ) {
 				return;
 			}
 
-			$overlay = $( '.mw-echo-overlay' );
-
-			if ( $overlay.length ) {
-				$overlay.fadeOut( 'fast',
-					function () { $overlay.remove(); }
-				);
+			if ( $( '.mw-echo-overlay' ).length ) {
+				mw.echo.overlay.removeOverlay();
 				return;
 			}
 
-			$overlay = mw.echo.overlay.buildOverlay(
+			mw.echo.overlay.buildOverlay(
 				function ( $overlay ) {
 					$overlay
 						.hide()
 						.appendTo( $( '#pt-notifications' ) );
+
 					// Create the pokey (aka chevron)
-					$( '.mw-echo-overlay' ).before( $( '<div>' ).addClass( 'mw-echo-overlay-pokey' ) );
+					$overlay.before( $( '<div>' ).addClass( 'mw-echo-overlay-pokey' ) );
 
 					mw.hook( 'ext.echo.overlay.beforeShowingOverlay' ).fire( $overlay );
 
 					// Show the notifications overlay
 					$overlay.show();
-				} );
+
+					// Make sure the overlay is visible, even if the badge is near the edge of browser window.
+					// 10 is an arbitrarily chosen "close enough" number.
+					// We are careful not to slide out from below the pokey (which is 21px wide) (200-21/2+1 == 189)
+					var
+						offset = $overlay.offset(),
+						width = $overlay.width(),
+						windowWidth = $( window ).width();
+					if ( offset.left < 10 ) {
+						$overlay.css( 'left', '+=' + Math.min( 189, 10 - offset.left ) );
+					} else if ( offset.left + width > windowWidth - 10 ) {
+						$overlay.css( 'left', '-=' + Math.min( 189, ( offset.left + width ) - ( windowWidth - 10 ) ) );
+					}
+				}
+			);
 		} );
 
 		$( 'body' ).click( function ( e ) {
-			if ( ! $( e.target ).is( '.mw-echo-overlay, .mw-echo-overlay *, .mw-echo-overlay-pokey' ) ) {
-				$( '.mw-echo-overlay, .mw-echo-overlay-pokey' ).fadeOut( 'fast',
-					function () { $( this ).remove(); }
-				);
+			if ( ! $( e.target ).is( '.mw-echo-overlay, .mw-echo-overlay *, .mw-echo-overlay-pokey, #pt-notifications a' ) ) {
+				mw.echo.overlay.removeOverlay();
 			}
 		} );
+
+		// Closes the notifications overlay when ESC key pressed
+		$( document ).on( 'keydown', function ( e ) {
+			if ( e.which === 27 ) {
+				mw.echo.overlay.removeOverlay();
+			}
+		} );
+
 	} );
 } )( jQuery, mediaWiki );

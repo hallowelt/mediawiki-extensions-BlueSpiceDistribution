@@ -169,7 +169,7 @@ abstract class EchoEmailMode {
 	 * @return string
 	 */
 	public static function getNotifIcon( $icon ) {
-		global $wgEchoNotificationIcons, $wgExtensionAssetsPath;
+		global $wgEchoNotificationIcons, $wgExtensionAssetsPath, $wgLang;
 
 		$iconInfo = $wgEchoNotificationIcons[$icon];
 		if ( isset( $iconInfo['url'] ) && $iconInfo['url'] ) {
@@ -178,7 +178,18 @@ abstract class EchoEmailMode {
 			if ( !isset( $iconInfo['path'] ) || !$iconInfo['path'] ) {
 				$iconInfo = $wgEchoNotificationIcons['placeholder'];
 			}
-			$iconUrl = "$wgExtensionAssetsPath/{$iconInfo['path']}";
+			if ( is_array( $iconInfo['path'] ) ) {
+				$dir = $wgLang->getDir();
+				if ( isset( $iconInfo['path'][$dir] ) ) {
+					$path = $iconInfo['path'][$dir];
+				} else {
+					wfDebugLog( 'Echo', "The \"$icon\" icon does not have anything set for $dir direction." );
+					$path = $wgEchoNotificationIcons['placeholder']['path']; // Fallback
+				}
+			} else {
+				$path = $iconInfo['path'];
+			}
+			$iconUrl = "$wgExtensionAssetsPath/$path";
 		}
 
 		// Use http for image path, there is no need for https
@@ -373,13 +384,13 @@ EOF;
 				<td bgcolor="#FFFFFF" style="line-height:40px;">&nbsp;</td>
 				<td bgcolor="#FFFFFF">&nbsp;</td>
 			</tr><tr>
-				<td bgcolor="#F8F8F8">&nbsp;</td>
-				<td bgcolor="#F8F8F8">&nbsp;</td>
-				<td bgcolor="#F8F8F8" align="{$alignStart}" style="font-family: Arial, Helvetica, sans-serif; font-size:10px; line-height:13px; color:#6D6E70; padding:10px 20px;"><br />
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td align="{$alignStart}" style="font-family: Arial, Helvetica, sans-serif; font-size:10px; line-height:13px; color:#6D6E70; padding:10px 20px;"><br />
 					%%footer%%
 					<br /><br />
 				</td>
-				<td bgcolor="#F8F8F8">&nbsp;</td>
+				<td>&nbsp;</td>
 			</tr><tr>
 				<td colspan="4">&nbsp;</td>
 			</tr>
@@ -535,13 +546,13 @@ EOF;
 				<td bgcolor="#FFFFFF">&nbsp;</td>
 			</tr>
 			<tr>
-				<td bgcolor="#F8F8F8">&nbsp;</td>
-				<td bgcolor="#F8F8F8">&nbsp;</td>
-				<td bgcolor="#F8F8F8" align="{$alignStart}" style="font-family: Arial, Helvetica, sans-serif; font-size:10px; line-height:13px; color:#6D6E70; padding: 10px 20px;"><br />
+				<td>&nbsp;</td>
+				<td>&nbsp;</td>
+				<td align="{$alignStart}" style="font-family: Arial, Helvetica, sans-serif; font-size:10px; line-height:13px; color:#6D6E70; padding: 10px 20px;"><br />
 					%%footer%%
 					<br /><br />
 				</td>
-				<td bgcolor="#F8F8F8">&nbsp;</td>
+				<td>&nbsp;</td>
 			</tr>
 			<tr>
 				<td colspan="4">&nbsp;</td>
