@@ -12,6 +12,9 @@ class BlueSpiceDistributionHooks {
 
 	public static function onMinervaPreRender( MinervaTemplate $template ) {
 		foreach ( $template->data['sidebar'] as $key => $val ) {
+			if ( !is_array( $val ) ) {
+				continue;
+			}
 			foreach ( $val as $key2 => $val2 ) {
 				$template->data['discovery_urls'][$val2['id']] = $val2;
 			}
