@@ -31,6 +31,15 @@ class EchoHooks {
 		}
 	}
 
+	public static function getNotificationSenderName() {
+		global $wgNotificationSenderName;
+		if ( $wgNotificationSenderName === null ) {
+			$wgNotificationSenderName = wfMessage( 'emailsender' )->inContentLanguage()->text();
+		}
+
+		return $wgNotificationSenderName;
+	}
+
 	/**
 	 * Handler for ResourceLoaderRegisterModules hook
 	 */
@@ -448,26 +457,23 @@ class EchoHooks {
 	 */
 	public static function onArticleSaved( &$article, &$user, $text, $summary, $minoredit, $watchthis, $sectionanchor, &$flags, $revision, &$status ) {
 		global $wgEchoNotifications, $wgRequest;
+
 		if ( $revision ) {
-			$title = $article->getTitle();
-			// If the edit is to a talk page or a project page, send it to the
-			// discussion parser.
-			if ( $title->isTalkPage() || $title->inNamespace( NS_PROJECT ) ) {
-				EchoDiscussionParser::generateEventsForRevision( $revision );
-			}
+			EchoDiscussionParser::generateEventsForRevision( $revision );
 
 			// Handle the case of someone undoing an edit, either through the
 			// 'undo' link in the article history or via the API.
 			if ( isset( $wgEchoNotifications['reverted'] ) ) {
+				$title = $article->getTitle();
 				$undidRevId = $wgRequest->getVal( 'wpUndidRevision' );
 				if ( $undidRevId ) {
 					$undidRevision = Revision::newFromId( $undidRevId );
-					if ( $undidRevision ) {
+					if ( $undidRevision && $undidRevision->getTitle()->equals( $title ) ) {
 						$victimId = $undidRevision->getUser();
 						if ( $victimId ) { // No notifications for anonymous users
 							EchoEvent::create( array(
 								'type' => 'reverted',
-								'title' => $article->getTitle(),
+								'title' => $title,
 								'extra' => array(
 									'revid' => $revision->getId(),
 									'reverted-user-id' => $victimId,
@@ -627,7 +633,6 @@ class EchoHooks {
 	 * @return bool true in all cases
 	 */
 	static function beforePageDisplay( $out, $skin ) {
-		global $wgEchoNewMsgAlert;
 		$user = $out->getUser();
 
 		// Don't show the alert message and badge if echo is disabled for this user
@@ -641,9 +646,7 @@ class EchoHooks {
 			// Load the styles for the Notifications badge
 			$out->addModuleStyles( 'ext.echo.badge' );
 		}
-		if ( $wgEchoNewMsgAlert && $user->isLoggedIn() && $user->getOption( 'echo-show-alert' ) ) {
-			$out->addModules( array( 'ext.echo.alert' ) );
-		}
+
 		return true;
 	}
 
@@ -653,32 +656,44 @@ class EchoHooks {
 	 * @see http://www.mediawiki.org/wiki/Manual:Hooks/PersonalUrls
 	 * @param &$personal_urls Array of URLs to append to.
 	 * @param &$title Title of page being visited.
+	 * @param SkinTemplate $sk
 	 * @return bool true in all cases
 	 */
-	static function onPersonalUrls( &$personal_urls, &$title ) {
-		global $wgUser;
-		// Add a "My notifications" item to personal URLs
-		if ( $wgUser->isAnon() || self::isEchoDisabled( $wgUser ) || !$wgUser->getOption( 'echo-notify-show-link' ) ) {
+	static function onPersonalUrls( &$personal_urls, &$title, $sk ) {
+		global $wgEchoNewMsgAlert;
+		$user = $sk->getUser();
+		if ( $user->isAnon() || self::isEchoDisabled( $user ) ) {
 			return true;
 		}
 
-		$notificationCount = MWEchoNotifUser::newFromUser( $wgUser )->getNotificationCount();
-		$text = EchoNotificationController::formatNotificationCount( $notificationCount );
-		$url = SpecialPage::getTitleFor( 'Notifications' )->getLocalURL();
-		if ( $notificationCount == 0 ) {
-			$linkClasses = array( 'mw-echo-notifications-badge' );
-		} else {
-			$linkClasses = array( 'mw-echo-unread-notifications', 'mw-echo-notifications-badge' );
-		}
-		$notificationsLink = array(
-			'href' => $url,
-			'text' => $text,
-			'active' => ( $url == $title->getLocalUrl() ),
-			'class' => $linkClasses,
-		);
+		// Add a "My notifications" item to personal URLs
+		if ( $user->getOption( 'echo-notify-show-link' ) ) {
+			$notificationCount = MWEchoNotifUser::newFromUser( $user )->getNotificationCount();
+			$text = EchoNotificationController::formatNotificationCount( $notificationCount );
+			$url = SpecialPage::getTitleFor( 'Notifications' )->getLocalURL();
+			if ( $notificationCount == 0 ) {
+				$linkClasses = array( 'mw-echo-notifications-badge' );
+			} else {
+				$linkClasses = array( 'mw-echo-unread-notifications', 'mw-echo-notifications-badge' );
+			}
+			$notificationsLink = array(
+				'href' => $url,
+				'text' => $text,
+				'active' => ( $url == $title->getLocalUrl() ),
+				'class' => $linkClasses,
+			);
 
-		$insertUrls = array( 'notifications' => $notificationsLink );
-		$personal_urls = wfArrayInsertAfter( $personal_urls, $insertUrls, 'userpage' );
+			$insertUrls = array( 'notifications' => $notificationsLink );
+			$personal_urls = wfArrayInsertAfter( $personal_urls, $insertUrls, 'userpage' );
+		}
+
+		// If the user has new messages, display a talk page alert
+		if ( $wgEchoNewMsgAlert && $user->getOption( 'echo-show-alert' ) && $user->getNewtalk() ) {
+			$personal_urls['mytalk']['text'] = $sk->msg( 'echo-new-messages' )->text();
+			$personal_urls['mytalk']['class'] = array( 'mw-echo-alert' );
+			$sk->getOutput()->addModuleStyles( 'ext.echo.alert' );
+		}
+
 		return true;
 	}
 
@@ -702,6 +717,30 @@ class EchoHooks {
 
 		// Echo talk page email notification
 		return false;
+	}
+
+	/**
+	 * Handler for AbortWatchlistEmailNotification hook.
+	 * @see http://www.mediawiki.org/wiki/Manual:Hooks/AbortWatchlistEmailNotification
+	 * @param $targetUser User
+	 * @param $title Title
+	 * @param $emailNotification EmailNotification The email notification object that sends non-echo notifications
+	 * @return bool
+	 */
+	static function onSendWatchlistEmailNotification( $targetUser, $title, $emailNotification ) {
+		// If a user is watching his/her own talk page, do not send talk page watchlist
+		// email notification if the user is receiving Echo talk page notification
+		if ( $title->isTalkPage() && $targetUser->getTalkPage()->equals( $title ) ) {
+			if (
+				!self::isEchoDisabled( $targetUser )
+				&& in_array( 'edit-user-talk', EchoNotificationController::getUserEnabledEvents( $targetUser, 'email' ) )
+			) {
+				// Do not send watchlist email notification, the user will receive an Echo notification
+				return false;
+			}
+		}
+		// Proceed to send watchlist email notification
+		return true;
 	}
 
 	/**
@@ -737,8 +776,7 @@ class EchoHooks {
 	 * @return bool true in all cases
 	 */
 	static function getUnitTests( &$files ) {
-		$dir = dirname( __FILE__ ) . '/tests';
-		$files[] = "$dir/DiscussionParserTest.php";
+		$files += glob( __DIR__ . '/tests/*Test.php' );
 		return true;
 	}
 
@@ -790,7 +828,10 @@ class EchoHooks {
 	static function onRollbackComplete( $page, $agent, $newRevision, $oldRevision ) {
 		$victimId = $oldRevision->getUser();
 
-		if ( $victimId ) { // No notifications for anonymous users
+		if (
+			$victimId && // No notifications for anonymous users
+			!$oldRevision->getContent()->equals( $newRevision->getContent() ) // No notifications for null rollbacks
+		) {
 			EchoEvent::create( array(
 				'type' => 'reverted',
 				'title' => $page->getTitle(),
@@ -814,10 +855,14 @@ class EchoHooks {
 	 * @return bool true in all cases
 	 */
 	static function onUserSaveSettings( $user ) {
-		// Reset the notification count since it may have changed due to user
-		// option changes. This covers both explicit changes in the preferences
-		// and changes made through the options API (since both call this hook).
-		MWEchoNotifUser::newFromUser( $user )->resetNotificationCount();
+		// Extensions like AbuseFilter might create an account, but
+		// the tables we need might not exist. Bug 57335
+		if ( !defined( 'MW_UPDATER' ) ) {
+			// Reset the notification count since it may have changed due to user
+			// option changes. This covers both explicit changes in the preferences
+			// and changes made through the options API (since both call this hook).
+			MWEchoNotifUser::newFromUser( $user )->resetNotificationCount();
+		}
 		return true;
 	}
 

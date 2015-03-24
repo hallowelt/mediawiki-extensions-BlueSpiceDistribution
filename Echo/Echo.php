@@ -43,6 +43,7 @@ $wgExtensionCredits['specialpage'][] = array(
 );
 
 $dir = dirname( __FILE__ ) . '/';
+$wgMessagesDirs['Echo'] = __DIR__ . '/i18n';
 $wgExtensionMessagesFiles['Echo'] = $dir . 'Echo.i18n.php';
 $wgExtensionMessagesFiles['EchoAliases'] = $dir . 'Echo.alias.php';
 
@@ -60,6 +61,7 @@ $wgAutoloadClasses['EchoNotificationFormatter'] = $dir . 'formatters/Notificatio
 $wgAutoloadClasses['EchoBasicFormatter'] = $dir . 'formatters/BasicFormatter.php';
 $wgAutoloadClasses['EchoEditFormatter'] = $dir . 'formatters/EditFormatter.php';
 $wgAutoloadClasses['EchoCommentFormatter'] = $dir . 'formatters/CommentFormatter.php';
+$wgAutoloadClasses['EchoMentionFormatter'] = $dir . 'formatters/MentionFormatter.php';
 $wgAutoloadClasses['EchoUserRightsFormatter'] = $dir . 'formatters/UserRightsFormatter.php';
 $wgAutoloadClasses['EchoPageLinkFormatter'] = $dir . 'formatters/PageLinkFormatter.php';
 $wgAutoloadClasses['EchoEditUserTalkFormatter'] = $dir . 'formatters/EditUserTalkFormatter.php';
@@ -137,7 +139,6 @@ $wgExtensionFunctions[] = 'EchoHooks::initEchoExtension';
 $echoResourceTemplate = array(
 	'localBasePath' => $dir . 'modules',
 	'remoteExtPath' => 'BlueSpiceDistribution/Echo/modules',
-	'group' => 'ext.echo',
 );
 
 $wgResourceModules += array(
@@ -193,7 +194,7 @@ $wgResourceModules += array(
 		'styles' => 'special/ext.echo.special.css',
 		'dependencies' => array(
 			'ext.echo.desktop',
-			'mediawiki.ui',
+			'mediawiki.ui.button',
 		),
 		'messages' => array(
 			'echo-load-more-error',
@@ -203,16 +204,10 @@ $wgResourceModules += array(
 		'position' => 'top',
 	),
 	'ext.echo.alert' => $echoResourceTemplate + array(
-		'scripts' => array(
-			'alert/ext.echo.alert.js',
-		),
 		'styles' => 'alert/ext.echo.alert.css',
 		'skinStyles' => array(
 			'modern' => 'alert/ext.echo.alert.modern.css',
 			'monobook' => 'alert/ext.echo.alert.monobook.css',
-		),
-		'messages' => array(
-			'echo-new-messages',
 		),
 	),
 	'ext.echo.badge' => $echoResourceTemplate + array(
@@ -245,6 +240,7 @@ $wgHooks['UserSaveSettings'][] = 'EchoHooks::onUserSaveSettings';
 
 // Disable ordinary user talk page email notifications
 $wgHooks['AbortTalkPageEmailNotification'][] = 'EchoHooks::onAbortTalkPageEmailNotification';
+$wgHooks['SendWatchlistEmailNotification'][] = 'EchoHooks::onSendWatchlistEmailNotification';
 // Disable the yellow bar of death
 $wgHooks['GetNewMessagesAlert'][] = 'EchoHooks::abortNewMessagesAlert';
 $wgHooks['LinksUpdateAfterInsert'][] = 'EchoHooks::onLinksUpdateAfterInsert';
@@ -279,7 +275,8 @@ $wgEchoEmailFooterAddress = '';
 // Should be defined in LocalSettings.php
 $wgNotificationSender = $wgPasswordSender;
 // Name for "from" on email notifications. Should be defined in LocalSettings.php
-$wgNotificationSenderName = $wgPasswordSenderName;
+// if null, uses 'emailsender' message
+$wgNotificationSenderName = null;
 // Name for "reply to" on email notifications. Should be defined in LocalSettings.php
 $wgNotificationReplyName = 'No Reply';
 
@@ -495,7 +492,7 @@ $wgEchoNotifications = array(
 		'secondary-link' => array( 'message' => 'notification-link-text-view-changes', 'destination' => 'diff' ),
 		'category' => 'mention',
 		'group' => 'interactive',
-		'formatter-class' => 'EchoCommentFormatter',
+		'formatter-class' => 'EchoMentionFormatter',
 		'title-message' => 'notification-mention',
 		'title-params' => array( 'agent', 'subject-anchor', 'title', 'section-title', 'main-title-text' ),
 		'flyout-message' => 'notification-mention-flyout',
@@ -550,12 +547,12 @@ $wgDefaultUserOptions['echo-subscriptions-web-article-linked'] = false;
 
 // Echo Configuration for EventLogging
 $wgEchoConfig = array(
-	'version' => '1.4',
+	'version' => '1.5',
 	// default all eventlogging off, overwrite them in site configuration
 	'eventlogging' => array (
 		'Echo' => array (
 			'enabled' => false,
-			'revision' => 5423520
+			'revision' => 7572295,
 		),
 		'EchoMail' => array (
 			'enabled' => false,

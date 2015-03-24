@@ -20,7 +20,7 @@ class SpecialNotifications extends SpecialPage {
 
 		$user = $this->getUser();
 		if ( $user->isAnon() ) {
-			$notificationsPageName = $this->getTitle()->getPrefixedDBkey();
+			$notificationsPageName = $this->getPageTitle()->getPrefixedDBkey();
 			$returnTo = array( 'returnto' => $notificationsPageName );
 			$signupTitle = SpecialPage::getTitleFor( 'UserLogin', 'signup' );
 			$signupURL = $signupTitle->getFullURL( $returnTo );
@@ -59,17 +59,21 @@ class SpecialNotifications extends SpecialPage {
 		$notices = '';
 		$unread = array();
 		foreach ( $notif as $row ) {
+			$class = 'mw-echo-notification';
+			if ( !isset( $row['read'] ) ) {
+				$class .= ' mw-echo-unread';
+				$unread[] = $row['id'];
+			}
+
+			if ( !$row['*'] ) {
+				continue;
+			}
 			// Output the date header if it has not been displayed
 			if ( $dateHeader !== $row['timestamp']['date'] ) {
 				$dateHeader = $row['timestamp']['date'];
 				$notices .= Html::rawElement( 'li', array( 'class' => 'mw-echo-date-section' ), $dateHeader );
 			}
 
-			$class = 'mw-echo-notification';
-			if ( !isset( $row['read'] ) ) {
-				$class .= ' mw-echo-unread';
-				$unread[] = $row['id'];
-			}
 			$notices .= Html::rawElement(
 				'li',
 				array(
