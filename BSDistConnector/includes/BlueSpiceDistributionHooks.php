@@ -16,6 +16,10 @@ class BlueSpiceDistributionHooks {
 				continue;
 			}
 			foreach ( $val as $key2 => $val2 ) {
+				if ( strpos( $val2['text'], "|" ) ) {
+					$aVal2 = explode( "|", $val2['text'] );
+					$val2['text'] = $aVal2[0];
+				}
 				$template->data['discovery_urls'][$val2['id']] = $val2;
 			}
 		}
