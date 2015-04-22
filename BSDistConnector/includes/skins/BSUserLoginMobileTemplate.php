@@ -74,8 +74,8 @@ class BSUserLoginMobileTemplate extends UserLoginMobileTemplate {
 			foreach ( $this->data['domainnames'] as $dom ) {
 				$select->addOption( $dom );
 			}
+			$form .= $select->getHTML();
 		}
-		$form .= $select->getHTML();
 		//end copy
 		$form .=
 			Html::closeElement( 'div' ) .
