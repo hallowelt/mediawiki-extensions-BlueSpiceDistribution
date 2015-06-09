@@ -207,7 +207,7 @@ var
 				userGallery.prependPhoto( image );
 
 				if ( $counter.length ) {
-					newCount = parseInt( $counter.text(), 10 ) + 1;
+					newCount = ( parseInt( $counter.text(), 10 ) || 1 ) + 1;
 					$counter.parent().html( mw.msg( 'mobile-frontend-photo-upload-user-count', newCount ) ).show();
 				}
 			} );
