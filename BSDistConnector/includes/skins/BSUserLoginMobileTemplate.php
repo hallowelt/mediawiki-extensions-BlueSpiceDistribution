@@ -71,6 +71,7 @@ class BSUserLoginMobileTemplate extends UserLoginMobileTemplate {
 		if ( isset( $this->data['usedomain'] ) && $this->data['usedomain'] ) {
 			$select = new XmlSelect( 'wpDomain', false, $this->data['domain'] );
 			$select->setAttribute( 'tabindex', 3 );
+			$select->addOption( wfMessage( 'bs-distribution-yourdomainname', '' )->plain(), '' );
 			foreach ( $this->data['domainnames'] as $dom ) {
 				$select->addOption( $dom );
 			}
