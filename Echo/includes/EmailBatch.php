@@ -100,8 +100,6 @@ abstract class MWEchoEmailBatch {
 	 * Wrapper function that calls other functions required to process email batch
 	 */
 	public function process() {
-		wfProfileIn( __METHOD__ );
-
 		// if there is no event for this user, exist the process
 		if ( !$this->setLastEvent() ) {
 			return;
@@ -125,8 +123,6 @@ abstract class MWEchoEmailBatch {
 
 		$this->clearProcessedEvent();
 		$this->updateUserLastBatchTimestamp();
-
-		wfProfileOut( __METHOD__ );
 	}
 
 	/**
@@ -178,7 +174,7 @@ abstract class MWEchoEmailBatch {
 	public function sendEmail() {
 		global $wgNotificationSender, $wgNotificationReplyName;
 
-		// @Todo - replace them with the CONSTANT in 33810 once it is merged 
+		// @Todo - replace them with the CONSTANT in 33810 once it is merged
 		if ( $this->mUser->getOption( 'echo-email-frequency' ) == 7 ) {
 			$frequency = 'weekly';
 			$emailDeliveryMode = 'weekly_digest';
@@ -217,7 +213,7 @@ abstract class MWEchoEmailBatch {
 				->inLanguage( $this->mUser->getOption( 'language' ) )
 				->params( $count, $this->count )->text();
 
-		$toAddress = new MailAddress( $this->mUser );
+		$toAddress = MailAddress::newFromUser( $this->mUser );
 		$fromAddress = new MailAddress( $wgNotificationSender, EchoHooks::getNotificationSenderName() );
 		$replyAddress = new MailAddress( $wgNotificationSender, $wgNotificationReplyName );
 
@@ -228,10 +224,13 @@ abstract class MWEchoEmailBatch {
 
 	/**
 	 * Insert notification event into email queue
+	 *
 	 * @param $userId int
 	 * @param $eventId int
 	 * @param $priority int
 	 * @param $hash string
+	 *
+	 * @throws MWException
 	 */
 	public static function addToQueue( $userId, $eventId, $priority, $hash ) {
 		$batchClassName = self::getEmailBatchClass();
@@ -245,8 +244,12 @@ abstract class MWEchoEmailBatch {
 
 	/**
 	 * Get a list of users to be notified for the batch
+	 *
 	 * @param $startUserId int
 	 * @param $batchSize int
+	 *
+	 * @throws MWException
+	 * @return ResultWrapper|bool
 	 */
 	public static function getUsersToNotify( $startUserId, $batchSize ) {
 		$batchClassName = self::getEmailBatchClass();

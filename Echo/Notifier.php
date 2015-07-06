@@ -10,11 +10,10 @@ class EchoNotifier {
 	 * @param $event EchoEvent to notify about.
 	 */
 	public static function notifyWithNotification( $user, $event ) {
-		global $wgEchoConfig, $wgEchoNotifications;
-
 		// Only create the notification if the user wants to recieve that type
 		// of notification and they are eligible to recieve it. See bug 47664.
-		$userWebNotifications = EchoNotificationController::getUserEnabledEvents( $user, 'web' );
+		$attributeManager = EchoAttributeManager::newFromGlobalVars();
+		$userWebNotifications = $attributeManager->getUserEnabledEvents( $user, 'web' );
 		if ( !in_array( $event->getType(), $userWebNotifications ) ) {
 			return;
 		}
@@ -42,11 +41,13 @@ class EchoNotifier {
 			return false;
 		}
 
+		$attributeManager = EchoAttributeManager::newFromGlobalVars();
+		$userEmailNotifications = $attributeManager->getUserEnabledEvents( $user, 'email' );
 		// See if the user wants to receive emails for this category or the user is eligible to receive this email
-		if ( in_array( $event->getType(), EchoNotificationController::getUserEnabledEvents( $user, 'email' ) ) ) {
+		if ( in_array( $event->getType(), $userEmailNotifications ) ) {
 			global $wgEchoEnableEmailBatch, $wgEchoNotifications, $wgNotificationSender, $wgNotificationReplyName, $wgEchoBundleEmailInterval;
 
-			$priority = EchoNotificationController::getNotificationPriority( $event->getType() );
+			$priority = $attributeManager->getNotificationPriority( $event->getType() );
 
 			$bundleString = $bundleHash = '';
 
@@ -85,7 +86,7 @@ class EchoNotifier {
 			// send single notification if the email wasn't added to queue for bundling
 			if ( !$addedToQueue ) {
 				// instant email notification
-				$toAddress = new MailAddress( $user );
+				$toAddress = MailAddress::newFromUser( $user );
 				$fromAddress = new MailAddress( $wgNotificationSender, EchoHooks::getNotificationSenderName() );
 				$replyAddress = new MailAddress( $wgNotificationSender, $wgNotificationReplyName );
 				// Since we are sending a single email, should set the bundle hash to null
