@@ -9,6 +9,7 @@ require_once( __DIR__."/WikiCategoryTagCloud/WikiCategoryTagCloud.php" );
 require_once( __DIR__."/Echo/Echo.php" );
 require_once( __DIR__."/TitleKey/TitleKey.php" );
 require_once( __DIR__."/NSFileRepo/NSFileRepo.php" );
+require_once( __DIR__."/EmbedVideo/EmbedVideo.php" );
 
 if (version_compare( $wgVersion, '1.23', '>=' )){
 	require_once( __DIR__ . "/MobileFrontend/MobileFrontend.php" );
