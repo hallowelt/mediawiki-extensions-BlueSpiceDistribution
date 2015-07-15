@@ -1300,7 +1300,6 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 	 * @return string
 	 */
 	public function getCanonicalName( $username ) {
-		$username = str_replace('_', ' ', $username); # HW fix for underscores!
 		global $wgMemc;
 
 		$this->printDebug( "Entering getCanonicalName", NONSENSITIVE );
