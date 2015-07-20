@@ -8,6 +8,7 @@ class BlueSpiceDistributionHooks {
 			$out->addHeadItem( 'bluespice.mobile', "<link rel='stylesheet' href='" . $wgScriptPath . "/extensions/BlueSpiceDistribution/BSDistConnector/resources/bluespice.mobile.css'>" );
 		}
 		$out->addModules( 'ext.bluespice.distribution' );
+		$out->addModuleStyles( 'ext.bluespice.wikicategorytagcloud' );
 		return true;
 	}
 
