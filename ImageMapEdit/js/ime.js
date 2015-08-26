@@ -13,7 +13,7 @@
 	Constants
 */
 
-var IME_TEMPLATE = mw.config.get( 'wgScriptPath' ) + '/extensions/BluespiceDistribution/ImageMapEdit/includes/template.php';
+var IME_TEMPLATE = mw.config.get( 'wgScriptPath' ) + '/extensions/BlueSpiceDistribution/ImageMapEdit/includes/template.php';
 var IME_TRANSLATIONS = mw.config.get( 'wgScriptPath' ) + '/extensions/BlueSpiceDistribution/ImageMapEdit/includes/translations.php?lang=' + mw.config.get( 'wgUserLanguage' );
 
 // Scripts to create the circle and polygon images
