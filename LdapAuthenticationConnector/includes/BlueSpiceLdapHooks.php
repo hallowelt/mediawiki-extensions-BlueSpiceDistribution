@@ -2,28 +2,31 @@
 
 class BlueSpiceLdapHooks {
 
-	public static function activateLogoutButton () {
-		global $wgLDAPAutoAuthLogout;
-		if (isset ($wgLDAPAutoAuthLogout) && $wgLDAPAutoAuthLogout == true) {
-			global $wgHooks;
-			unset ($wgHooks['PersonalUrls'][array_search ('LdapAutoAuthentication::NoLogout', $wgHooks['PersonalUrls'])]);
+	public static function onLDAPModifyUITemplate( &$template ) {
+		global $bsgLDAPRenameLocal, $bsgLDAPShowLocal, $wgLDAPDomainNames, $wgLDAPAutoAuthDomain;
+		$localname = 'local';
+		if (isset( $bsgLDAPRenameLocal ) && !empty( $bsgLDAPRenameLocal ) ) {
+			$localname = $bsgLDAPRenameLocal;
 		}
+		$domains = $wgLDAPDomainNames;
+		array_push( $domains, $localname );
+		unset( $domains[array_search( $wgLDAPAutoAuthDomain, $domains )] );
+		if (isset( $bsgLDAPShowLocal ) && $bsgLDAPShowLocal == false) {
+			unset( $domains[array_search( $localname, $domains )]);
+		}
+		$template->set( 'domainnames', $domains );
 		return true;
 	}
 
-	public static function onLDAPModifyUITemplate ( &$template ) {
-		global $wgLDAPRenameLocal, $wgLDAPShowLocal, $wgLDAPDomainNames, $wgLDAPAutoAuthDomain;
-		$localname = 'local';
-		if (isset ($wgLDAPRenameLocal) && !empty ($wgLDAPRenameLocal)) {
-			$localname = $wgLDAPRenameLocal;
-		}
-		$domains = $wgLDAPDomainNames;
-		array_push ($domains, $localname);
-		unset ($domains[array_search ($wgLDAPAutoAuthDomain, $domains)]);
-		if (isset ($wgLDAPShowLocal) && $wgLDAPShowLocal == false) {
-			unset ($domains[array_search ($localname, $domains)]);
-		}
-		$template->set( 'domainnames', $domains );
+	public static function onPersonalUrls( &$personal_urls ) {
+		global $bsgLDAPAutoAuthChangeUser;
+		if (isset( $bsgLDAPAutoAuthChangeUser ) && $bsgLDAPAutoAuthChangeUser == true) {
+			$personal_urls["changeuser"] = array(
+				"text" => wfMessage( "bs-ldapc-changeuser-label" )->plain(), 
+				"title" => wfMessage( "bs-ldapc-changeuser-desc" )->plain(), 
+				"href" => SpecialPage::getTitleFor( 'Userlogin' )->getLinkURL()
+			);
+		}		
 		return true;
 	}
 

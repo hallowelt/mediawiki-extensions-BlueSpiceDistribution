@@ -1,4 +1,4 @@
 <?php
 
-$wgHooks['BeforePageDisplay'][] = 'BlueSpiceLdapHooks::activateLogoutButton';
 $wgHooks['LDAPModifyUITemplate'][] = 'BlueSpiceLdapHooks::onLDAPModifyUITemplate';
+$wgHooks['PersonalUrls'][] = 'BlueSpiceLdapHooks::onPersonalUrls';
