@@ -18,9 +18,10 @@ class BlueSpiceLdapHooks {
 			$localname = $wgLDAPRenameLocal;
 		}
 		$domains = $wgLDAPDomainNames;
+		array_push ($domains, $localname);
 		unset ($domains[array_search ($wgLDAPAutoAuthDomain, $domains)]);
-		if (isset ($wgLDAPShowLocal) && $wgLDAPShowLocal == true) {
-			array_push ($domains, $localname);
+		if (isset ($wgLDAPShowLocal) && $wgLDAPShowLocal == false) {
+			unset ($domains[array_search ($localname, $domains)]);
 		}
 		$template->set( 'domainnames', $domains );
 		return true;
