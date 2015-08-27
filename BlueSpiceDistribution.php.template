@@ -19,6 +19,7 @@ if (version_compare( $wgVersion, '1.23', '>=' )){
 }
 
 require_once( __DIR__."/BSDistConnector/BSDistConnector.setup.php" );
+require_once( __DIR__."/LdapAuthenticationConnector/LdapAuthenticationConnector.setup.php" );
 
 //By default this is disabled. See https://gerrit.wikimedia.org/r/#/c/193359/1
 //If this is needed depends on the actual LDAP setup
