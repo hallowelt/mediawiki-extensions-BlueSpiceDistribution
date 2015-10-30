@@ -17,7 +17,7 @@ class ImageMapEdit{
 		if ( $oOutputPage->getTitle()->getNamespace() != NS_FILE || $oOutputPage->getRequest()->getVal( 'action', 'view' ) != 'view' ) {
 			return true;
 		}
-		$oOutputPage->addScriptFile( '/extensions/BlueSpiceDistribution/ImageMapEdit/js/ime.js' );
+		$oOutputPage->addModules( 'ext.imagemapedit' );
 		return true;
 	}
 }
