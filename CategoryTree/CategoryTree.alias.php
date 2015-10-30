@@ -8,6 +8,7 @@
  * @copyright © 2006-2008 Daniel Kinzler and others
  * @license GNU General Public Licence 2.0 or later
  */
+// @codingStandardsIgnoreFile
 
 $specialPageAliases = array();
 
@@ -41,9 +42,14 @@ $specialPageAliases['arz'] = array(
 	'CategoryTree' => array( 'شجرة_تصنيف' ),
 );
 
-/** Assamese (অসমীয়া) */
+/** Assamese (অসমীয়া) */
 $specialPageAliases['as'] = array(
 	'CategoryTree' => array( 'শ্ৰেণীবৃক্ষ' ),
+);
+
+/** Avaric (авар) */
+$specialPageAliases['av'] = array(
+	'CategoryTree' => array( 'Категориязул_гъветІ' ),
 );
 
 /** Bashkir (башҡортса) */
@@ -66,6 +72,11 @@ $specialPageAliases['bg'] = array(
 	'CategoryTree' => array( 'Дърво_на_категориите' ),
 );
 
+/** Western Balochi (بلوچی رخشانی) */
+$specialPageAliases['bgn'] = array(
+	'CategoryTree' => array( 'تهری_درچّگ_یا_درخت' ),
+);
+
 /** Banjar (Bahasa Banjar) */
 $specialPageAliases['bjn'] = array(
 	'CategoryTree' => array( 'Puhun_tumbung' ),
@@ -86,7 +97,17 @@ $specialPageAliases['ca'] = array(
 	'CategoryTree' => array( 'Categories_en_arbre', 'Arbre_de_categories' ),
 );
 
-/** Czech (česky) */
+/** Min Dong Chinese (Mìng-dĕ̤ng-ngṳ̄) */
+$specialPageAliases['cdo'] = array(
+	'CategoryTree' => array( '分類樹' ),
+);
+
+/** Chechen (нохчийн) */
+$specialPageAliases['ce'] = array(
+	'CategoryTree' => array( 'Категорийн_дит' ),
+);
+
+/** Czech (čeština) */
 $specialPageAliases['cs'] = array(
 	'CategoryTree' => array( 'Strom_kategorií' ),
 );
@@ -118,7 +139,7 @@ $specialPageAliases['el'] = array(
 
 /** Esperanto (Esperanto) */
 $specialPageAliases['eo'] = array(
-	'CategoryTree' => array( 'Kategorio-arbo' ),
+	'CategoryTree' => array( 'Arbo_de_kategorioj', 'Kategorio-arbo' ),
 );
 
 /** Spanish (español) */
@@ -138,7 +159,7 @@ $specialPageAliases['eu'] = array(
 
 /** Persian (فارسی) */
 $specialPageAliases['fa'] = array(
-	'CategoryTree' => array( 'درخت_دسته' ),
+	'CategoryTree' => array( 'درخت_رده' ),
 );
 
 /** Finnish (suomi) */
@@ -154,6 +175,11 @@ $specialPageAliases['fr'] = array(
 /** Franco-Provençal (arpetan) */
 $specialPageAliases['frp'] = array(
 	'CategoryTree' => array( 'Structura_d\'âbro_de_les_catègories', 'StructuraDÂbroDeLesCatègories' ),
+);
+
+/** Western Frisian (Frysk) */
+$specialPageAliases['fy'] = array(
+	'CategoryTree' => array( 'Kategorybeam' ),
 );
 
 /** Galician (galego) */
@@ -186,7 +212,7 @@ $specialPageAliases['hsb'] = array(
 	'CategoryTree' => array( 'Kategorijowy_štom' ),
 );
 
-/** 湘语 (湘语) */
+/** Xiang Chinese (湘语) */
 $specialPageAliases['hsn'] = array(
 	'CategoryTree' => array( '类别树' ),
 );
@@ -258,7 +284,7 @@ $specialPageAliases['kw'] = array(
 
 /** Latin (Latina) */
 $specialPageAliases['la'] = array(
-	'CategoryTree' => array( 'Categoriarum arbor' ),
+	'CategoryTree' => array( 'Categoriarum_arbor' ),
 );
 
 /** Ladino (Ladino) */
@@ -271,9 +297,19 @@ $specialPageAliases['lb'] = array(
 	'CategoryTree' => array( 'Struktur_vun_de_Kategorien' ),
 );
 
+/** لوری (لوری) */
+$specialPageAliases['lrc'] = array(
+	'CategoryTree' => array( 'دار_دسه' ),
+);
+
 /** Malagasy (Malagasy) */
 $specialPageAliases['mg'] = array(
-	'CategoryTree' => array( 'Hazon-tsokajy' ),
+	'CategoryTree' => array( 'Hazon-tsokajy', 'Hazontsokajy' ),
+);
+
+/** Minangkabau (Baso Minangkabau) */
+$specialPageAliases['min'] = array(
+	'CategoryTree' => array( 'BatangKategori' ),
 );
 
 /** Macedonian (македонски) */
@@ -411,7 +447,7 @@ $specialPageAliases['tl'] = array(
 	'CategoryTree' => array( 'Puno_ng_kaurian' ),
 );
 
-/** толышә зывон (толышә зывон) */
+/** Talysh (толышә зывон) */
 $specialPageAliases['tly'] = array(
 	'CategoryTree' => array( 'Категоријон_до' ),
 );
@@ -431,7 +467,7 @@ $specialPageAliases['ur'] = array(
 	'CategoryTree' => array( 'شجرہ_زمرہ' ),
 );
 
-/** vèneto (vèneto) */
+/** Venetian (vèneto) */
 $specialPageAliases['vec'] = array(
 	'CategoryTree' => array( 'ÀlbaroCategorie' ),
 );

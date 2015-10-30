@@ -16,8 +16,8 @@ if ( !defined( 'MEDIAWIKI' ) ) {
 }
 
 class CategoryTree {
-	var $mIsAjaxRequest = false;
-	var $mOptions = array();
+	public $mIsAjaxRequest = false;
+	public $mOptions = array();
 
 	/**
 	 * @param $options array
@@ -229,7 +229,7 @@ class CategoryTree {
 	}
 
 	/**
-	 * Set the script tags in an OutputPage object
+	 * Add ResourceLoader modules to the OutputPage object
 	 * @param OutputPage $outputPage
 	 */
 	static function setHeaders( $outputPage ) {
@@ -242,7 +242,7 @@ class CategoryTree {
 	 * @param $options
 	 * @param $enc
 	 * @return mixed
-	 * @throws MWException
+	 * @throws Exception
 	 */
 	static function encodeOptions( $options, $enc ) {
 		if ( $enc == 'mode' || $enc == '' ) {
@@ -250,7 +250,7 @@ class CategoryTree {
 		} elseif ( $enc == 'json' ) {
 			$opt = FormatJson::encode( $options );
 		} else {
-			throw new MWException( 'Unknown encoding for CategoryTree options: ' . $enc );
+			throw new Exception( 'Unknown encoding for CategoryTree options: ' . $enc );
 		}
 
 		return $opt;
@@ -260,7 +260,7 @@ class CategoryTree {
 	 * @param $options
 	 * @param $enc
 	 * @return array|mixed
-	 * @throws MWException
+	 * @throws Exception
 	 */
 	static function decodeOptions( $options, $enc ) {
 		if ( $enc == 'mode' || $enc == '' ) {
@@ -268,11 +268,11 @@ class CategoryTree {
 		} elseif ( $enc == 'json' ) {
 			$opt = FormatJson::decode( $options );
 			if ( !$opt ) {
-				throw new MWException( 'JSON cannot decode CategoryTree options' );
+				throw new Exception( 'JSON cannot decode CategoryTree options' );
 			}
 			$opt = get_object_vars( $opt );
 		} else {
-			throw new MWException( 'Unknown encoding for CategoryTree options: ' . $enc );
+			throw new Exception( 'Unknown encoding for CategoryTree options: ' . $enc );
 		}
 
 		return $opt;
@@ -310,14 +310,6 @@ class CategoryTree {
 		}
 
 		return $s;
-	}
-
-	/**
-	 * @param $depth null
-	 * @return String
-	 */
-	function getOptionsAsJsString( $depth = null ) {
-		return Xml::escapeJsString( $this->getOptionsAsJsStructure( $depth ) );
 	}
 
 	/**
@@ -395,16 +387,19 @@ class CategoryTree {
 	 * @return bool|string
 	 */
 	function getTag( $parser, $category, $hideroot = false, $attr, $depth = 1, $allowMissing = false ) {
-		global $wgCategoryTreeDisableCache, $wgCategoryTreeDynamicTag;
-		static $uniq = 0;
+		global $wgCategoryTreeDisableCache;
 
 		$category = trim( $category );
 		if ( $category === '' ) {
 			return false;
 		}
 
-		if ( $parser && $wgCategoryTreeDisableCache && !$wgCategoryTreeDynamicTag ) {
-			$parser->disableCache();
+		if ( $parser ) {
+			if ( is_bool( $wgCategoryTreeDisableCache ) && $wgCategoryTreeDisableCache === true ) {
+				$parser->disableCache();
+			} elseif ( is_int( $wgCategoryTreeDisableCache ) ) {
+				$parser->getOutput()->updateCacheExpiry( $wgCategoryTreeDisableCache );
+			}
 		}
 
 		$title = self::makeTitle( $category );
@@ -436,18 +431,9 @@ class CategoryTree {
 			}
 		else {
 			if ( !$hideroot ) {
-				$html .= $this->renderNode( $title, $depth, $wgCategoryTreeDynamicTag );
-			} elseif ( !$wgCategoryTreeDynamicTag ) {
-				$html .= $this->renderChildren( $title, $depth );
+				$html .= $this->renderNode( $title, $depth, false );
 			} else {
-				$uniq += 1;
-				$load = 'ct-' . $uniq . '-' . mt_rand( 1, 100000 );
-
-				$html .= Xml::openElement( 'script', array( 'type' => 'text/javascript', 'id' => $load ) );
-				$html .= 'categoryTreeLoadChildren("' . Xml::escapeJsString( $title->getDBkey() ) . '", '
-						. $this->getOptionsAsJsStructure( $depth )
-						. ', document.getElementById("' . $load . '").parentNode);';
-				$html .= Xml::closeElement( 'script' );
+				$html .= $this->renderChildren( $title, $depth );
 			}
 		}
 
@@ -537,7 +523,7 @@ class CategoryTree {
 				$cat = Category::newFromRow( $row, $t );
 			}
 
-			$s = $this->renderNodeInfo( $t, $cat, $depth - 1, false );
+			$s = $this->renderNodeInfo( $t, $cat, $depth - 1 );
 			$s .= "\n\t\t";
 
 			if ( $row->page_namespace == NS_CATEGORY ) {
@@ -612,10 +598,9 @@ class CategoryTree {
 	 * Returns a string with a HTML represenation of the given page.
 	 * @param $title Title
 	 * @param int $children
-	 * @param bool $loadchildren
 	 * @return string
 	 */
-	function renderNode( $title, $children = 0, $loadchildren = false ) {
+	function renderNode( $title, $children = 0 ) {
 		global $wgCategoryTreeUseCategoryTable;
 
 		if ( $wgCategoryTreeUseCategoryTable && $title->getNamespace() == NS_CATEGORY && !$this->isInverse() ) {
@@ -624,7 +609,7 @@ class CategoryTree {
 			$cat = null;
 		}
 
-		return $this->renderNodeInfo( $title, $cat, $children, $loadchildren );
+		return $this->renderNodeInfo( $title, $cat, $children );
 	}
 
 	/**
@@ -633,20 +618,10 @@ class CategoryTree {
 	 * @param $title Title
 	 * @param $cat Category
 	 * @param $children int
-	 * @param $loadchildren bool
 	 * @return string
 	 */
-	function renderNodeInfo( $title, $cat, $children = 0, $loadchildren = false ) {
-		static $uniq = 0;
-
+	function renderNodeInfo( $title, $cat, $children = 0 ) {
 		$mode = $this->getOption( 'mode' );
-		$load = false;
-
-		if ( $children > 0 && $loadchildren ) {
-			$uniq += 1;
-
-			$load = 'ct-' . $uniq . '-' . mt_rand( 1, 100000 );
-		}
 
 		$ns = $title->getNamespace();
 		$key = $title->getDBkey();
@@ -732,31 +707,24 @@ class CategoryTree {
 				$attr['class'] = 'CategoryTreeEmptyBullet';
 			} else {
 				$linkattr = array( );
-				if ( $load ) {
-					$linkattr[ 'id' ] = $load;
-				}
 
 				$linkattr[ 'class' ] = "CategoryTreeToggle";
 				$linkattr['style'] = 'display: none;'; // Unhidden by JS
 				$linkattr['data-ct-title'] = $key;
 
-				if ( $children == 0 || $loadchildren ) {
-					$tag = 'span';
+				$tag = 'span';
+				if ( $children == 0 ) {
 					$txt = wfMessage( 'categorytree-expand-bullet' )->plain();
 					# Don't load this message for ajax requests, so that we don't have to initialise $wgLang
 					$linkattr[ 'title' ] = $this->mIsAjaxRequest ? '##LOAD##' : wfMessage( 'categorytree-expand' )->plain();
 					$linkattr[ 'data-ct-state' ] = 'collapsed';
 				} else {
-					$tag = 'span';
 					$txt = wfMessage( 'categorytree-collapse-bullet' )->plain();
 					$linkattr[ 'title' ] = wfMessage( 'categorytree-collapse' )->plain();
 					$linkattr[ 'data-ct-loaded' ] = true;
 					$linkattr[ 'data-ct-state' ] = 'expanded';
 				}
 
-				if ( $tag == 'a' ) {
-					$linkattr[ 'href' ] = $wikiLink;
-				}
 				$bullet = Xml::openElement( $tag, $linkattr ) . $txt . Xml::closeElement( $tag ) . ' ';
 			}
 		} else {
@@ -818,7 +786,7 @@ class CategoryTree {
 			)
 		);
 
-		if ( $ns == NS_CATEGORY && $children > 0 && !$loadchildren ) {
+		if ( $ns == NS_CATEGORY && $children > 0 ) {
 			$children = $this->renderChildren( $title, $children );
 			if ( $children == '' ) {
 				$s .= Xml::openElement( 'i', array( 'class' => 'CategoryTreeNotice' ) );
@@ -840,14 +808,6 @@ class CategoryTree {
 		$s .= Xml::closeElement( 'div' );
 		$s .= Xml::closeElement( 'div' );
 
-		if ( $load ) {
-			$s .= "\n\t\t";
-			$s .= Xml::openElement( 'script', array( 'type' => 'text/javascript' ) );
-			$s .= 'categoryTreeExpandNode("' . Xml::escapeJsString( $key ) . '", '
-				. $this->getOptionsAsJsStructure( $children ) . ', document.getElementById("' . $load . '"));';
-			$s .= Xml::closeElement( 'script' );
-		}
-
 		$s .= "\n\t\t";
 
 		return $s;
@@ -868,7 +828,7 @@ class CategoryTree {
 		# The title must be in the category namespace
 		# Ignore a leading Category: if there is one
 		$t = Title::newFromText( $title, NS_CATEGORY );
-		if ( !$t || $t->getNamespace() != NS_CATEGORY || $t->getInterWiki() != '' ) {
+		if ( !$t || $t->getNamespace() != NS_CATEGORY || $t->getInterwiki() != '' ) {
 			// If we were given something like "Wikipedia:Foo" or "Template:",
 			// try it again but forced.
 			$title = "Category:$title";

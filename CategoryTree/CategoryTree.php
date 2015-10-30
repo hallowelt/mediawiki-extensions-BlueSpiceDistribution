@@ -38,9 +38,8 @@ define( 'CT_HIDEPREFIX_AUTO', 30 );
  *
  * $wgCategoryTreeMaxChildren - maximum number of children shown in a tree node. Default is 200
  * $wgCategoryTreeAllowTag - enable <categorytree> tag. Default is true.
- * $wgCategoryTreeDynamicTag - loads the first level of the tree in a <categorytag> dynamically.
- *                             This way, the cache does not need to be disabled. Default is false.
- * $wgCategoryTreeDisableCache - disabled the parser cache for pages with a <categorytree> tag. Default is true.
+ * $wgCategoryTreeDisableCache - disable the parser cache for pages with a <categorytree> tag or provide
+ *	                         max cache time in seconds. Default is 6 hours.
  * $wgCategoryTreeUseCache - enable HTTP cache for anon users. Default is false.
  * $wgCategoryTreeMaxDepth - maximum value for depth argument; An array that maps mode values to
  *                           the maximum depth acceptable for the depth option.
@@ -53,8 +52,7 @@ define( 'CT_HIDEPREFIX_AUTO', 30 );
 
 $wgCategoryTreeMaxChildren = 200;
 $wgCategoryTreeAllowTag = true;
-$wgCategoryTreeDisableCache = true;
-$wgCategoryTreeDynamicTag = false;
+$wgCategoryTreeDisableCache = 6*60*60;
 $wgCategoryTreeHTTPCache = false;
 # $wgCategoryTreeUnifiedView = true;
 $wgCategoryTreeMaxDepth = array( CT_MODE_PAGES => 1, CT_MODE_ALL => 1, CT_MODE_CATEGORIES => 2 );
@@ -99,7 +97,7 @@ $wgCategoryTreePageCategoryOptions['namespaces'] = false;
 $wgCategoryTreePageCategoryOptions['depth'] = 0;
 # $wgCategoryTreePageCategoryOptions['class'] = 'CategoryTreeInlineNode';
 
-$wgExtensionMessagesFiles['CategoryTreeAlias'] = dirname( __FILE__ ) . '/CategoryTree.alias.php';
+$wgExtensionMessagesFiles['CategoryTreeAlias'] = __DIR__ . '/CategoryTree.alias.php';
 
 /**
  * Register extension setup hook and credits
@@ -116,17 +114,13 @@ $wgExtensionCredits['specialpage'][] = $wgExtensionCredits['parserhook'][] = arr
 /**
  * Register the special page
  */
-$dir = dirname( __FILE__ ) . '/';
-
-if ( $wgUseAjax && $wgCategoryTreeAllowTag ) {
-	$wgExtensionMessagesFiles['CategoryTreeMagic'] = $dir . 'CategoryTree.i18n.magic.php';
-}
-
-$wgExtensionMessagesFiles['CategoryTree'] = $dir . 'CategoryTree.i18n.php';
-$wgAutoloadClasses['CategoryTreePage'] = $dir . 'CategoryTreePage.php';
-$wgAutoloadClasses['CategoryTree'] = $dir . 'CategoryTreeFunctions.php';
-$wgAutoloadClasses['CategoryTreeCategoryPage'] = $dir . 'CategoryPageSubclass.php';
-$wgAutoloadClasses['CategoryTreeCategoryViewer'] = $dir . 'CategoryPageSubclass.php';
+$wgMessagesDirs['CategoryTree'] = __DIR__ . '/i18n';
+$wgExtensionMessagesFiles['CategoryTree'] = __DIR__ . '/CategoryTree.i18n.php';
+$wgExtensionMessagesFiles['CategoryTreeMagic'] = __DIR__ . '/CategoryTree.i18n.magic.php';
+$wgAutoloadClasses['CategoryTreePage'] = __DIR__ . '/CategoryTreePage.php';
+$wgAutoloadClasses['CategoryTree'] = __DIR__ . '/CategoryTreeFunctions.php';
+$wgAutoloadClasses['CategoryTreeCategoryPage'] = __DIR__ . '/CategoryPageSubclass.php';
+$wgAutoloadClasses['CategoryTreeCategoryViewer'] = __DIR__ . '/CategoryPageSubclass.php';
 $wgSpecialPages['CategoryTree'] = 'CategoryTreePage';
 $wgSpecialPageGroups['CategoryTree'] = 'pages';
 # $wgHooks['SkinTemplateTabs'][] = 'efCategoryTreeInstallTabs';
@@ -141,7 +135,7 @@ $wgAjaxExportList[] = 'efCategoryTreeAjaxWrapper';
  * Register ResourceLoader modules
  */
 $commonModuleInfo = array(
-	'localBasePath' => dirname( __FILE__ ) . '/modules',
+	'localBasePath' => __DIR__ . '/modules',
 	'remoteExtPath' => 'CategoryTree/modules',
 );
 
@@ -171,7 +165,7 @@ $wgResourceModules['ext.categoryTree.css'] = array(
  * Hook it up
  */
 function efCategoryTree() {
-	global $wgUseAjax, $wgHooks, $wgOut, $wgRequest;
+	global $wgUseAjax, $wgHooks, $wgRequest;
 	global $wgCategoryTreeDefaultOptions, $wgCategoryTreeDefaultMode, $wgCategoryTreeOmitNamespace;
 	global $wgCategoryTreeCategoryPageOptions, $wgCategoryTreeCategoryPageMode, $wgCategoryTreeAllowTag;
 	global $wgCategoryTreeSidebarRoot, $wgCategoryTreeForceHeaders, $wgCategoryTreeHijackPageCategories;
@@ -205,12 +199,12 @@ function efCategoryTree() {
 		$wgCategoryTreeDefaultOptions['hideprefix'] = $wgCategoryTreeOmitNamespace;
 	}
 
-	if ( !isset( $wgCategoryTreeCategoryPageOptions['mode'] ) || is_null( $wgCategoryTreeCategoryPageOptions['mode'] ) ) {	
+	if ( !isset( $wgCategoryTreeCategoryPageOptions['mode'] ) || is_null( $wgCategoryTreeCategoryPageOptions['mode'] ) ) {
 		$wgCategoryTreeCategoryPageOptions['mode'] = ( $mode = $wgRequest->getVal( 'mode' ) ) ? CategoryTree::decodeMode( $mode ) : $wgCategoryTreeCategoryPageMode;
 	}
 
 	if ( $wgCategoryTreeForceHeaders ) {
-		CategoryTree::setHeaders( $wgOut );
+		$wgHooks['BeforePageDisplay'][] = 'efCategoryTreeAddHeaders';
 	} else {
 		$wgHooks['OutputPageParserOutput'][] = 'efCategoryTreeParserOutput';
 	}
@@ -376,7 +370,8 @@ function efCategoryTreeParserHook( $cat, $argv, $parser = null, $allowMissing = 
 }
 
 /**
- * Hook callback that injects messages and things into the <head> tag
+ * Hook callback that injects messages and things into the <head> tag,
+ * if needed in the current page.
  * Does nothing if $parserOutput->mCategoryTreeTag is not set
  * @param $outputPage OutputPage
  * @param $parserOutput ParserOutput
@@ -386,6 +381,19 @@ function efCategoryTreeParserOutput( $outputPage, $parserOutput )  {
 	if ( !empty( $parserOutput->mCategoryTreeTag ) ) {
 		CategoryTree::setHeaders( $outputPage );
 	}
+	return true;
+}
+
+/**
+ * BeforePageDisplay hook. This hook is set when $wgCategoryTreeForceHeaders
+ * is set.
+ * Otherwise similar to efCategoryTreeParserOutput.
+ * @param $out OutputPage
+ * @param $skin Skin
+ * @return bool
+ */
+function efCategoryTreeAddHeaders( OutputPage $out, Skin $skin )  {
+	CategoryTree::setHeaders( $out );
 	return true;
 }
 
