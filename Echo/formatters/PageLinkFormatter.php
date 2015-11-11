@@ -35,7 +35,6 @@ class EchoPageLinkFormatter extends EchoBasicFormatter {
 	 * This method overwrite parent method and construct the bundle iterator
 	 * based on link from, it will be used in a message like this: Page A was
 	 * link from Page B and X other pages
-	 *
 	 * @param $event EchoEvent
 	 * @param $user User
 	 * @param $type string deprecated
@@ -59,8 +58,8 @@ class EchoPageLinkFormatter extends EchoBasicFormatter {
 		$linkFrom = array(
 			$extra['link-from-page-id'] => true
 		);
-		foreach ( $data as $bundledEvent ) {
-			$extra = $bundledEvent->getExtra();
+		foreach ( $data as $row ) {
+			$extra = $row->event_extra ? unserialize( $row->event_extra ) : null;
 			if ( !$extra ) {
 				continue;
 			}

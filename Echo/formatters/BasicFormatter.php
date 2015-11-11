@@ -282,19 +282,12 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 
 		// Echo single email
 		$emailSingle = new EchoEmailSingle( $this, $event, $user );
-		$textEmailFormatter = new EchoTextEmailFormatter( $emailSingle );
-		// Update the distribution type to emailsubject when formatting
-		// email subject
-		// @FIXME - Find a better way to do this
-		$distributionType = $this->distributionType;
-		$this->setDistributionType( 'emailsubject' );
-		$subject = $this->formatFragment( $this->email['subject'], $event, $user )->text();
-		$this->setDistributionType( $distributionType );
 
+		$textEmailFormatter = new EchoTextEmailFormatter( $emailSingle );
 		$content = array(
 			// Single email subject, there is no need to to escape it for either html
 			// or text email since it's always treated as plain text by mail client
-			'subject' => $subject,
+			'subject' => $this->formatFragment( $this->email['subject'], $event, $user )->text(),
 			// Single email text body
 			'body' => $textEmailFormatter->formatEmail(),
 		);
@@ -471,8 +464,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 * $props array
 	 */
 	protected function setTitleLink( $event, $message, $props = array() ) {
-		$title = $event->getTitle();
-		if ( !$title ) {
+		if ( !$event->getTitle() ) {
 			$message->params( $this->getMessage( 'echo-no-title' )->text() );
 			return;
 		}
@@ -481,7 +473,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			$props['fragment'] = $this->formatSubjectAnchor( $event );
 		}
 
-		$link = $this->buildLinkParam( $title, $props );
+		$link = $this->buildLinkParam( $event->getTitle(), $props );
 		$message->params( $link );
 	}
 
@@ -532,10 +524,8 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	/**
 	 * Plain text email in some mail client is misinterpreting the ending
 	 * punctuation, this function would encode the last character
-	 *
 	 * @param $url string
-	 *
-	 * @return string
+	 * @param string
 	 */
 	public function sanitizeEmailLink( $url ) {
 		// $url should contain all ascii characters now, it's safe to use substr()
@@ -553,47 +543,45 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 
 	/**
 	 * Get raw bundle data for an event so it can be manipulated
-	 * @param EchoEvent
-	 * @param User
-	 * @param string deprecated
-	 * @return EchoEvent[]|bool
+	 * @param $event EchoEvent
+	 * @param $user User
+	 * @param $type string deprecated
+	 * @return ResultWrapper|bool
 	 */
 	protected function getRawBundleData( $event, $user, $type ) {
-		// We should keep bundling for events as long as it has bundle hash
-		// even for events with bundling switched to off, this is mainly for
-		// historical data
+		global $wgEchoBackend;
+
+		// We should keep bundling for events as long as it has bundle
+		// hash event for bundle-turned-off events as well, this is
+		// mainly for historical data
 		if ( !$event->getBundleHash() ) {
 			return false;
 		}
 
-		$eventMapper = new EchoEventMapper();
-		$events = $eventMapper->fetchByUserBundleHash(
-			$user, $event->getBundleHash(), $this->distributionType, 'DESC', self::$maxRawBundleData
-		);
+		$data = $wgEchoBackend->getRawBundleData( $user, $event->getBundleHash(), $this->distributionType, 'DESC', self::$maxRawBundleData );
 
-		if ( $events ) {
-			$this->bundleData['raw-data-count'] += count( $events );
-			// Distribution types other than web include the base event
-			// in the result already, decrement it by one
+		if ( $data ) {
+			$this->bundleData['raw-data-count'] += $data->numRows();
 			if ( $this->distributionType !== 'web' ) {
 				$this->bundleData['raw-data-count']--;
 			}
 		}
 
-		return $events;
+		return $data;
 	}
 
 	/**
 	 * Construct the bundle data for an event, by default, the group iterator
 	 * is agent, eg, by user A and x others. custom formatter can overwrite
 	 * this function to use a differnt group iterator such as title, namespace
-	 *
-	 * @param EchoEvent
-	 * @param User
-	 * @param string deprecated
+	 * @param $event EchoEvent
+	 * @param $user User
+	 * @param $type string deprecated
 	 * @throws MWException
 	 */
 	protected function generateBundleData( $event, $user, $type ) {
+		global $wgEchoMaxNotificationCount;
+
 		$data = $this->getRawBundleData( $event, $user, $type );
 
 		// Default the last raw data to false, which means there is no
@@ -618,19 +606,13 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 
 		// Initialize with 1 for the agent of current event
 		$count = 1;
-		foreach ( $data as $evt ) {
-			if ( $evt->getAgent() ) {
-				if ( $evt->getAgent()->isAnon() ) {
-					$key = $evt->getAgent()->getName();
-				} else {
-					$key = $evt->getAgent()->getId();
-				}
-				if ( !isset( $agents[$key] ) ) {
-					$agents[$key] = $key;
-					$count++;
-				}
+		foreach ( $data as $row ) {
+			$key = $row->event_agent_id ? 'event_agent_id' : 'event_agent_ip';
+			if ( !isset( $agents[$row->$key] ) ) {
+				$agents[$row->$key] = $row->$key;
+				$count++;
 			}
-			$this->bundleData['last-raw-data'] = $evt;
+			$this->bundleData['last-raw-data'] = $row;
 		}
 
 		$this->bundleData['agent-other-count'] = $count - 1;
@@ -640,7 +622,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 
 		// If there is more raw data than we requested, that means we have not
 		// retrieved the very last raw record, set the key back to null
-		if ( count( $data ) >= self::$maxRawBundleData ) {
+		if ( $data->numRows() >= self::$maxRawBundleData ) {
 			$this->bundleData['last-raw-data'] = null;
 		}
 	}
@@ -667,15 +649,13 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	}
 
 	/**
-	 * Process a parameter that should be escaped for display except for use
-	 * cases like plain text email and email subject
-	 *
+	 * Process a param that should be escaped
 	 * @param $message Message
 	 * @param $paramContent string
 	 */
 	protected function processParamEscaped( $message, $paramContent ) {
-		// Plain text email and email subject do not need to be escaped
-		if ( $this->outputFormat !== 'email' && $this->distributionType !== 'emailsubject' ) {
+		// Plain text email does not need escape
+		if ( $this->outputFormat !== 'email' ) {
 			$paramContent = htmlspecialchars( $paramContent );
 		}
 
@@ -704,15 +684,10 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 
 		// Get link parameters based on the destination
 		list( $target, $query ) = $this->getLinkParams( $event, $user, $destination );
-		// Note that $target can be a Title object or a raw url
 		if ( !$target ) {
 			return '';
 		}
 		if ( $urlOnly ) {
-			if ( is_string( $target ) ) {
-				// A raw url was passed back
-				return $target;
-			}
 			if ( $local ) {
 				return $target->getLinkURL( $query );
 			} else {
@@ -729,13 +704,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			if ( !$local ) {
 				$options[] = 'https';
 			}
-			if ( is_string( $target ) ) {
-				$attribs['href'] = wfAppendQuery( $target, $query );
-				return Html::element( 'a', $attribs, $message );
-			} else {
-				return Linker::link( $target, $message, $attribs, $query, $options );
-			}
-
+			return Linker::link( $target, $message, $attribs, $query, $options );
 		}
 	}
 
@@ -745,13 +714,11 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 * @param EchoEvent $event
 	 * @param User $user The user receiving the notification
 	 * @param String $destination The destination type for the link, e.g. 'agent'
-	 * @return Array including target and query parameters. Note that target can
-	 *               be either a Title or a full url
+	 * @return Array including target and query parameters
 	 */
 	protected function getLinkParams( $event, $user, $destination ) {
 		$target = null;
-		$query  = array();
-		$title  = $event->getTitle();
+		$query = array();
 		// Set up link parameters based on the destination
 		switch ( $destination ) {
 			case 'agent':
@@ -760,10 +727,10 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 				}
 				break;
 			case 'title':
-				$target = $title;
+				$target = $event->getTitle();
 				break;
 			case 'section':
-				$target = $title;
+				$target = $event->getTitle();
 				if ( $target ) {
 					$fragment = $this->formatSubjectAnchor( $event );
 					if ( $fragment ) {
@@ -773,8 +740,8 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 				break;
 			case 'diff':
 				$eventData = $event->getExtra();
-				if ( isset( $eventData['revid'] ) && $title ) {
-					$target = $title;
+				if ( isset( $eventData['revid'] ) && $event->getTitle() ) {
+					$target = $event->getTitle();
 					// Explicitly set fragment to empty string for diff links, $title is
 					// passed around by reference, it may end up using fragment set from
 					// other parameters
@@ -784,18 +751,31 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 						'diff' => $eventData['revid'],
 					);
 
-					$data = $this->getBundleLastRawData( $event, $user );
-					if ( $data ) {
-						$extra = $data->getExtra();
-						if ( isset( $extra['revid'] ) ) {
-							$oldId = $target->getPreviousRevisionID( $extra['revid'] );
-							// The diff engine doesn't provide a way to diff against a null revision.
-							// In this case, just fall back old id to the first revision
-							if ( !$oldId ) {
-								$oldId = $extra['revid'];
+					if ( $event->getBundleHash() ) {
+						// First try cache data from preivous query
+						if ( isset( $this->bundleData['last-raw-data'] ) ) {
+							$stat = $this->bundleData['last-raw-data'];
+						// Then try to query the storage
+						} else {
+							global $wgEchoBackend;
+							$stat = $wgEchoBackend->getRawBundleData( $user, $event->getBundleHash(), $this->distributionType, 'ASC', 1 );
+							if ( $stat ) {
+								$stat = $stat->current();
 							}
-							if ( $oldId < $eventData['revid'] ) {
-								$query['oldid'] = $oldId;
+						}
+
+						if ( $stat ) {
+							$extra = $stat->event_extra ? unserialize( $stat->event_extra ) : array();
+							if ( isset( $extra['revid'] ) ) {
+								$oldId = $target->getPreviousRevisionID( $extra['revid'] );
+								// The diff engine doesn't provide a way to diff against a null revision.
+								// In this case, just fall back old id to the first revision
+								if ( !$oldId ) {
+									$oldId = $extra['revid'];
+								}
+								if ( $oldId < $eventData['revid'] ) {
+									$query['oldid'] = $oldId;
+								}
 							}
 						}
 					}
@@ -803,40 +783,6 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 				break;
 		}
 		return array( $target, $query );
-	}
-
-	/**
-	 * Get the last echo event in a set of bundling data. When bundling notifications,
-	 * we mostly only need the very first notification, which is the bundle base.
-	 * In some cases, like talk notification diff, Flow notificaiton first unread post,
-	 * we need data from the very last notification.
-	 *
-	 * @param EchoEvent
-	 * @param User
-	 * @return EchoEvent|boolean false for none
-	 */
-	protected function getBundleLastRawData( EchoEvent $event, User $user ) {
-		if ( $event->getBundleHash() ) {
-			// First try cache data from preivous query
-			if ( isset( $this->bundleData['last-raw-data'] ) ) {
-				$data = $this->bundleData['last-raw-data'];
-			// Then try to query the storage
-			} else {
-				$eventMapper = new EchoEventMapper();
-				$data = $eventMapper->fetchByUserBundleHash(
-					$user, $event->getBundleHash(), $this->distributionType, 'ASC', 1
-				);
-				if ( $data ) {
-					$data = reset( $data );
-				}
-			}
-
-			if ( $data ) {
-				return $data;
-			}
-		}
-
-		return false;
 	}
 
 	/**
@@ -897,8 +843,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 		} elseif ( $param === 'user' ) {
 			$message->params( $user->getName() );
 		} elseif ( $param === 'title' ) {
-			$title = $event->getTitle();
-			if ( !$title ) {
+			if ( !$event->getTitle() ) {
 				$message->params( $this->getMessage( 'echo-no-title' )->text() );
 			} else {
 				if ( $this->outputFormat === 'htmlemail' ) {
@@ -907,7 +852,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 					);
 					$this->setTitleLink( $event, $message, $props );
 				} else {
-					$message->params( $this->formatTitle( $title ) );
+					$message->params( $this->formatTitle( $event->getTitle() ) );
 				}
 			}
 		} elseif ( $param === 'titlelink' ) {
@@ -927,10 +872,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 
 	/**
 	 * Getter method
-	 *
 	 * @param $key string
-	 *
-	 * @throws MWException
 	 * @return mixed
 	 */
 	public function getValue( $key ) {

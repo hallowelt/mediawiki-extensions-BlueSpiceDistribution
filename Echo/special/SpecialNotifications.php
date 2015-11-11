@@ -5,7 +5,7 @@ class SpecialNotifications extends SpecialPage {
 	/**
 	 * Number of notification records to display per page/load
 	 */
-	const DISPLAY_NUM = 20;
+	private static $displayNum = 20;
 
 	public function __construct() {
 		parent::__construct( 'Notifications' );
@@ -20,14 +20,13 @@ class SpecialNotifications extends SpecialPage {
 
 		$user = $this->getUser();
 		if ( $user->isAnon() ) {
-			// return to this title upon login
-			$returnTo = array( 'returnto' => $this->getPageTitle()->getPrefixedDBkey() );
-			// the html message for anon users
-			$anonMsgHtml = $this->msg(
-				'echo-anon',
-				SpecialPage::getTitleFor( 'UserLogin', 'signup' )->getFullURL( $returnTo ),
-				SpecialPage::getTitleFor( 'UserLogin' )->getFullURL( $returnTo )
-			)->parse();
+			$notificationsPageName = $this->getPageTitle()->getPrefixedDBkey();
+			$returnTo = array( 'returnto' => $notificationsPageName );
+			$signupTitle = SpecialPage::getTitleFor( 'UserLogin', 'signup' );
+			$signupURL = $signupTitle->getFullURL( $returnTo );
+			$loginTitle = SpecialPage::getTitleFor( 'UserLogin' );
+			$loginURL = $loginTitle->getFullURL( $returnTo );
+			$anonMsgHtml = $this->msg( 'echo-anon', $signupURL, $loginURL )->parse();
 			$out->addHTML( Html::rawElement( 'span', array( 'class' => 'plainlinks' ), $anonMsgHtml ) );
 			return;
 		}
@@ -39,19 +38,7 @@ class SpecialNotifications extends SpecialPage {
 		$continue = $this->getRequest()->getVal( 'continue', null );
 
 		// Pull the notifications
-		$notif = array();
-		$notificationMapper = new EchoNotificationMapper();
-
-		$attributeManager = EchoAttributeManager::newFromGlobalVars();
-		$notifications = $notificationMapper->fetchByUser(
-			$user,
-			/* $limit = */self::DISPLAY_NUM + 1,
-			$continue,
-			$attributeManager->getUserEnabledEvents( $user, 'web' )
-		);
-		foreach ( $notifications as $notification ) {
-			$notif[] = EchoDataOutputFormatter::formatOutput( $notification, 'html', $user );
-		}
+		$notif = ApiEchoNotifications::getNotifications( $user, 'html', self::$displayNum + 1, $continue );
 
 		// If there are no notifications, display a message saying so
 		if ( !$notif ) {
@@ -60,7 +47,7 @@ class SpecialNotifications extends SpecialPage {
 		}
 
 		// Check if there is more data to load for next request
-		if ( count( $notif ) > self::DISPLAY_NUM ) {
+		if ( count( $notif ) > self::$displayNum ) {
 			$lastItem = array_pop( $notif );
 			$nextContinue = $lastItem['timestamp']['utcunix'] . '|' . $lastItem['id'];
 		} else {
@@ -75,9 +62,7 @@ class SpecialNotifications extends SpecialPage {
 			$class = 'mw-echo-notification';
 			if ( !isset( $row['read'] ) ) {
 				$class .= ' mw-echo-unread';
-				if ( !$row['targetpage'] ) {
-					$unread[] = $row['id'];
-				}
+				$unread[] = $row['id'];
 			}
 
 			if ( !$row['*'] ) {
@@ -120,13 +105,14 @@ class SpecialNotifications extends SpecialPage {
 		$out->addModules( 'ext.echo.special' );
 		$out->addJsConfigVars(
 			array(
-				'wgEchoDisplayNum' => self::DISPLAY_NUM,
+				'wgEchoDisplayNum' => self::$displayNum,
 				'wgEchoNextContinue' => $nextContinue,
 				'wgEchoDateHeader' => $dateHeader
 			)
 		);
 		// For no-js support
-		$out->addModuleStyles( "ext.echo.base" );
+		global $wgExtensionAssetsPath;
+		$out->addExtensionStyle( "$wgExtensionAssetsPath/Echo/modules/base/ext.echo.base.css" );
 		// Mark items as read
 		if ( $unread ) {
 			MWEchoNotifUser::newFromUser( $user )->markRead( $unread );

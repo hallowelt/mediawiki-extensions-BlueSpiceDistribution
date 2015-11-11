@@ -30,7 +30,7 @@ abstract class MWEchoEmailBundler {
 	protected $timestamp;
 
 	/**
-	 * @var EchoEvent
+	 * @var Event
 	 */
 	protected $baseEvent;
 
@@ -92,10 +92,6 @@ abstract class MWEchoEmailBundler {
 	 * Check if a new notification should be added to the batch queue
 	 * true  - added to the queue for bundling email
 	 * false - not added, the client should send single email
-	 *
-	 * @param int $eventId
-	 * @param int $eventPriority
-	 *
 	 * @return bool
 	 */
 	public function addToEmailBatch( $eventId, $eventPriority ) {
@@ -243,7 +239,7 @@ abstract class MWEchoEmailBundler {
 
 		global $wgNotificationSender, $wgNotificationReplyName;
 
-		$toAddress = MailAddress::newFromUser( $this->mUser );
+		$toAddress = new MailAddress( $this->mUser );
 		$fromAddress = new MailAddress( $wgNotificationSender, EchoHooks::getNotificationSenderName() );
 		$replyAddress = new MailAddress( $wgNotificationSender, $wgNotificationReplyName );
 

@@ -24,16 +24,6 @@ $specialPageAliases['arz'] = array(
 	'Notifications' => array( 'اخطارات' ),
 );
 
-/** Avaric (авар) */
-$specialPageAliases['av'] = array(
-	'Notifications' => array( 'Уведомления' ),
-);
-
-/** Western Balochi (بلوچی رخشانی) */
-$specialPageAliases['bgn'] = array(
-	'Notifications' => array( 'آگاه_کورتینۆک_ئان' ),
-);
-
 /** Min Dong Chinese (Mìng-dĕ̤ng-ngṳ̄) */
 $specialPageAliases['cdo'] = array(
 	'Notifications' => array( '提醒' ),
@@ -51,7 +41,7 @@ $specialPageAliases['de'] = array(
 
 /** Zazaki (Zazaki) */
 $specialPageAliases['diq'] = array(
-	'Notifications' => array( 'Mengeneyi' ),
+	'Notifications' => array( 'Mengeney' ),
 );
 
 /** Greek (Ελληνικά) */
@@ -99,11 +89,6 @@ $specialPageAliases['he'] = array(
 	'Notifications' => array( 'הודעות', 'כל_ההודעות' ),
 );
 
-/** Upper Sorbian (hornjoserbsce) */
-$specialPageAliases['hsb'] = array(
-	'Notifications' => array( 'Zdźělenja' ),
-);
-
 /** Indonesian (Bahasa Indonesia) */
 $specialPageAliases['id'] = array(
 	'Notifications' => array( 'Notifikasi' ),
@@ -142,16 +127,6 @@ $specialPageAliases['mk'] = array(
 /** Malayalam (മലയാളം) */
 $specialPageAliases['ml'] = array(
 	'Notifications' => array( 'അറിയിപ്പുകൾ' ),
-);
-
-/** Marathi (मराठी) */
-$specialPageAliases['mr'] = array(
-	'Notifications' => array( 'संदेश' ),
-);
-
-/** Malay (Bahasa Melayu) */
-$specialPageAliases['ms'] = array(
-	'Notifications' => array( 'Pemberitahuan' ),
 );
 
 /** Maltese (Malti) */
@@ -204,11 +179,6 @@ $specialPageAliases['scn'] = array(
 	'Notifications' => array( 'Notifiche' ),
 );
 
-/** Serbian (Cyrillic script) (српски (ћирилица)‎) */
-$specialPageAliases['sr-ec'] = array(
-	'Notifications' => array( 'Обавештења' ),
-);
-
 /** Swedish (svenska) */
 $specialPageAliases['sv'] = array(
 	'Notifications' => array( 'Meddelanden' ),
@@ -219,12 +189,7 @@ $specialPageAliases['uk'] = array(
 	'Notifications' => array( 'Сповіщення' ),
 );
 
-/** Urdu (اردو) */
-$specialPageAliases['ur'] = array(
-	'Notifications' => array( 'اطلاعات' ),
-);
-
-/** Venetian (vèneto) */
+/** vèneto (vèneto) */
 $specialPageAliases['vec'] = array(
 	'Notifications' => array( 'Notifiche' ),
 );
@@ -232,11 +197,6 @@ $specialPageAliases['vec'] = array(
 /** Vietnamese (Tiếng Việt) */
 $specialPageAliases['vi'] = array(
 	'Notifications' => array( 'Thông_báo' ),
-);
-
-/** Chinese (中文) */
-$specialPageAliases['zh'] = array(
-	'Notifications' => array( '通知' ),
 );
 
 /** Simplified Chinese (中文（简体）‎) */

@@ -108,8 +108,6 @@ class EchoBatchRowUpdate {
 	 * string status updates
 	 *
 	 * @param callable $output A callback taking a single string parameter to output
-	 *
-	 * @throws MWException
 	 */
 	public function setOutput( $output ) {
 		if ( !is_callable( $output ) ) {
@@ -176,7 +174,7 @@ class EchoBatchRowWriter {
 	/**
 	 * @param DatabaseBase $db          The database to write to
 	 * @param string       $table       The name of the table to update
-	 * @param string|bool  $clusterName A cluster name valid for use with LBFactory
+	 * @param string       $clusterName A cluster name valid for use with LBFactory
 	 */
 	public function __construct( DatabaseBase $db, $table, $clusterName = false ) {
 		$this->db = $db;
@@ -192,7 +190,7 @@ class EchoBatchRowWriter {
 	public function write( array $updates ) {
 		$this->db->begin();
 
-		foreach ( $updates as $update ) {
+		foreach ( $updates as $id => $update ) {
 			//echo "Updating: ";var_dump( $update['primaryKey'] );
 			//echo "With values: ";var_dump( $update['changes'] );
 			$this->db->update(
@@ -213,7 +211,7 @@ class EchoBatchRowWriter {
  *
  * @ingroup Maintenance
  */
-class EchoBatchRowIterator implements RecursiveIterator {
+class EchoBatchRowIterator implements Iterator {
 
 	/**
 	 * @var DatabaseBase $db The database to read from
@@ -241,11 +239,6 @@ class EchoBatchRowIterator implements RecursiveIterator {
 	protected $conditions = array();
 
 	/**
-	 * @var array $joinConditions
-	 */
-	protected $joinConditions = array();
-
-	/**
 	 * @var array $fetchColumns List of column names to select from the table suitable for use with DatabaseBase::select()
 	 */
 	protected $fetchColumns = array( '*' );
@@ -270,8 +263,6 @@ class EchoBatchRowIterator implements RecursiveIterator {
 	 * @param string       $table      The name of the table to read from
 	 * @param string|array $primaryKey The name or names of the primary key columns
 	 * @param integer      $batchSize  The number of rows to fetch per iteration
-	 *
-	 * @throws MWException
 	 */
 	public function __construct( DatabaseBase $db, $table, $primaryKey, $batchSize ) {
 		if ( $batchSize < 1 ) {
@@ -280,7 +271,6 @@ class EchoBatchRowIterator implements RecursiveIterator {
 		$this->db = $db;
 		$this->table = $table;
 		$this->primaryKey = (array) $primaryKey;
-		$this->fetchColumns = $this->primaryKey;
 		$this->orderBy = implode( ' ASC,', $this->primaryKey ) . ' ASC';
 		$this->batchSize = $batchSize;
 	}
@@ -290,10 +280,6 @@ class EchoBatchRowIterator implements RecursiveIterator {
 	 */
 	public function addConditions( array $conditions ) {
 		$this->conditions = array_merge( $this->conditions, $conditions );
-	}
-
-	public function addJoinConditions( array $conditions ) {
-		$this->joinConditions = array_merge( $this->joinConditions, $conditions );
 	}
 
 	/**
@@ -353,20 +339,6 @@ class EchoBatchRowIterator implements RecursiveIterator {
 	}
 
 	/**
-	 * @return boolean True when this result set has rows
-	 */
-	public function hasChildren() {
-		return $this->current && count( $this->current );
-	}
-
-	/**
-	 * @return RecursiveIterator
-	 */
-	public function getChildren() {
-		return new EchoNotRecursiveIterator( new ArrayIterator( $this->current ) );
-	}
-
-	/**
 	 * Fetch the next set of rows from the database.
 	 */
 	public function next() {
@@ -378,8 +350,7 @@ class EchoBatchRowIterator implements RecursiveIterator {
 			array(
 				'LIMIT' => $this->batchSize,
 				'ORDER BY' => $this->orderBy,
-			),
-			$this->joinConditions
+			)
 		);
 
 		// The iterator is converted to an array because in addition to returning it

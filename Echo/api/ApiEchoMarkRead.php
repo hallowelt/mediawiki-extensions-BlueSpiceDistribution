@@ -20,29 +20,15 @@ class ApiEchoMarkRead extends ApiBase {
 			if ( count( $params['list'] ) ) {
 				// Make sure there is a limit to the update
 				$notifUser->markRead( array_slice( $params['list'], 0, ApiBase::LIMIT_SML2 ) );
-				// Mark all as read
 			} elseif ( $params['all'] ) {
 				$notifUser->markAllRead();
-				// Mark all as read for sections
-			} elseif ( $params['sections'] ) {
-				$notifUser->markAllRead( $params['sections'] );
 			}
 		}
 
 		$rawCount = $notifUser->getNotificationCount();
 
 		$result = array(
-			'result' => 'success'
-		);
-		$rawCount = 0;
-		foreach ( EchoAttributeManager::$sections as $section ) {
-			$rawSectionCount = $notifUser->getNotificationCount( /* $tryCache = */true, DB_SLAVE, $section );
-			$result[$section]['rawcount'] = $rawSectionCount;
-			$result[$section]['count'] = EchoNotificationController::formatNotificationCount( $rawSectionCount );
-			$rawCount += $rawSectionCount;
-		}
-
-		$result += array(
+			'result' => 'success',
 			'rawcount' => $rawCount,
 			'count' => EchoNotificationController::formatNotificationCount( $rawCount ),
 		);
@@ -58,30 +44,24 @@ class ApiEchoMarkRead extends ApiBase {
 				ApiBase::PARAM_REQUIRED => false,
 				ApiBase::PARAM_TYPE => 'boolean'
 			),
-			'sections' => array(
-				ApiBase::PARAM_TYPE => EchoAttributeManager::$sections,
-				ApiBase::PARAM_ISMULTI => true,
-			),
 			'token' => array(
 				ApiBase::PARAM_REQUIRED => true,
 			),
+			'uselang' => null
 		);
 	}
 
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
 	public function getParamDescription() {
 		return array(
 			'list' => 'A list of notification IDs to mark as read',
 			'all' => "If set to true, marks all of a user's notifications as read",
-			'sections' => 'A list of sections to mark as read',
 			'token' => 'edit token',
+			'uselang' => 'the desired language to format the output'
 		);
 	}
 
 	public function needsToken() {
-		return 'csrf';
+		return true;
 	}
 
 	public function getTokenSalt() {
@@ -96,16 +76,10 @@ class ApiEchoMarkRead extends ApiBase {
 		return true;
 	}
 
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
 	public function getDescription() {
 		return 'Mark notifications as read for the current user';
 	}
 
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
 	public function getExamples() {
 		return array(
 			'api.php?action=echomarkread&list=8',
@@ -113,19 +87,11 @@ class ApiEchoMarkRead extends ApiBase {
 		);
 	}
 
-	/**
-	 * @see ApiBase::getExamplesMessages()
-	 */
-	protected function getExamplesMessages() {
-		return array(
-			'action=echomarkread&list=8'
-				=> 'apihelp-echomarkread-example-1',
-			'action=echomarkread&all=true'
-				=> 'apihelp-echomarkread-example-2',
-		);
+	public function getHelpUrls() {
+		return 'https://www.mediawiki.org/wiki/Echo_(notifications)/API';
 	}
 
-	public function getHelpUrls() {
-		return 'https://www.mediawiki.org/wiki/Echo_(Notifications)/API';
+	public function getVersion() {
+		return __CLASS__ . '-0.1';
 	}
 }

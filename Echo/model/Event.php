@@ -4,8 +4,7 @@
  * Immutable class to represent an event.
  * In Echo nomenclature, an event is a single occurrence.
  */
-class EchoEvent extends EchoAbstractEntity{
-
+class EchoEvent {
 	protected $type = null;
 	protected $id = null;
 	protected $variant = null;
@@ -136,7 +135,6 @@ class EchoEvent extends EchoAbstractEntity{
 			return false;
 		}
 
-		//@Todo - Database insert logic should not be inside the model
 		$obj->insert();
 
 		wfRunHooks( 'EchoEventInsertComplete', array( $obj ) );
@@ -146,40 +144,6 @@ class EchoEvent extends EchoAbstractEntity{
 		EchoNotificationController::notify( $obj, $wgEchoUseJobQueue  );
 
 		return $obj;
-	}
-
-	/**
-	 * Convert the object's database property to array
-	 * @return array
-	 */
-	public function toDbArray() {
-		$data = array (
-			'event_type' => $this->type,
-			'event_variant' => $this->variant,
-			'event_extra' => $this->serializeExtra()
-		);
-		if ( $this->id ) {
-			$data['event_id'] = $this->id;
-		}
-		if ( $this->agent ) {
-			if ( $this->agent->isAnon() ) {
-				$data['event_agent_ip'] = $this->agent->getName();
-			} else {
-				$data['event_agent_id'] = $this->agent->getId();
-			}
-		}
-
-		if ( $this->pageId ) {
-			$data['event_page_id'] = $this->pageId;
-		} elseif ( $this->title ) {
-			$pageId = $this->title->getArticleId();
-			// Don't need any special handling for title with no id
-			// as they are already stored in extra data array
-			if ( $pageId ) {
-				$data['event_page_id'] = $pageId;
-			}
-		}
-		return $data;
 	}
 
 	/**
@@ -199,14 +163,38 @@ class EchoEvent extends EchoAbstractEntity{
 	 * Inserts the object into the database.
 	 */
 	protected function insert() {
-		$eventMapper = new EchoEventMapper();
-		$this->id = $eventMapper->insert( $this );
+		global $wgEchoBackend;
+
+		if ( $this->id ) {
+			throw new MWException( "Attempt to insert() an existing event" );
+		}
+
+		$row = array(
+			'event_type' => $this->type,
+			'event_variant' => $this->variant,
+		);
+
+		if ( $this->agent ) {
+			if ( $this->agent->isAnon() ) {
+				$row['event_agent_ip'] = $this->agent->getName();
+			} else {
+				$row['event_agent_id'] = $this->agent->getId();
+			}
+		}
+
+		if ( $this->pageId ) {
+			$row['event_page_id'] = $this->pageId;
+		}
+
+		$row['event_extra'] = $this->serializeExtra();
+
+		$this->id = $wgEchoBackend->createEvent( $row );
 	}
 
 	/**
 	 * Loads data from the provided $row into this object.
 	 *
-	 * @param $row stdClass row object from echo_event
+	 * @param $row Database row object from echo_event
 	 */
 	public function loadFromRow( $row ) {
 		$this->id = $row->event_id;
@@ -231,23 +219,13 @@ class EchoEvent extends EchoAbstractEntity{
 			$this->agent = User::newFromName( $row->event_agent_ip, false );
 		}
 
-		// Lazy load the title from getTitle() so that we can do a batch-load
-		if (
-			isset( $this->extra['page_title'], $this->extra['page_namespace'] )
-			&& !$row->event_page_id
-		) {
+		if ( $row->event_page_id !== null ) {
+			$this->title = Title::newFromId( $row->event_page_id );
+		} elseif ( isset( $this->extra['page_title'], $this->extra['page_namespace'] ) ) {
 			$this->title = Title::makeTitleSafe(
 				$this->extra['page_namespace'],
 				$this->extra['page_title']
 			);
-		}
-		if ( $row->event_page_id ) {
-			$titleCache = EchoTitleLocalCache::create();
-			$titleCache->add( $row->event_page_id );
-		}
-		if ( isset( $this->extra['revid'] ) && $this->extra['revid'] ) {
-			$revisionCache = EchoRevisionLocalCache::create();
-			$revisionCache->add( $this->extra['revid'] );
 		}
 	}
 
@@ -257,27 +235,15 @@ class EchoEvent extends EchoAbstractEntity{
 	 * @param $fromMaster bool
 	 */
 	public function loadFromID( $id, $fromMaster = false ) {
-		$eventMapper = new EchoEventMapper();
-		$event = $eventMapper->fetchById( $id, $fromMaster );
+		global $wgEchoBackend;
 
-		// Copy over the attribute
-		$this->id = $event->id;
-		$this->type = $event->type;
-		$this->variant = $event->variant;
-		$this->extra = $event->extra;
-		$this->pageId = $event->pageId;
-		$this->agent = $event->agent;
-		$this->title = $event->title;
-		// Don't overwrite timestamp if it exists already
-		if ( !$this->timestamp ) {
-			$this->timestamp = $event->timestamp;
-		}
+		$this->loadFromRow( $wgEchoBackend->loadEvent( $id, $fromMaster ) );
 	}
 
 	/**
 	 * Creates an EchoEvent from a row object
 	 *
-	 * @param $row stdClass row object from echo_event
+	 * @param $row Database row object from echo_event
 	 * @return EchoEvent object.
 	 */
 	public static function newFromRow( $row ) {
@@ -299,6 +265,18 @@ class EchoEvent extends EchoAbstractEntity{
 	}
 
 	/**
+	 * Update extra data
+	 */
+	public function updateExtra( $extra ) {
+		global $wgEchoBackend;
+
+		$this->extra = $extra;
+		if ( $this->id && $this->extra ) {
+			$wgEchoBackend->updateEventExtra( $this );
+		}
+	}
+
+	/**
 	 * Serialize the extra data for event
 	 * @return string
 	 */
@@ -317,7 +295,7 @@ class EchoEvent extends EchoAbstractEntity{
 	/**
 	 * Check if the event is dismissable for the given distribution type
 	 *
-	 * @param string $distribution notification distribution web/email
+	 * @param $distribution notification distribution web/email
 	 * @return bool
 	 */
 	public function isDismissable( $distribution ) {
@@ -349,9 +327,31 @@ class EchoEvent extends EchoAbstractEntity{
 	 */
 	public function userCan( $field, User $user = null ) {
 		$revision = $this->getRevision();
-		if ( $revision ) {
+		// User is handled specially
+		if ( $field === Revision::DELETED_USER ) {
+			$agent = $this->getAgent();
+			if ( !$agent ) {
+				// No user associated, so they can see it.
+				return true;
+			} elseif ( $revision
+				&& $agent->getName() === $revision->getUserText( Revision::RAW )
+			) {
+				// If the agent and the revision user are the same, use rev_deleted
+				return $revision->userCan( $field, $user );
+			} else {
+				// Use User::isHidden()
+				if ( !$user ) {
+					// @FIXME Require a user object for this function
+					global $wgUser;
+					$user = $wgUser;
+				}
+				return $user->isAllowedAny( 'viewsuppressed', 'hideuser' ) || !$agent->isHidden();
+			}
+		} elseif ( $revision ) {
+			// A revision is set, use rev_deleted
 			return $revision->userCan( $field, $user );
 		} else {
+			// Not a user, and there is no associated revision, so the user can see it
 			return true;
 		}
 	}
@@ -410,11 +410,6 @@ class EchoEvent extends EchoAbstractEntity{
 		if ( $this->title ) {
 			return $this->title;
 		} elseif ( $this->pageId ) {
-			$titleCache = EchoTitleLocalCache::create();
-			$title = $titleCache->get( $this->pageId );
-			if ( $title ) {
-				return $this->title = $title;
-			}
 			return $this->title = Title::newFromId( $this->pageId );
 		} elseif ( isset( $this->extra['page_title'], $this->extra['page_namespace'] ) ) {
 			return $this->title = Title::makeTitleSafe(
@@ -432,11 +427,6 @@ class EchoEvent extends EchoAbstractEntity{
 		if ( $this->revision ) {
 			return $this->revision;
 		} elseif ( isset( $this->extra['revid'] ) ) {
-			$revisionCache = EchoRevisionLocalCache::create();
-			$revision = $revisionCache->get( $this->extra['revid'] );
-			if ( $revision ) {
-				return $this->revision = $revision;
-			}
 			return $this->revision = Revision::newFromId( $this->extra['revid'] );
 		}
 		return null;
@@ -447,31 +437,7 @@ class EchoEvent extends EchoAbstractEntity{
 	 * @return string
 	 */
 	public function getCategory() {
-		$attributeManager = EchoAttributeManager::newFromGlobalVars();
-		return $attributeManager->getNotificationCategory( $this->type );
-	}
-
-	/**
-	 * Get the section of the event type
-	 * @return string
-	 */
-	public function getSection() {
-		$attributeManager = EchoAttributeManager::newFromGlobalVars();
-		return $attributeManager->getNotificationSection( $this->type );
-	}
-
-	/**
-	 * Get the use-jobqueue attribute of an event type
-	 * @FIXME - use global for now instead of attribute manager, we may need
-	 * to cherry pick this to enwiki
-	 * @return boolean
-	 */
-	public function getUseJobQueue() {
-		global $wgEchoNotifications;
-		if ( isset( $wgEchoNotifications[$this->type]['use-jobqueue'] ) ) {
-			return (bool)$wgEchoNotifications[$this->type]['use-jobqueue'];
-		}
-		return false;
+		return EchoNotificationController::getNotificationCategory( $this->type );
 	}
 
 	public function setType( $type ) {
@@ -510,9 +476,8 @@ class EchoEvent extends EchoAbstractEntity{
 	 */
 	public function getLinkMessage( $rank ) {
 		global $wgEchoNotifications;
-		$type = $this->getType();
-		if ( isset( $wgEchoNotifications[$type][$rank.'-link']['message'] ) ) {
-			return $wgEchoNotifications[$type][$rank.'-link']['message'];
+		if ( isset( $wgEchoNotifications[$this->getType()][$rank.'-link']['message'] ) ) {
+			return $wgEchoNotifications[$this->getType()][$rank.'-link']['message'];
 		}
 		return '';
 	}
@@ -525,9 +490,8 @@ class EchoEvent extends EchoAbstractEntity{
 	 */
 	public function getLinkDestination( $rank ) {
 		global $wgEchoNotifications;
-		$type = $this->getType();
-		if ( isset( $wgEchoNotifications[$type][$rank.'-link']['destination'] ) ) {
-			return $wgEchoNotifications[$type][$rank.'-link']['destination'];
+		if ( isset( $wgEchoNotifications[$this->getType()][$rank.'-link']['destination'] ) ) {
+			return $wgEchoNotifications[$this->getType()][$rank.'-link']['destination'];
 		}
 		return '';
 	}

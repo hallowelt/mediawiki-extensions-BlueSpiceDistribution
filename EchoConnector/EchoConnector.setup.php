@@ -64,6 +64,10 @@ foreach($echoRessourcePackages as $package) {
 	$wgResourceModules[$package]['remoteExtPath'] = 'BlueSpiceDistribution/Echo/modules';
 }
 
-BSNotifications::registerNotificationHandler(
-	'BSEchoNotificationHandler'
-);
+$wgHooks['BeforeNotificationsInit'][] = "initEchoConnector";
+
+function initEchoConnector() {
+	BSNotifications::registerNotificationHandler(
+			'BSEchoNotificationHandler'
+	);
+}

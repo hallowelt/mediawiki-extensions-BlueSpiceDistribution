@@ -1,6 +1,5 @@
 ( function ( $, mw ) {
 	'use strict';
-	var useLang = mw.config.get( 'wgUserLanguage' );
 
 	mw.echo.special = {
 
@@ -63,16 +62,15 @@
 				notifications, data, container, $li, that = this, unread = [], apiData;
 
 			apiData = {
-				action : 'query',
-				meta : 'notifications',
-				notformat : 'html',
-				notprop : 'index|list',
-				notcontinue: this.notcontinue,
-				notlimit: mw.config.get( 'wgEchoDisplayNum' ),
-				uselang: useLang
+				'action' : 'query',
+				'meta' : 'notifications',
+				'notformat' : 'html',
+				'notprop' : 'index|list',
+				'notcontinue': this.notcontinue,
+				'notlimit': mw.config.get( 'wgEchoDisplayNum' )
 			};
 
-			api.get( apiData ).done( function ( result ) {
+			api.get( mw.echo.desktop.appendUseLang( apiData ) ).done( function ( result ) {
 				container = $( '#mw-echo-special-container' );
 				notifications = result.query.notifications;
 				unread = [];
@@ -124,29 +122,18 @@
 		 * Mark notifications as read.
 		 */
 		markAsRead: function ( unread ) {
-			var newCount, rawCount, $badge,
-				api = new mw.Api(), that = this;
+			var api = new mw.Api(), that = this;
 
-			api.post( {
-				action : 'echomarkread',
-				list : unread.join( '|' ),
-				token: mw.user.tokens.get( 'editToken' ),
-				uselang: useLang
-			} ).done( function ( result ) {
+			api.post( mw.echo.desktop.appendUseLang( {
+				'action' : 'echomarkread',
+				'list' : unread.join( '|' ),
+				'token': mw.user.tokens.get( 'editToken' )
+			} ) ).done( function ( result ) {
 				// update the badge if the link is enabled
 				if ( result.query.echomarkread.count !== undefined &&
-					$( '#pt-notifications').length
+					$( '#pt-notifications').length && typeof mw.echo.overlay === 'object'
 				) {
-					newCount = result.query.echomarkread.count;
-					rawCount = result.query.echomarkread.rawcount;
-					$badge = mw.echo.getBadge();
-					$badge.text( newCount );
-
-					if ( rawCount !== '0' && rawCount !== 0 ) {
-						$badge.addClass( 'mw-echo-unread-notifications' );
-					} else {
-						$badge.removeClass( 'mw-echo-unread-notifications' );
-					}
+					mw.echo.overlay.updateCount( result.query.echomarkread.count, result.query.echomarkread.rawcount );
 				}
 				that.onSuccess();
 			} ).fail( function () {
