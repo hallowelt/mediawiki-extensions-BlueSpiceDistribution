@@ -28,7 +28,7 @@ var IME_POLYSCRIPT = mw.config.get( 'wgScriptPath' ) + '/extensions/BlueSpiceDis
 importScriptURI(IME_TEMPLATE);
 
 // Default error message, will be overwritten if translation is loaded
-var ime_translations = new Array();
+ime_translations = new Array();
 ime_translations['error_imagenotfound'] = 'ImageMapEdit: Could not find image in page structure.';
 // Container for translations
 // Load translations
