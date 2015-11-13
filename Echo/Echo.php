@@ -371,7 +371,7 @@ $wgEchoNotificationCategories = array(
 	),
 );
 
-$echoIconPath = "BlueSpiceDistribution/Echo/modules/icons";
+$echoIconPath = "Echo/modules/icons";
 
 // Defines icons, which are 30x30 images. This is passed to BeforeCreateEchoEvent so
 // extensions can define their own icons with the same structure.  It is recommended that
