@@ -5,13 +5,15 @@ require_once( __DIR__."/LdapAuthenticationConnector.hooks.php" );
 
 $wgMessagesDirs['LdapAuthenticationConnector'] = __DIR__ . '/i18n';
 
+$bsgLDAPAutoAuthChangeUser = false;
+
 function BSAutoAuthSetup( $domain ) {
 	global $wgLDAPAutoAuthUsername, $wgLDAPAutoAuthDomain;
 
 	if( PHP_SAPI === 'cli' ) {
 		return;
 	}
-	
+
 	$aConfigVars = array(
 						'wgLDAPActiveDirectory', 'wgLDAPAddLDAPUsers', 'wgLDAPAuthAttribute', 'wgLDAPBaseDNs',
 						'wgLDAPDisableAutoCreate', 'wgLDAPDomainNames', 'wgLDAPEncryptionType', 'wgLDAPExcludedGroups',
@@ -23,9 +25,9 @@ function BSAutoAuthSetup( $domain ) {
 						'wgLDAPSearchAttributes', 'wgLDAPSearchStrings', 'wgLDAPServerNames', 'wgLDAPUpdateLDAP',
 						'wgLDAPUseLDAPGroups', 'wgLDAPUserBaseDNs', 'wgLDAPWriteLocation', 'wgLDAPWriterDN', 'wgLDAPWriterPassword'
 					);
-	
+
 	$sAutoAuthDomain = $domain . '-AutoAuth';
-	
+
 	foreach( $aConfigVars as $var ) {
 		if( !isset( $GLOBALS[$var] ) || !is_array( $GLOBALS[$var] ) ) {
 			continue;
@@ -35,9 +37,9 @@ function BSAutoAuthSetup( $domain ) {
 		}
 		elseif( in_array( $domain, $GLOBALS[$var]) ) {
 			$GLOBALS[$var][] = $sAutoAuthDomain;
-		} 
+		}
 	}
-	
+
 	$username = preg_replace( '|^.*?\\\|', '', $_SERVER['REMOTE_USER'] );
 	$wgLDAPAutoAuthUsername = strtolower( $username );
 	$wgLDAPAutoAuthDomain = $sAutoAuthDomain;

@@ -20,13 +20,13 @@ class BlueSpiceLdapHooks {
 
 	public static function onPersonalUrls( &$personal_urls ) {
 		global $bsgLDAPAutoAuthChangeUser;
-		if (isset( $bsgLDAPAutoAuthChangeUser ) && $bsgLDAPAutoAuthChangeUser == true) {
+		if ( $bsgLDAPAutoAuthChangeUser === true ) {
 			$personal_urls["changeuser"] = array(
-				"text" => wfMessage( "bs-ldapc-changeuser-label" )->plain(), 
-				"title" => wfMessage( "bs-ldapc-changeuser-desc" )->plain(), 
+				"text" => wfMessage( "bs-ldapc-changeuser-label" )->plain(),
+				"title" => wfMessage( "tooltip-pt-changeuser" )->plain(),
 				"href" => SpecialPage::getTitleFor( 'Userlogin' )->getLinkURL()
 			);
-		}		
+		}
 		return true;
 	}
 
