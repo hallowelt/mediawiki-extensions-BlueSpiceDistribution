@@ -2,5 +2,6 @@
 	"@metadata": {
 		"authors": []
 	},
-	"bs-distribution-yourdomainname": "Deine Domain"
+	"bs-distribution-yourdomainname": "Deine Domain",
+	"bs-distribution-tag-categorytree-desc": "Stellt eine dynamische Baumansicht für die Kategorien im Wiki bereit."
 }

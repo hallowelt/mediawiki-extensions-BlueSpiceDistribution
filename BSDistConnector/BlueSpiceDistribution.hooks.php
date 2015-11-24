@@ -4,3 +4,6 @@ $wgHooks['BeforePageDisplay'][] = 'BlueSpiceDistributionHooks::onBeforePageDispl
 $wgHooks['MinervaPreRender'][] = 'BlueSpiceDistributionHooks::onMinervaPreRender';
 $wgHooks['ResourceLoaderRegisterModules'][] = 'BlueSpiceDistributionHooks::onResourceLoaderRegisterModules';
 $wgHooks['UserLoginForm'][] = 'BlueSpiceDistributionHooks::onUserLoginForm';
+
+$wgHooks['BSInsertMagicAjaxGetData'][]
+	= 'BlueSpiceDistributionHooks::onBSInsertMagicAjaxGetDataCategoryTree';

@@ -70,4 +70,24 @@ class BlueSpiceDistributionHooks {
 		$LDAPUsername = str_replace( '_', ' ', $info[0]['samaccountname'][0] );
 		return true;
 	}
+
+	/**
+	 * Inject tags into InsertMagic
+	 * @param Object $oResponse reference
+	 * $param String $type
+	 * @return always true to keep hook running
+	 */
+	public function onBSInsertMagicAjaxGetDataCategoryTree( &$oResponse, $type ) {
+		if ( $type != 'tags' ) return true;
+
+		$oResponse->result[] = array(
+			'id' => 'categorytree',
+			'type' => 'tag',
+			'name' => 'categorytree',
+			'desc' => wfMessage( 'bs-distribution-tag-categorytree-desc' )->plain(),
+			'code' => '<categorytree></categorytree>',
+		);
+
+		return true;
+	}
 }
