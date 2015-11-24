@@ -7,5 +7,6 @@
 	"bs-distribution-tag-ref-desc": "Markiert den Text zwischen dem 'ref' Tag als Fußnote.",
 	"bs-distribution-tag-references-desc": "Zeigt den Text aller durch 'ref' Tags markierten Stellen bis zu diesem Punkt der Siete an.",
 	"bs-distribution-tag-quiz-desc": "Ermöglicht es, 'Quiz'-artige Fragen einem Artikel hinzuzufügen.",
-	"bs-distribution-tag-embedvideo-desc": "Ermöglicht es, Video-Clips von populären Video-Sharing-Diensten einzubetten."
+	"bs-distribution-tag-embedvideo-desc": "Ermöglicht es, Video-Clips von populären Video-Sharing-Diensten einzubetten.",
+	"bs-distribution-tag-dynamicpagelist-desc": "Erzeugt eine dynamische Liste von Seiten basierend auf verschiedenen Parametern."
 }

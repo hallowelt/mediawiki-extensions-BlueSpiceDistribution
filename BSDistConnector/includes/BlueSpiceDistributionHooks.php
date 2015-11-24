@@ -158,4 +158,24 @@ class BlueSpiceDistributionHooks {
 
 		return true;
 	}
+
+	/**
+	 * Inject Intersection tag into InsertMagic
+	 * @param Object $oResponse reference
+	 * $param String $type
+	 * @return always true to keep hook running
+	 */
+	public function onBSInsertMagicAjaxGetDataDynamicPageList( &$oResponse, $type ) {
+		if ( $type != 'tags' ) return true;
+
+		$oResponse->result[] = array(
+			'id' => 'dynamicpagelist',
+			'type' => 'tag',
+			'name' => 'dynamicpagelist',
+			'desc' => wfMessage( 'bs-distribution-tag-dynamicpagelist-desc' )->plain(),
+			'code' => '<DynamicPageList></DynamicPageList>',
+		);
+
+		return true;
+	}
 }
