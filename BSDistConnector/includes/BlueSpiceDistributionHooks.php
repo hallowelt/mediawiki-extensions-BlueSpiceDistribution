@@ -118,4 +118,24 @@ class BlueSpiceDistributionHooks {
 
 		return true;
 	}
+
+	/**
+	 * Inject Quiz tag into InsertMagic
+	 * @param Object $oResponse reference
+	 * $param String $type
+	 * @return always true to keep hook running
+	 */
+	public function onBSInsertMagicAjaxGetDataQuiz( &$oResponse, $type ) {
+		if ( $type != 'tags' ) return true;
+
+		$oResponse->result[] = array(
+			'id' => 'quiz',
+			'type' => 'tag',
+			'name' => 'quiz',
+			'desc' => wfMessage( 'bs-distribution-tag-quiz-desc' )->plain(),
+			'code' => '<quiz></quiz>',
+		);
+
+		return true;
+	}
 }

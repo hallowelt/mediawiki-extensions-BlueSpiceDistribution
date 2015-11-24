@@ -9,3 +9,5 @@ $wgHooks['BSInsertMagicAjaxGetData'][]
 	= 'BlueSpiceDistributionHooks::onBSInsertMagicAjaxGetDataCategoryTree';
 $wgHooks['BSInsertMagicAjaxGetData'][]
 	= 'BlueSpiceDistributionHooks::onBSInsertMagicAjaxGetDataCite';
+$wgHooks['BSInsertMagicAjaxGetData'][]
+	= 'BlueSpiceDistributionHooks::onBSInsertMagicAjaxGetDataQuiz';
