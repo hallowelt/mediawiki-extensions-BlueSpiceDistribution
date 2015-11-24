@@ -72,7 +72,7 @@ class BlueSpiceDistributionHooks {
 	}
 
 	/**
-	 * Inject tags into InsertMagic
+	 * Inject CategoryTree tag into InsertMagic
 	 * @param Object $oResponse reference
 	 * $param String $type
 	 * @return always true to keep hook running
@@ -86,6 +86,34 @@ class BlueSpiceDistributionHooks {
 			'name' => 'categorytree',
 			'desc' => wfMessage( 'bs-distribution-tag-categorytree-desc' )->plain(),
 			'code' => '<categorytree></categorytree>',
+		);
+
+		return true;
+	}
+
+	/**
+	 * Inject Cite tags into InsertMagic
+	 * @param Object $oResponse reference
+	 * $param String $type
+	 * @return always true to keep hook running
+	 */
+	public function onBSInsertMagicAjaxGetDataCite( &$oResponse, $type ) {
+		if ( $type != 'tags' ) return true;
+
+		$oResponse->result[] = array(
+			'id' => 'ref',
+			'type' => 'tag',
+			'name' => 'ref',
+			'desc' => wfMessage( 'bs-distribution-tag-ref-desc' )->plain(),
+			'code' => '<ref></ref>',
+		);
+
+		$oResponse->result[] = array(
+			'id' => 'references',
+			'type' => 'tag',
+			'name' => 'references',
+			'desc' => wfMessage( 'bs-distribution-tag-references-desc' )->plain(),
+			'code' => '<references />',
 		);
 
 		return true;
