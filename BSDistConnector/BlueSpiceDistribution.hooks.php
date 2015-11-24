@@ -11,3 +11,5 @@ $wgHooks['BSInsertMagicAjaxGetData'][]
 	= 'BlueSpiceDistributionHooks::onBSInsertMagicAjaxGetDataCite';
 $wgHooks['BSInsertMagicAjaxGetData'][]
 	= 'BlueSpiceDistributionHooks::onBSInsertMagicAjaxGetDataQuiz';
+$wgHooks['BSInsertMagicAjaxGetData'][]
+	= 'BlueSpiceDistributionHooks::onBSInsertMagicAjaxGetDataEmbedVideo';

@@ -6,5 +6,6 @@
 	"bs-distribution-tag-categorytree-desc": "Provides a dynamic view of the wiki's category structure as a tree.",
 	"bs-distribution-tag-ref-desc": "Marks the text enclosed by the ref tags as a footnote.",
 	"bs-distribution-tag-references-desc": "Inserts the text of all the citations which have defined in 'ref' tags up to that point in the page",
-	"bs-distribution-tag-quiz-desc": "Enables you to add 'quiz' like questions to a page."
+	"bs-distribution-tag-quiz-desc": "Enables you to add 'quiz' like questions to a page.",
+	"bs-distribution-tag-embedvideo-desc": "Enables you to embed video clips from popular video sharing services."
 }

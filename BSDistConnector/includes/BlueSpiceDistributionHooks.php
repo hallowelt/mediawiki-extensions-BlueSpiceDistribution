@@ -138,4 +138,24 @@ class BlueSpiceDistributionHooks {
 
 		return true;
 	}
+
+	/**
+	 * Inject EmbedVideo tag into InsertMagic
+	 * @param Object $oResponse reference
+	 * $param String $type
+	 * @return always true to keep hook running
+	 */
+	public function onBSInsertMagicAjaxGetDataEmbedVideo( &$oResponse, $type ) {
+		if ( $type != 'tags' ) return true;
+
+		$oResponse->result[] = array(
+			'id' => 'embedvideo',
+			'type' => 'tag',
+			'name' => 'embedvideo',
+			'desc' => wfMessage( 'bs-distribution-tag-embedvideo-desc' )->plain(),
+			'code' => '<embedvideo></embedvideo>',
+		);
+
+		return true;
+	}
 }
