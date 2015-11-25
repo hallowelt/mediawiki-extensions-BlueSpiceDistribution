@@ -32,14 +32,14 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 		self::registerNotificationCategory( 'bs-page-actions-cat', 3 );
 
 		self::registerNotification(
-			'bs-adduser',
-			'bs-admin-cat',
+			'bs-adduser', //Called from UserManager:addUser - wfRunHooks: BSUserManagerAfterAddUser
+			'bs-admin-cat', //show only if current user is admin
 			'bs-notifications-addacount',
-			array( 'userlink' ),
+			array( 'username' ),
 			'bs-notifications-email-addaccount-subject',
-			array( 'username', 'realname' ),
+			array( 'username', 'username' ),
 			'bs-notifications-email-addaccount-body',
-			array( 'userlink', 'username', 'realname' )
+			array( 'userlink', 'username', 'username' )
 		);
 
 		self::registerNotification(
@@ -90,6 +90,8 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 		Hooks::register( 'ArticleSaveComplete', 'BSEchoNotificationHandler::onArticleSaveComplete' );
 		Hooks::register( 'BSUserManagerAfterAddUser', 'BSEchoNotificationHandler::onBSUserManagerAfterAddUser' );
 		Hooks::register( 'TitleMoveComplete', 'BSEchoNotificationHandler::onTitleMoveComplete' );
+		Hooks::register( 'EchoGetDefaultNotifiedUsers', 'BSEchoNotificationHandler::onEchoGetDefaultNotifiedUsers' );
+		Hooks::register( 'EchoGetNotificationTypes', 'BSEchoNotificationHandler::onEchoGetNotificationTypes' );
 	}
 
 	/**
@@ -361,21 +363,69 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 		return true;
 	}
 
-	public function onBSUserManagerAfterAddUser( UserManager $oUserManager, $oUser, $aUserDetails ) {
-		if ( $oUser->isAllowed( 'bot' ) ) return true;
-		EchoEvent::create( array(
-			'type' => 'bs-newuser',
-			// TODO SW: implement own notifications formatter
-			'extra' => array(
-				'user' => $oUser->getName(),
-				'username' => $aUserDetails[ 'username' ],
-				'userlink' => true,
-				'realname' => empty( $aUserDetails[ 'realname' ] )
-					? $aUserDetails[ 'username' ]
-					: $aUserDetails[ 'realname' ],
-			)
-		) );
+	public function onBSUserManagerAfterAddUser( UserManager $oUserManager, User $oUser, $aUserDetails ) {
 
+		BSNotifications::notify(
+			'bs-adduser',
+			$oUserManager->getUser(),
+                        null,
+			array(
+			    'username' => $aUserDetails[ 'username' ],
+			    'userlink' => $oUser->getUserPage()->getFullURL()
+			)
+		);
+
+		return true;
+	}
+
+	/**
+	 * Handler for EchoGetDefaultNotifiedUsers hook.
+	 * @param $event EchoEvent to get implicitly subscribed users for
+	 * @param &$users Array to append implicitly subscribed users to.
+	 * @return bool true in all cases
+	 */
+	public static function onEchoGetDefaultNotifiedUsers( $event, &$users ) {
+		switch ( $event->getType() ) {
+			// Everyone deserves to know when something happens
+			// on their user talk page
+			case 'bs-adduser':
+			    //Get admin users
+			    $dbr = wfGetDB( DB_SLAVE );
+			    $resSysops = $dbr->select("user_groups", "ug_user", 'ug_group = "sysop"');
+			    foreach($resSysops as $row){
+				$user = User::newFromId($row->ug_user);
+				$users[$user->getId()] = $user;
+			    }
+			    break;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Handler for EchoGetNotificationTypes hook, Adjust the notify types (e.g. web, email) which
+	 * are applicable to this event and user based on various user options. In other words, allow
+	 * certain non-echo user options to override the echo notification options.
+	 * @param $user User
+	 * @param $event EchoEvent
+	 * @param $notifyTypes
+	 * @return bool
+	 */
+	public static function onEchoGetNotificationTypes( User $user, $event, &$notifyTypes ) {
+		$type = $event->getType();
+		if ( $type == "bs-adduser" ) {
+		    //$arrNotifUserBy = array();
+		    //error_log("Check notification types for user: ");
+		    $arrUserOptions = $user->getOptions();
+		    if(	    isset($arrUserOptions['echo-subscriptions-web-bs-admin-cat']) &&
+			    $arrUserOptions['echo-subscriptions-web-bs-admin-cat'] == 1){
+			$notifyTypes[] =  'web';
+		    }
+		    if(	    isset($arrUserOptions['echo-subscriptions-email-bs-admin-cat']) &&
+			    $arrUserOptions['echo-subscriptions-email-bs-admin-cat'] == 1){
+			$notifyTypes[] = 'email';
+		    }
+		}
 		return true;
 	}
 }

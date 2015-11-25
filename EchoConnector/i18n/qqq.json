@@ -7,6 +7,6 @@
             "TMg"
         ]
     },
-    "echo-category-title-bs-admin-cat": "Checkbox label for mail and wiki notification subscribtion on assigned admin category in profile settings",
-    "echo-category-title-bs-page-actions-cat": "Checkbox label for mail and wiki notification subscribtion on page actions in assigned categories in profile settings"
+    "echo-category-title-bs-admin-cat": "Checkbox label for mail and wiki notification subscribtion on admin tasks",
+    "echo-category-title-bs-page-actions-cat": "Checkbox label for mail and wiki notification subscribtion on page actions"
 }
