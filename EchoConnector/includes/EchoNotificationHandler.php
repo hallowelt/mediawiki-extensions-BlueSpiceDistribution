@@ -274,7 +274,7 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 	 *
 	 * @return bool allow other hooked methods to be executed. Always true
 	 */
-	function onArticleSaveComplete( $oArticle, $oUser, $sText, $sSummary, $bMinorEdit, $bWatchThis, $iSectionAnchor, $iFlags, $oRevision, $oStatus, $iBaseRevId, $bRedirect = false ) {
+	public static function onArticleSaveComplete( $oArticle, $oUser, $sText, $sSummary, $bMinorEdit, $bWatchThis, $iSectionAnchor, $iFlags, $oRevision, $oStatus, $iBaseRevId, $bRedirect = false ) {
 		if ( $oUser->isAllowed( 'bot' ) ) return true;
 		if ( $oArticle->getTitle()->getNamespace() === NS_USER_TALK ) return true;
 
@@ -320,7 +320,7 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 	 *
 	 * @return bool allow other hooked methods to be executed. Always true.
 	 */
-	public function onArticleDeleteComplete( &$oArticle, &$oUser, $sReason, $iId ) {
+	public static function onArticleDeleteComplete( &$oArticle, &$oUser, $sReason, $iId ) {
 		if ( $oUser->isAllowed( 'bot' ) ) return true;
 		BSNotifications::notify(
 			'bs-delete',
@@ -347,7 +347,7 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 	 *
 	 * @return bool allow other hooked methods to be executed. Always true.
 	 */
-	public function onTitleMoveComplete( $oTitle, $oNewTitle, $oUser, $iOldId, $iNewId ) {
+	public static function onTitleMoveComplete( $oTitle, $oNewTitle, $oUser, $iOldId, $iNewId ) {
 		if ( $oUser->isAllowed( 'bot' ) ) return true;
 
 		BSNotifications::notify(
