@@ -77,7 +77,7 @@ class BlueSpiceDistributionHooks {
 	 * $param String $type
 	 * @return always true to keep hook running
 	 */
-	public function onBSInsertMagicAjaxGetDataCategoryTree( &$oResponse, $type ) {
+	public static function onBSInsertMagicAjaxGetDataCategoryTree( &$oResponse, $type ) {
 		if ( $type != 'tags' ) return true;
 
 		$oResponse->result[] = array(
@@ -97,7 +97,7 @@ class BlueSpiceDistributionHooks {
 	 * $param String $type
 	 * @return always true to keep hook running
 	 */
-	public function onBSInsertMagicAjaxGetDataCite( &$oResponse, $type ) {
+	public static function onBSInsertMagicAjaxGetDataCite( &$oResponse, $type ) {
 		if ( $type != 'tags' ) return true;
 
 		$oResponse->result[] = array(
@@ -125,7 +125,7 @@ class BlueSpiceDistributionHooks {
 	 * $param String $type
 	 * @return always true to keep hook running
 	 */
-	public function onBSInsertMagicAjaxGetDataQuiz( &$oResponse, $type ) {
+	public static function onBSInsertMagicAjaxGetDataQuiz( &$oResponse, $type ) {
 		if ( $type != 'tags' ) return true;
 
 		$oResponse->result[] = array(
@@ -145,7 +145,7 @@ class BlueSpiceDistributionHooks {
 	 * $param String $type
 	 * @return always true to keep hook running
 	 */
-	public function onBSInsertMagicAjaxGetDataEmbedVideo( &$oResponse, $type ) {
+	public static function onBSInsertMagicAjaxGetDataEmbedVideo( &$oResponse, $type ) {
 		if ( $type != 'tags' ) return true;
 
 		$oResponse->result[] = array(
@@ -165,7 +165,7 @@ class BlueSpiceDistributionHooks {
 	 * $param String $type
 	 * @return always true to keep hook running
 	 */
-	public function onBSInsertMagicAjaxGetDataDynamicPageList( &$oResponse, $type ) {
+	public static function onBSInsertMagicAjaxGetDataDynamicPageList( &$oResponse, $type ) {
 		if ( $type != 'tags' ) return true;
 
 		$oResponse->result[] = array(
