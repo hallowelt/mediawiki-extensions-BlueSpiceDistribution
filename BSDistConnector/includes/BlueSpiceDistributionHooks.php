@@ -85,7 +85,7 @@ class BlueSpiceDistributionHooks {
 			'type' => 'tag',
 			'name' => 'categorytree',
 			'desc' => wfMessage( 'bs-distribution-tag-categorytree-desc' )->plain(),
-			'code' => '<categorytree></categorytree>',
+			'code' => '<categorytree mode=pages>Top_Level</categorytree>',
 		);
 
 		return true;
@@ -105,7 +105,7 @@ class BlueSpiceDistributionHooks {
 			'type' => 'tag',
 			'name' => 'ref',
 			'desc' => wfMessage( 'bs-distribution-tag-ref-desc' )->plain(),
-			'code' => '<ref></ref>',
+			'code' => '<ref>Footnote text</ref>',
 		);
 
 		$oResponse->result[] = array(
@@ -133,7 +133,7 @@ class BlueSpiceDistributionHooks {
 			'type' => 'tag',
 			'name' => 'quiz',
 			'desc' => wfMessage( 'bs-distribution-tag-quiz-desc' )->plain(),
-			'code' => '<quiz></quiz>',
+			'code' => "<quiz>\n{ Your question }\n+ correct answer\n- incorrect answer\n</quiz>",
 		);
 
 		return true;
@@ -153,7 +153,7 @@ class BlueSpiceDistributionHooks {
 			'type' => 'tag',
 			'name' => 'embedvideo',
 			'desc' => wfMessage( 'bs-distribution-tag-embedvideo-desc' )->plain(),
-			'code' => '<embedvideo></embedvideo>',
+			'code' => '<embedvideo service="youtube">Link to video</embedvideo>',
 		);
 
 		return true;
@@ -173,7 +173,7 @@ class BlueSpiceDistributionHooks {
 			'type' => 'tag',
 			'name' => 'dynamicpagelist',
 			'desc' => wfMessage( 'bs-distribution-tag-dynamicpagelist-desc' )->plain(),
-			'code' => '<DynamicPageList></DynamicPageList>',
+			'code' => "<DynamicPageList>\ncategory = Demo\n</DynamicPageList>",
 		);
 
 		return true;
