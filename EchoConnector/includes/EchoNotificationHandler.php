@@ -33,13 +33,13 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 
 		self::registerNotification(
 			'bs-adduser', //Called from UserManager:addUser - wfRunHooks: BSUserManagerAfterAddUser
-			'bs-admin-cat', //show only if current user is admin
+			'bs-admin-cat',
 			'bs-notifications-addacount',
 			array( 'username' ),
 			'bs-notifications-email-addaccount-subject',
 			array( 'username', 'username' ),
 			'bs-notifications-email-addaccount-body',
-			array( 'userlink', 'username', 'username' )
+			array( 'userlink', 'username', 'username', 'user' )
 		);
 
 		self::registerNotification(
@@ -368,10 +368,11 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 		BSNotifications::notify(
 			'bs-adduser',
 			$oUserManager->getUser(),
-                        null,
+                        Title::newFromText("Test"),
 			array(
 			    'username' => $aUserDetails[ 'username' ],
-			    'userlink' => $oUser->getUserPage()->getFullURL()
+			    'userlink' => $oUser->getUserPage()->getFullURL(),
+			    'user' => $oUser->getName() //user means username here! not userobject, otherwise exception ist thrown when user object given in here!
 			)
 		);
 

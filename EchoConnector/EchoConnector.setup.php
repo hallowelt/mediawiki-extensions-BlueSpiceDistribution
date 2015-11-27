@@ -1,6 +1,7 @@
 <?php
 
 $wgMessagesDirs['EchoConnector'] = __DIR__ . '/i18n';
+$wgMessagesDirs['BSFoundation'] = __DIR__ . '/../../BlueSpiceFoundation/i18n';
 $wgAutoloadClasses['BSEchoNotificationHandler'] = __DIR__."/includes/EchoNotificationHandler.php";
 $wgAutoloadClasses['BsNotificationsFormatter'] = __DIR__."/includes/NotificationsFormatter.php";
 $wgAutoloadClasses['BsEchoEmailSingle'] = __DIR__."/includes/EchoEmailSingle.php";

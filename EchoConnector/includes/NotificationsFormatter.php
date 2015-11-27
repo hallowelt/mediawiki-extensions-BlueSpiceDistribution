@@ -174,6 +174,9 @@ class BsNotificationsFormatter extends EchoBasicFormatter {
 		if( isset( $props['created'] ) && $props['created'] ) {
 			unset( $props['created'] );
 			$aExtra = $event->getExtra();
+			if(!is_string($aExtra['user'])){
+			    throw new Exception('User must be "username" string here.');
+			}
 			$oUser = User::newFromName( $aExtra['user'] );
 			if( is_object( $oUser ) ) {
 				$title = $oUser->getUserPage();
