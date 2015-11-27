@@ -386,15 +386,30 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 	 * @return bool true in all cases
 	 */
 	public static function onEchoGetDefaultNotifiedUsers( $event, &$users ) {
+		// Everyone deserves to know when something happens
+		// on their user talk page
+		$dbr = wfGetDB( DB_SLAVE );
 		switch ( $event->getType() ) {
-			// Everyone deserves to know when something happens
-			// on their user talk page
 			case 'bs-adduser':
 			    //Get admin users
-			    $dbr = wfGetDB( DB_SLAVE );
-			    $resSysops = $dbr->select("user_groups", "ug_user", 'ug_group = "sysop"');
+			    $resSysops = $dbr->select("user", "ug_user", 'ug_group = "sysop"');
 			    foreach($resSysops as $row){
 				$user = User::newFromId($row->ug_user);
+				$users[$user->getId()] = $user;
+			    }
+			    break;
+			case 'bs-create':
+			    //Get all user, notification abo will be checked later...
+			    $resUser = $dbr->select("user", "user_id");
+			    foreach($resUser as $row){
+				$user = User::newFromId($row->user_id);
+				$users[$user->getId()] = $user;
+			    }
+			    break;
+			case 'bs-edit':
+			    $resUser = $dbr->select("user", "user_id");
+			    foreach($resUser as $row){
+				$user = User::newFromId($row->user_id);
 				$users[$user->getId()] = $user;
 			    }
 			    break;
