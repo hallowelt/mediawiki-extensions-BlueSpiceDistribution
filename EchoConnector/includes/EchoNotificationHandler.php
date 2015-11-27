@@ -392,7 +392,7 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 		switch ( $event->getType() ) {
 			case 'bs-adduser':
 			    //Get admin users
-			    $resSysops = $dbr->select("user", "ug_user", 'ug_group = "sysop"');
+			    $resSysops = $dbr->select("user_groups", "ug_user", 'ug_group = "sysop"');
 			    foreach($resSysops as $row){
 				$user = User::newFromId($row->ug_user);
 				$users[$user->getId()] = $user;
