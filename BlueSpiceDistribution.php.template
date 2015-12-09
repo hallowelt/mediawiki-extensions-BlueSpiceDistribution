@@ -11,6 +11,7 @@ require_once( __DIR__."/EchoConnector/EchoConnector.setup.php" );
 require_once( __DIR__."/TitleKey/TitleKey.php" );
 require_once( __DIR__."/NSFileRepo/NSFileRepo.php" );
 require_once( __DIR__."/EmbedVideo/EmbedVideo.php" );
+require_once( __DIR__."/UserMerge/UserMerge.php" );
 
 if (version_compare( $wgVersion, '1.23', '>=' )){
 	require_once( __DIR__ . "/MobileFrontend/MobileFrontend.php" );
@@ -19,6 +20,7 @@ if (version_compare( $wgVersion, '1.23', '>=' )){
 }
 
 require_once( __DIR__."/BSDistConnector/BSDistConnector.setup.php" );
+require_once( __DIR__."/UserMergeConnector/UserMergeConnector.setup.php" );
 
 //By default this is disabled. See https://gerrit.wikimedia.org/r/#/c/193359/1
 //If this is needed depends on the actual LDAP setup
