@@ -28,7 +28,7 @@ $bsgUserMergeConnectorUpdateFields = array(
 	array( 'bs_rating', 'rat_userid', 'rat_userip' ),
 
 	//BlueSpiceArticelPermissions
-	array( 'bs_user_admission', 'us_user_id' ),
+	array( 'bs_user_admission', 'ua_user_id' ),
 
 	//BlueSpiceRentALink
 	array( 'bs_ad_banners_customers', 'adbc_user_id' ),
@@ -49,13 +49,13 @@ $wgGroupPermissions['sysop']['usermerge'] = true;
 $wgUserMergeProtectedGroups = array();
 
 $wgAutoloadClasses['UserMergeConnector']
-	= __DIR__."UserMergeConnector.class.php";
+	= __DIR__."/UserMergeConnector.class.php";
 
 $wgHooks['UserMergeAccountFields'][]
-	= 'UserMergeConnectorHooks::UserMergeAccountFields';
+	= 'UserMergeConnector::UserMergeAccountFields';
 
 $wgHooks['MergeAccountFromTo'][]
-	= 'UserMergeConnectorHooks::onMergeAccountFromToManageReviewTemplates';
+	= 'UserMergeConnector::onMergeAccountFromToManageReviewTemplates';
 
 //FlaggedRevs
 //TODO: Remove this on later versions, cause this was added already - see:

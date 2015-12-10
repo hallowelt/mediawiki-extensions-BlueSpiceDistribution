@@ -7,7 +7,7 @@ class UserMergeConnector {
 		if( !is_null(self::$aCheckedBSUpdateFields) ) {
 			return self::$aCheckedBSUpdateFields;
 		}
-		self::$aCheckedBSUpdateFields = checkBSUpdateFields(
+		self::$aCheckedBSUpdateFields = static::checkBSUpdateFields(
 			$GLOBALS['bsgUserMergeConnectorUpdateFields']
 		);
 		return self::$aCheckedBSUpdateFields;
@@ -68,7 +68,10 @@ class UserMergeConnector {
 				)
 			);
 		}
-		#error_log(var_export($aUpdateIDs,1));
+
+		if( empty($aUpdateIDs) ) {
+			return true;
+		}
 		$oDBw = wfGetDB( DB_MASTER );
 		foreach( $aUpdateIDs as $iID => $aValues ) {
 			$oDBw->update(
