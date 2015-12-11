@@ -43,12 +43,13 @@ class RenameAndMergeUserToStrLower extends Maintenance {
 			false,
 			false
 		);
-		$this->addOption(
+		//not implemented jet
+		/*$this->addOption(
 			'protectSysops',
 			'Sysops will not be merged (default is true)',
 			false,
 			false
-		);
+		);*/
 		$this->addOption(
 			'execute',
 			'Really executes the script (default is false)',
