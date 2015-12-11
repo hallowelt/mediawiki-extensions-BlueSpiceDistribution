@@ -10,10 +10,18 @@
  */
 $sBaseDir = dirname(dirname(dirname(dirname(dirname(__FILE__)))));
 require_once( "$sBaseDir/maintenance/Maintenance.php" );
+require_once( "$sBaseDir/extensions/BlueSpiceDistribution/UserMerge/MergeUser.php" );
+//Moving user pages is already encapsulated in UserMerge
+//make this public give access for move only
+class RenameMergeUser extends MergeUser {
+	public function movePages(User $performer, /* callable */ $msg) {
+		return parent::movePages( $performer, $msg );
+	}
+}
 
 class RenameAndMergeUserToStrLower extends Maintenance {
 	protected static $aRequiredClasses = array(
-		'MergeUser', //Extension UserMerge
+		'SpecialUserMerge', //Extension UserMerge
 		'UserMergeConnector', //Extension UserMergeConnector
 		'BsCoreHooks', //Extension BlueSpiceFoundation
 		'RenameuserSQL', //Extension RenameUser
@@ -73,7 +81,7 @@ class RenameAndMergeUserToStrLower extends Maintenance {
 			'WikiSysop'
 		);
 		$this->oPerformer = User::newFromName( $sPerformerName );
-		$oSpecialUserMerge = SpecialPage::getTitleFor('UserMerge');
+		$oSpecialUserMerge = SpecialPageFactory::getPage('UserMerge');
 
 		echo "Getting started...\n\n";
 		$oStatus = $this->checkRequirements();
@@ -118,19 +126,39 @@ class RenameAndMergeUserToStrLower extends Maintenance {
 
 		echo "Getting users to rename...\n";
 		$aUsers = $this->getRenamingUsers();
+
 		if( empty($aUsers) ) {
 			echo "...nothing to do here\n";
 		}
 		foreach( $aUsers as $iID => $sToName ) {
+			$oUserFrom = User::newFromId($iID);
+			echo "Renameing {$oUserFrom->getName()} => $sToName...";
+			$oUserTo = User::newFromName($sToName);
+			if( is_null($oUserTo) ) {
+				echo "...$sToName is not a valid username\n";
+			}
+			if( $oUserTo->getId() > 0 ) {
+				echo "...can not merge into an existing user: $sToName\n";
+			}
 			$rename = new RenameuserSQL(
-				User::newFromId($iID)->getName(),
-				$sToName,
+				$oUserFrom->getName(),
+				$oUserTo->getName(),
 				$iID
 			);
-			return;
-			if( !$rename->rename() ) {
-				return;
-			}
+			if( $this->bExecute )
+				try {
+					if( !$rename->rename() ) {
+						echo "...could not be renamed\n";
+						continue;
+					}
+					$this->movePages(
+						$oUserFrom,
+						$oUserTo
+					);
+				} catch( Exception $e ) {
+					echo $e->getMessage();
+				}
+				echo "...done\n";
 		}
 	}
 
@@ -160,6 +188,7 @@ class RenameAndMergeUserToStrLower extends Maintenance {
 			if( in_array($iID, self::$aHandledUserIDs) ) {
 				continue;
 			}
+
 			$sToName = ucfirst( strtolower($sName) );
 			if( $sName === $sToName ) {
 				continue;
@@ -208,7 +237,108 @@ class RenameAndMergeUserToStrLower extends Maintenance {
 		foreach( wfGetDB( DB_SLAVE )->select('user', $aFields, $aConditions, __METHOD__, $aOptions) as $o ) {
 			self::$aUser[$o->user_id] = $o->user_name;
 		}
+
 		return self::$aUser;
+	}
+
+	/**
+	 * Function to merge user pages
+	 * See: MergeUser::movePages
+	 * move pages is private and can not be overritten :(
+	 *
+	 * Deletes all pages when merging to Anon
+	 * Moves user page when the target user page does not exist or is empty
+	 * Deletes redirect if nothing links to old page
+	 * Deletes the old user page when the target user page exists
+	 *
+	 * @todo This code is a duplicate of Renameuser and GlobalRename
+	 *
+	 * @param User $performer
+	 * @param callable $msg Function that returns a Message object
+	 * @return array Array of old name (string) => new name (Title) where the move failed
+	 */
+	protected function movePages( User $oOldUser, User $oNewUser ) {
+		global $wgContLang, $wgUser;
+
+		$oldusername = trim( str_replace( '_', ' ', $oOldUser->getName() ) );
+		$oldusername = Title::makeTitle( NS_USER, $oldusername );
+		$newusername = Title::makeTitleSafe( NS_USER, $wgContLang->ucfirst( $oNewUser->getName() ) );
+
+		# select all user pages and sub-pages
+		$dbr = wfGetDB( DB_SLAVE );
+		$pages = $dbr->select( 'page',
+			array( 'page_namespace', 'page_title' ),
+			array(
+				'page_namespace' => array( NS_USER, NS_USER_TALK ),
+				$dbr->makeList( array(
+						'page_title' => $dbr->buildLike( $oldusername->getDBkey() . '/', $dbr->anyString() ),
+						'page_title' => $oldusername->getDBkey()
+					),
+					LIST_OR
+				)
+			)
+		);
+
+		// Need to set $wgUser to attribute log properly.
+		$oldUser = $wgUser;
+		$wgUser = $this->oPerformer;
+
+		$failedMoves = array();
+		foreach ( $pages as $row ) {
+
+			$oldPage = Title::makeTitleSafe( $row->page_namespace, $row->page_title );
+			$newPage = Title::makeTitleSafe( $row->page_namespace,
+				preg_replace( '!^[^/]+!', $newusername->getDBkey(), $row->page_title ) );
+
+			if ( $oNewUser->getName() === "Anonymous" ) { # delete ALL old pages
+				if ( $oldPage->exists() ) {
+					$oldPageArticle = new Article( $oldPage, 0 );
+					$oldPageArticle->doDeleteArticle(wfMessage( 'usermerge-autopagedelete' )->inContentLanguage()->text() );
+				}
+			} elseif ( $newPage->exists()
+				&& !$oldPage->isValidMoveTarget( $newPage )
+				&& $newPage->getLength() > 0 ) { # delete old pages that can't be moved
+
+				$oldPageArticle = new Article( $oldPage, 0 );
+				$oldPageArticle->doDeleteArticle( wfMessage( 'usermerge-autopagedelete' )->inContentLanguage()->text() );
+
+			} else { # move content to new page
+				# delete target page if it exists and is blank
+				if ( $newPage->exists() ) {
+					$newPageArticle = new Article( $newPage, 0 );
+					$newPageArticle->doDeleteArticle( wfMessage( 'usermerge-autopagedelete' )->inContentLanguage()->text() );
+				}
+
+				# move to target location
+				$errors = $oldPage->moveTo(
+					$newPage,
+					false,
+					wfMessage(
+						'usermerge-move-log',
+						$oldusername->getText(),
+						$newusername->getText() )->inContentLanguage()->text()
+				);
+				if ( $errors !== true ) {
+					$failedMoves[$oldPage->getPrefixedText()] = $newPage;
+				}
+
+				# check if any pages link here
+				$res = $dbr->selectField( 'pagelinks',
+					'pl_title',
+					array( 'pl_title' => $oOldUser->getName() ),
+					__METHOD__
+				);
+				if ( !$dbr->numRows( $res ) ) {
+					# nothing links here, so delete unmoved page/redirect
+					$oldPageArticle = new Article( $oldPage, 0 );
+					$oldPageArticle->doDeleteArticle( wfMessage( 'usermerge-autopagedelete' )->inContentLanguage()->text() );
+				}
+			}
+		}
+
+		$wgUser = $oldUser;
+
+		return $failedMoves;
 	}
 }
 
