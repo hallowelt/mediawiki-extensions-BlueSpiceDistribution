@@ -2,11 +2,15 @@
 
 $wgMessagesDirs['EchoConnector'] = __DIR__ . '/i18n';
 $wgMessagesDirs['BSFoundation'] = __DIR__ . '/../../BlueSpiceFoundation/i18n';
+$wgAutoloadClasses['EchoConnectorHooks'] = __DIR__."/includes/EchoConnectorHooks.php";
 $wgAutoloadClasses['BSEchoNotificationHandler'] = __DIR__."/includes/EchoNotificationHandler.php";
 $wgAutoloadClasses['BsNotificationsFormatter'] = __DIR__."/includes/NotificationsFormatter.php";
 $wgAutoloadClasses['BsEchoEmailSingle'] = __DIR__."/includes/EchoEmailSingle.php";
 $wgAutoloadClasses['BsEchoTextEmailFormatter'] = __DIR__."/includes/EchoTextEmailFormatter.php";
 $wgAutoloadClasses['BsEchoTextEmailDecorator'] = __DIR__."/includes/EchoTextEmailDecorator.php";
+
+$wgHooks['BeforeNotificationsInit'][] = "EchoConnectorHooks::onBeforeNotificationsInit";
+$wgHooks['EchoGetDefaultNotifiedUsers'][] = "EchoConnectorHooks::onEchoGetDefaultNotifiedUsers";
 
 $echoIconPath = "BlueSpiceDistribution/Echo/modules/icons";
 
@@ -58,18 +62,14 @@ $wgEchoNotificationIcons = array(
 	),
 );
 
+unset( $echoIconPath );
+
 $echoRessourcePackages = array(
 	'ext.echo.base', 'ext.echo.overlay', 'ext.echo.overlay.init', 'ext.echo.special', 'ext.echo.alert', 'ext.echo.badge'
 );
 
-foreach($echoRessourcePackages as $package) {
+foreach( $echoRessourcePackages as $package ) {
 	$wgResourceModules[$package]['remoteExtPath'] = 'BlueSpiceDistribution/Echo/modules';
 }
 
-$wgHooks['BeforeNotificationsInit'][] = "initEchoConnector";
-
-function initEchoConnector() {
-	BSNotifications::registerNotificationHandler(
-			'BSEchoNotificationHandler'
-	);
-}
+unset( $echoRessourcePackages );
