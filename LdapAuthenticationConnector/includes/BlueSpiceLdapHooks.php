@@ -2,8 +2,19 @@
 
 class BlueSpiceLdapHooks {
 
+	public static function checkLocalDomain() {
+		global $bsgLDAPShowLocal, $wgLDAPUseLocal;
+		if ((isset( $wgLDAPUseLocal ) && $wgLDAPUseLocal === false) ||
+			(isset( $bsgLDAPShowLocal ) && $bsgLDAPShowLocal == false)) {
+			return true;
+			}
+		else {
+			return false;
+		}
+	}
+
 	public static function onLDAPModifyUITemplate( &$template ) {
-		global $bsgLDAPRenameLocal, $bsgLDAPShowLocal, $wgLDAPDomainNames, $wgLDAPAutoAuthDomain;
+		global $bsgLDAPRenameLocal, $wgLDAPDomainNames, $wgLDAPAutoAuthDomain;
 		$localname = 'local';
 		if (isset( $bsgLDAPRenameLocal ) && !empty( $bsgLDAPRenameLocal ) ) {
 			$localname = $bsgLDAPRenameLocal;
@@ -11,7 +22,7 @@ class BlueSpiceLdapHooks {
 		$domains = $wgLDAPDomainNames;
 		array_push( $domains, $localname );
 		unset( $domains[array_search( $wgLDAPAutoAuthDomain, $domains )] );
-		if (isset( $bsgLDAPShowLocal ) && $bsgLDAPShowLocal == false) {
+		if( BlueSpiceLdapHooks::checkLocalDomain() === true ) {
 			unset( $domains[array_search( $localname, $domains )]);
 		}
 		$template->set( 'domainnames', $domains );
@@ -26,6 +37,19 @@ class BlueSpiceLdapHooks {
 				"title" => wfMessage( "tooltip-pt-changeuser" )->plain(),
 				"href" => SpecialPage::getTitleFor( 'Userlogin' )->getLinkURL()
 			);
+		}
+		return true;
+	}
+
+	public static function onBeforePageDisplay( OutputPage &$out, Skin &$skin ) {
+		global $wgLDAPDomainNames;
+		$domains = $wgLDAPDomainNames;
+		if( BlueSpiceLdapHooks::checkLocalDomain() === false ) {
+			array_push( $domains, 'local' );
+		}
+		if( count ($domains) <= 2 ) {
+			$style = "<style type=\"text/css\"><!-- #mw-user-domain-section { display: none; } //--></style>\n";
+			$out->addHeadItem("jsonTree script", $style);
 		}
 		return true;
 	}

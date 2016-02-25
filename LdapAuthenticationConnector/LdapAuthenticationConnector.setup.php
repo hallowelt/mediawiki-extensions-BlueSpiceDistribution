@@ -43,6 +43,7 @@ function BSAutoAuthSetup( $domain ) {
 	$username = preg_replace( '|^.*?\\\|', '', $_SERVER['REMOTE_USER'] );
 	$wgLDAPAutoAuthUsername = strtolower( $username );
 	$wgLDAPAutoAuthDomain = $sAutoAuthDomain;
+
 	AutoAuthSetup();
 }
 
