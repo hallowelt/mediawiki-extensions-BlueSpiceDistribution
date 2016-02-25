@@ -86,20 +86,13 @@ $wgExtensionCredits['other'][] = array(
 	'author' => 'Ryan Lane',
 	'descriptionmsg' => 'ldapauthentication-desc',
 	'url' => 'https://www.mediawiki.org/wiki/Extension:LDAP_Authentication',
+	'license-name' => 'GPL-2.0+',
 );
 
-$dir = __DIR__ . '/';
 $wgMessagesDirs['LdapAuthentication'] = __DIR__ . '/i18n';
-$wgExtensionMessagesFiles['LdapAuthentication'] = $dir . 'LdapAuthentication.i18n.php';
 
 # Schema changes
 $wgHooks['LoadExtensionSchemaUpdates'][] = 'efLdapAuthenticationSchemaUpdates';
-
-$wgRedactedFunctionArguments['LdapAuthenticationPlugin::ldap_bind'] = 2;
-$wgRedactedFunctionArguments['LdapAuthenticationPlugin::authenticate'] = 2;
-$wgRedactedFunctionArguments['LdapAuthenticationPlugin::getPasswordHash'] = 0;
-$wgRedactedFunctionArguments['LdapAuthenticationPlugin::bindAs'] = 1;
-$wgRedactedFunctionArguments['LdapAuthenticationPlugin::setOrDefaultPrivate'] = 0;
 
 /**
  * @param $updater DatabaseUpdater
@@ -131,32 +124,32 @@ define( "HIGHLYSENSITIVE", 3 );
 class LdapAuthenticationPlugin extends AuthPlugin {
 
 	// ldap connection resource
-	var $ldapconn;
+	public $ldapconn;
 
 	// preferences
-	var $email, $lang, $realname, $nickname, $externalid;
+	public $email, $lang, $realname, $nickname, $externalid;
 
 	// username pulled from ldap
-	var $LDAPUsername;
+	public $LDAPUsername;
 
 	// userdn pulled from ldap
-	var $userdn;
+	public $userdn;
 
 	// groups pulled from ldap
-	var $userLDAPGroups;
-	var $allLDAPGroups;
+	public $userLDAPGroups;
+	public $allLDAPGroups;
 
 	// boolean to test for failed auth
-	var $authFailed;
+	public $authFailed;
 
 	// boolean to test for fetched user info
-	var $fetchedUserInfo;
+	public $fetchedUserInfo;
 
 	// the user's entry and all attributes
-	var $userInfo;
+	public $userInfo;
 
 	// the user we are currently bound as
-	var $boundAs;
+	public $boundAs;
 
 	/**
 	 * Wrapper for ldap_connect
@@ -597,7 +590,11 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 			$servers = $servers . " " . $serverpre . $tok . ":" . $this->getConf( 'Port', $domain );
 			$tok = strtok( " " );
 		}
-		$servers = rtrim( $servers );
+		$servers = trim( $servers );
+		if ( !$servers ) {
+			$this->printDebug( 'Empty server string, skipping connection', NONSENSITIVE );
+			return false;
+		}
 
 		$this->printDebug( "Using servers: $servers", SENSITIVE );
 
@@ -699,7 +696,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 					return false;
 				}
 				$result = true;
-				wfRunHooks( 'ChainAuth', array( $username, $password, &$result ) );
+				Hooks::run( 'ChainAuth', array( $username, $password, &$result ) );
 				if ( $result == false ) {
 					return false;
 				}
@@ -775,7 +772,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 		$template->set( 'useemail', $this->getConf( 'MailPassword' ) );
 		$template->set( 'canreset', $this->getConf( 'MailPassword' ) );
 		$template->set( 'domainnames', $this->domainList() );
-		wfRunHooks( 'LDAPModifyUITemplate', array( &$template ) );
+		Hooks::run( 'LDAPModifyUITemplate', array( &$template ) );
 	}
 
 	/**
@@ -1099,7 +1096,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 
 			$result = true;
 			# Let other extensions modify the user object before creation
-			wfRunHooks( 'LDAPSetCreationValues', array( $this, $username, &$values, $writeloc, &$this->userdn, &$result ) );
+			Hooks::run( 'LDAPSetCreationValues', array( $this, $username, &$values, $writeloc, &$this->userdn, &$result ) );
 			if ( !$result ) {
 				$this->printDebug( "Failed to add user because LDAPSetCreationValues returned false", NONSENSITIVE );
 				LdapAuthenticationPlugin::ldap_unbind( $this->ldapconn );
@@ -1116,7 +1113,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 			# Constraint violation, let's allow other plugins a chance to retry
 			if ( $errno === 19 ) {
 				$result = false;
-				wfRunHooks( 'LDAPRetrySetCreationValues', array( $this, $username, &$values, $writeloc, &$this->userdn, &$result ) );
+				Hooks::run( 'LDAPRetrySetCreationValues', array( $this, $username, &$values, $writeloc, &$this->userdn, &$result ) );
 				if ( $result && LdapAuthenticationPlugin::ldap_add( $this->ldapconn, $this->userdn, $values ) ) {
 					$this->printDebug( "Successfully added user", NONSENSITIVE );
 					LdapAuthenticationPlugin::ldap_unbind( $this->ldapconn );
@@ -1241,7 +1238,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 		}
 
 		# Let other extensions update the user
-		wfRunHooks( 'LDAPUpdateUser', array( &$user ) );
+		Hooks::run( 'LDAPUpdateUser', array( &$user ) );
 
 		$this->printDebug( "Saving user settings.", NONSENSITIVE );
 		$user->saveSettings();
@@ -1328,7 +1325,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 					// try to fetch the username by search before bind.
 					$this->userdn = $this->getUserDN( $username, true );
 					$hookSetUsername = $this->LDAPUsername;
-					wfRunHooks( 'SetUsernameAttributeFromLDAP', array( &$hookSetUsername, $this->userInfo ) );
+					Hooks::run( 'SetUsernameAttributeFromLDAP', array( &$hookSetUsername, $this->userInfo ) );
 					if ( is_string( $hookSetUsername ) ) {
 						$this->printDebug( "Username munged by hook: $hookSetUsername", NONSENSITIVE );
 						$this->LDAPUsername = $hookSetUsername;
@@ -1729,7 +1726,7 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 			$this->printDebug( "User Filter: $PGfilter", SENSITIVE );
 			$PGinfo = LdapAuthenticationPlugin::ldap_search( $this->ldapconn, $base, $PGfilter );
 			$PGentries = LdapAuthenticationPlugin::ldap_get_entries( $this->ldapconn, $PGinfo );
-			if ( $PGentries ) {
+			if ( !empty( $PGentries[0] ) ) {
 				$Usid = $PGentries[0]['objectsid'][0];
 				$PGrid = $PGentries[0]['primarygroupid'][0];
 				$PGsid = bin2hex( $Usid );
