@@ -368,11 +368,11 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 		BSNotifications::notify(
 			'bs-adduser',
 			$oUserManager->getUser(),
-                        Title::newFromText("Test"),
+			Title::newFromText("Test"),
 			array(
-			    'username' => $aUserDetails[ 'username' ],
-			    'userlink' => $oUser->getUserPage()->getFullURL(),
-			    'user' => $oUser->getName() //user means username here! not userobject, otherwise exception ist thrown when user object given in here!
+				'username' => $aUserDetails[ 'username' ],
+				'userlink' => $oUser->getUserPage()->getFullURL(),
+				'user' => $oUser->getName() //user means username here! not userobject, otherwise exception ist thrown when user object given in here!
 			)
 		);
 
@@ -391,28 +391,22 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 		$dbr = wfGetDB( DB_SLAVE );
 		switch ( $event->getType() ) {
 			case 'bs-adduser':
-			    //Get admin users
-			    $resSysops = $dbr->select("user_groups", "ug_user", 'ug_group = "sysop"');
-			    foreach($resSysops as $row){
-				$user = User::newFromId($row->ug_user);
-				$users[$user->getId()] = $user;
-			    }
-			    break;
+				//Get admin users
+				$resSysops = $dbr->select("user_groups", "ug_user", 'ug_group = "sysop"');
+				foreach($resSysops as $row){
+					$user = User::newFromId($row->ug_user);
+					$users[$user->getId()] = $user;
+				}
+				break;
 			case 'bs-create':
-			    //Get all user, notification abo will be checked later...
-			    $resUser = $dbr->select("user", "user_id");
-			    foreach($resUser as $row){
-				$user = User::newFromId($row->user_id);
-				$users[$user->getId()] = $user;
-			    }
-			    break;
 			case 'bs-edit':
-			    $resUser = $dbr->select("user", "user_id");
-			    foreach($resUser as $row){
-				$user = User::newFromId($row->user_id);
-				$users[$user->getId()] = $user;
-			    }
-			    break;
+				//Get all user, notification abo will be checked later...
+				$resUser = $dbr->select( "user", "user_id" );
+				foreach( $resUser as $row ){
+					$user = User::newFromId($row->user_id);
+					$users[$user->getId()] = $user;
+				}
+				break;
 		}
 
 		return true;
@@ -430,17 +424,17 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 	public static function onEchoGetNotificationTypes( User $user, $event, &$notifyTypes ) {
 		$type = $event->getType();
 		if ( $type == "bs-adduser" ) {
-		    //$arrNotifUserBy = array();
-		    //error_log("Check notification types for user: ");
-		    $arrUserOptions = $user->getOptions();
-		    if(	    isset($arrUserOptions['echo-subscriptions-web-bs-admin-cat']) &&
-			    $arrUserOptions['echo-subscriptions-web-bs-admin-cat'] == 1){
-			$notifyTypes[] =  'web';
-		    }
-		    if(	    isset($arrUserOptions['echo-subscriptions-email-bs-admin-cat']) &&
-			    $arrUserOptions['echo-subscriptions-email-bs-admin-cat'] == 1){
-			$notifyTypes[] = 'email';
-		    }
+			$arrUserOptions = $user->getOptions();
+			if( isset( $arrUserOptions['echo-subscriptions-web-bs-admin-cat'] ) &&
+				$arrUserOptions['echo-subscriptions-web-bs-admin-cat'] == 1 ){
+
+				$notifyTypes[] =  'web';
+			}
+			if( isset( $arrUserOptions['echo-subscriptions-email-bs-admin-cat'] ) &&
+				$arrUserOptions['echo-subscriptions-email-bs-admin-cat'] == 1 ) {
+
+				$notifyTypes[] = 'email';
+			}
 		}
 		return true;
 	}
