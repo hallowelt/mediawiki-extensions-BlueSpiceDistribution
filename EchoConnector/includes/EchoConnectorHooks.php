@@ -18,8 +18,8 @@ class EchoConnectorHooks {
 	 * @return boolean
 	 */
 	public static function onEchoGetDefaultNotifiedUsers( $event, &$users ) {
-		$aAffectedUsers = $event->getExtra( 'affected-users' , array() );
-		$aAffectedGroups = $event->getExtra( 'affected-groups' , array() );
+		$aAffectedUsers = $event->getExtraParam( 'affected-users' , array() );
+		$aAffectedGroups = $event->getExtraParam( 'affected-groups' , array() );
 
 		//Step 1: resolve groups to user_ids
 		if( !empty( $aAffectedGroups ) ) {
