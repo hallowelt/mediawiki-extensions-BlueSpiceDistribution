@@ -65,7 +65,8 @@ $wgEchoNotificationIcons = array(
 unset( $echoIconPath );
 
 $echoRessourcePackages = array(
-	'ext.echo.base', 'ext.echo.overlay', 'ext.echo.overlay.init', 'ext.echo.special', 'ext.echo.alert', 'ext.echo.badge'
+	'ext.echo.base', 'ext.echo.overlay', 'ext.echo.overlay.init',
+	'ext.echo.special', 'ext.echo.alert', 'ext.echo.badge'
 );
 
 foreach( $echoRessourcePackages as $package ) {
