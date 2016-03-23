@@ -6,8 +6,8 @@
  *
  * @author     Stefan Widmann <widmann@hallowelt.biz>
  * @author     Patric Wirth <wirth@hallowelt.biz>
- * @package    BlueSpice_Distrubution
- * @copyright  Copyright (C) 2012 Hallo Welt! - Medienwerkstatt GmbH, All rights reserved.
+ * @package    BlueSpice_Distribution
+ * @copyright  Copyright (C) 2016 Hallo Welt! - Medienwerkstatt GmbH, All rights reserved.
  * @license    http://www.gnu.org/copyleft/gpl.html GNU Public License v2 or later
  * @filesource
  */
@@ -35,9 +35,9 @@ class BsNotificationsFormatter extends EchoBasicFormatter {
 		}
 
 		// Echo single email
-		$emailSingle = new BsEchoEmailSingle( $this, $event, $user );
+		$emailSingle = $this->newEmailSingle( $event, $user );
 
-		$textEmailFormatter = new BsEchoTextEmailFormatter( $emailSingle );
+		$textEmailFormatter = $this->newTextEmailFormatter( $emailSingle );
 		global $wgSitename;
 		$content = array(
 			// Single email subject, there is no need to to escape it for either html
@@ -233,5 +233,24 @@ class BsNotificationsFormatter extends EchoBasicFormatter {
 		} else {
 			$message->params( $title->getFullURL( $param ) );
 		}
+	}
+
+	/**
+	 * Factory method for EchoEmailSingle object. Can be overridden by subclasses
+	 * @param EchoEvent $event
+	 * @param User $user
+	 * @return EchoEmailSingle
+	 */
+	protected function newEmailSingle( $event, $user ) {
+		return new BsEchoEmailSingle( $this, $event, $user );
+	}
+
+	/**
+	 * Factory method for EchoTextEmailFormatter object. Can be overridden by subclasses
+	 * @param EchoEmailSingle $emailSingle
+	 * @return EchoTextEmailFormatter
+	 */
+	protected function newTextEmailFormatter( $emailSingle ) {
+		return new BsEchoTextEmailFormatter( $emailSingle );
 	}
 }
