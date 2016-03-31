@@ -64,6 +64,37 @@ class BsNotificationsFormatter extends EchoBasicFormatter {
 	}
 
 	/**
+	 * Process given Params in order specified on ...::registerNotification
+	 *
+	 * Example:
+	 *
+	 * Register Notification with message keys from i18n and params with insert order
+	 *
+	 * BSNotifications::registerNotification(
+	 *		'bs-shoutbox-mention',
+	 *		'bs-shoutbox-mention-cat',
+	 *		'bs-shoutbox-notifications-summary',
+	 *		array( 'agent', 'title', 'titlelink' ),
+	 *		'bs-shoutbox-notifications-title-message-subject',
+	 *		array(),
+	 *		'bs-shoutbox-notifications-title-message-text', (has $1...$5)
+	 *		array( 'agent'($1), 'title'($2), 'titlelink'($3), 'agentprofile'($4), 'customparam1'($5) )
+	 *	);
+	 *
+	 * Notification call, unknown params will be processed as is in last else case:
+	 *
+	 * BSNotifications::notify(
+	 *			"bs-shoutbox-{$sAction}",
+	 *			$oAgent,
+	 *			$oTitle,
+	 *			array(
+	 *				'mentioned-user-id' => $oUser->getId(),
+	 *				'realname' => $sCurrentUserName,
+	 *				'title' => $sTitleText,
+	 *				'agentprofile' => $oCurrentUser->getUserPage()->getFullURL(),
+	 *				'customparam1' => 'customvalue1'
+	 *			)
+	 *		);
 	 *
 	 * @param EchoEvent $event
 	 * @param String $param
@@ -71,9 +102,18 @@ class BsNotificationsFormatter extends EchoBasicFormatter {
 	 * @param User $user
 	 */
 	protected function processParam($event, $param, $message, $user) {
-		if( $param === 'summary' ) {
-			$aEventData = $event->getExtra();
-			$message->params( $aEventData['summary'] );
+		//check if key is precessed by echo base formatter class EchoBasicFormatter::processParam
+		$arrParamsInBasicFormatter = array(
+				'agent',
+				'agent-other-display',
+				'agent-other-count',
+				'user',
+				'title',
+				'titlelink',
+				'text-notification'
+			);
+		if(in_array( $param, $arrParamsInBasicFormatter) ) {
+			parent::processParam( $event, $param, $message, $user );
 		} else if( $param === 'titlelink' ) {
 			$this->setTitleLink(
 				$event,
@@ -132,23 +172,11 @@ class BsNotificationsFormatter extends EchoBasicFormatter {
 					'class' => 'mw-echo-title',
 				)
 			);
-		} else if( $param === 'deletereason' ) {
-			$aExtra = $event->getExtra();
-			$message->params( $aExtra['deletereason'] );
-		} else if( $param === 'shoutmsg' ) {
-			$aExtra = $event->getExtra();
-			$sMessage = $aExtra['shoutmsg'];
-			$message->params( $sMessage );
-		} else if( $param === 'username' ) {
-			$aExtra = $event->getExtra();
-			$sMessage = $aExtra['username'];
-			$message->params( $sMessage );
-		} else if( $param === 'realname' ) {
-			$aExtra = $event->getExtra();
-			$sMessage = $aExtra['realname'];
-			$message->params( $sMessage );
-		} else {
-			parent::processParam( $event, $param, $message, $user );
+		}
+		else {
+			//process Generic params for given index, insert content as is
+			$aEventData = $event->getExtra();
+			$message->params( $aEventData[ $param ] );
 		}
 	}
 
