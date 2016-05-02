@@ -124,7 +124,7 @@ class BsNotificationsFormatter extends EchoBasicFormatter {
 			);
 		} else if ( $param === 'difflink' ) {
 			$aEvent = $event->getExtra();
-			$diffparams = isset($aEvent['difflink'])
+			$diffparams = ( isset( $aEvent['difflink'] ) && isset( $aEvent['difflink']['diffparams'] ) )
 				? $aEvent['difflink']['diffparams']
 				: ''
 			;
