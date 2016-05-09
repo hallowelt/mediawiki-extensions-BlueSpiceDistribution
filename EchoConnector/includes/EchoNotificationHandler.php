@@ -294,6 +294,13 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 			return true;
 		}
 
+		$aDiffParams = array( 'diffparams' => array() );
+		if( is_object( $oRevision ) ) {
+			$aDiffParams['diffparams']['diff'] = $oRevision->getId();
+			if( is_object($oRevision->getPrevious()) ) {
+				$aDiffParams['diffparams']['oldid'] = $oRevision->getPrevious()->getId();
+			}
+		}
 		BSNotifications::notify(
 			'bs-edit',
 			$oUser,
@@ -301,7 +308,7 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 			array(
 				'summary' => $sSummary,
 				'titlelink' => true,
-				'difflink' => is_object( $oRevision ) ? array( 'diffparams' => array( 'diff' => $oRevision->getId(), 'oldid' => $oRevision->getPrevious()->getId() ) ) : array( 'diffparams' => array() ),
+				'difflink' => $aDiffParams,
 				'agentlink' => true,
 				'realname' => BsCore::getUserDisplayName( $oUser ),
 			)
