@@ -3,10 +3,10 @@
 		"authors": []
 	},
 	"bs-distribution-yourdomainname": "Your domain",
-	"bs-distribution-tag-categorytree-desc": "Provides a dynamic view of the wiki's category structure as a tree.",
-	"bs-distribution-tag-ref-desc": "Marks the text enclosed by the ref tags as a footnote.",
-	"bs-distribution-tag-references-desc": "Inserts the text of all the citations which have defined in 'ref' tags up to that point in the page",
-	"bs-distribution-tag-quiz-desc": "Adds 'quiz' like questions to a page.",
-	"bs-distribution-tag-embedvideo-desc": "Embeds video clips from popular video sharing services.",
-	"bs-distribution-tag-dynamicpagelist-desc": "Outputs a dynamic list of pages based on a set of different parameters."
+	"bs-distribution-tag-categorytree-desc": "Displays a dynamic tree structure on the category system in the wiki. Between the tags the root category has to be indicated.",
+	"bs-distribution-tag-ref-desc": "Marks the text between the tags as footnote.",
+	"bs-distribution-tag-references-desc": "Displays the list of footnotes which were inserted into the articles.",
+	"bs-distribution-tag-quiz-desc": "Adds simple quiz questions to an article.",
+	"bs-distribution-tag-embedvideo-desc": "Embeds video clips from popular sharing platforms.",
+	"bs-distribution-tag-dynamicpagelist-desc": "Generates a dynamic list of articles based on various parameters."
 }

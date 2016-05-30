@@ -85,7 +85,13 @@ class BlueSpiceDistributionHooks {
 			'type' => 'tag',
 			'name' => 'categorytree',
 			'desc' => wfMessage( 'bs-distribution-tag-categorytree-desc' )->plain(),
-			'code' => '<categorytree mode=pages>Top_Level</categorytree>',
+			'code' => '<categorytree>Top_Level</categorytree>',
+			'examples' => array(
+				array(
+					'code' => '<categorytree mode=pages>Manual</categorytree>'
+				)
+			),
+			'helplink' => 'https://help.bluespice.com/index.php/CategoryTree'
 		);
 
 		return true;
@@ -106,6 +112,17 @@ class BlueSpiceDistributionHooks {
 			'name' => 'ref',
 			'desc' => wfMessage( 'bs-distribution-tag-ref-desc' )->plain(),
 			'code' => '<ref>Footnote text</ref>',
+			'examples' => array(
+				array(
+					'code' => "Working with Wikis <ref>Wikis allow users not just to read an article but also to edit</ref>is fun. <br />
+It is very useful to use footnotes <ref>A note can provide an author's comments on the main text or citations of a reference work</ref> in the articles.
+
+==References==
+<references/>
+"
+				)
+			),
+			'helplink' => 'https://help.bluespice.com/index.php/Cite'
 		);
 
 		$oResponse->result[] = array(
@@ -114,6 +131,17 @@ class BlueSpiceDistributionHooks {
 			'name' => 'references',
 			'desc' => wfMessage( 'bs-distribution-tag-references-desc' )->plain(),
 			'code' => '<references />',
+			'examples' => array(
+				array(
+					'code' => "Working with Wikis <ref>Wikis allow users not just to read an article but also to edit</ref>is fun. <br />
+It is very useful to use footnotes <ref>A note can provide an author's comments on the main text or citations of a reference work</ref> in the articles.
+
+==References==
+<references/>
+"
+				)
+			),
+			'helplink' => 'https://help.bluespice.com/index.php/Cite'
 		);
 
 		return true;
@@ -134,6 +162,12 @@ class BlueSpiceDistributionHooks {
 			'name' => 'quiz',
 			'desc' => wfMessage( 'bs-distribution-tag-quiz-desc' )->plain(),
 			'code' => "<quiz>\n{ Your question }\n+ correct answer\n- incorrect answer\n</quiz>",
+			'examples' => array(
+				array(
+					'code' => "<quiz>\n{ Your question }\n+ correct answer\n- incorrect answer\n</quiz>"
+				)
+			),
+			'helplink' => 'https://help.bluespice.com/index.php/Quiz'
 		);
 
 		return true;
@@ -153,7 +187,13 @@ class BlueSpiceDistributionHooks {
 			'type' => 'tag',
 			'name' => 'embedvideo',
 			'desc' => wfMessage( 'bs-distribution-tag-embedvideo-desc' )->plain(),
-			'code' => '<embedvideo service="youtube">Link to video</embedvideo>',
+			'code' => '<embedvideo service="supported service">Link to video</embedvideo>',
+			'examples' => array(
+				array(
+					'code' => "<embedvideo service=\"youtube\">https://www.youtube.com/watch?v=o3wZxqPZxyo</embedvideo>"
+				)
+			),
+			'helplink' => 'https://www.mediawiki.org/wiki/Extension:EmbedVideo'
 		);
 
 		return true;
@@ -174,6 +214,12 @@ class BlueSpiceDistributionHooks {
 			'name' => 'dynamicpagelist',
 			'desc' => wfMessage( 'bs-distribution-tag-dynamicpagelist-desc' )->plain(),
 			'code' => "<DynamicPageList>\ncategory = Demo\n</DynamicPageList>",
+			'examples' => array(
+				array(
+					'code' => "<DynamicPageList>\ncategory = Pages recently transferred from Meta\ncount = 5\norder = ascending\naddfirstcategorydate = true\n</DynamicPageList>"
+				)
+			),
+			'helplink' => 'https://www.mediawiki.org/wiki/Extension:DynamicPageList_%28Wikimedia%29#Use'
 		);
 
 		return true;
