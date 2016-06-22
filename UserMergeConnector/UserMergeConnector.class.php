@@ -40,6 +40,9 @@ class UserMergeConnector {
 	 */
 	public static function onMergeAccountFromToManageReviewTemplates( User &$oldUser, User &$newUser ) {
 		$oDBr = wfGetDB( DB_SLAVE );
+		if( !class_exists('Review') ) {
+			return true;
+		}
 		if( !$oDBr->tableExists('bs_review_templates') ) {
 			return true;
 		}
@@ -79,6 +82,45 @@ class UserMergeConnector {
 				array( 'revt_user' => implode(',', $aValues) ),
 				array( 'revt_id' => $iID )
 			);
+		}
+		return true;
+	}
+
+	public static function onMergeAccountFromToManageBSSocial( User &$oldUser, User &$newUser ) {
+		if( !class_exists('BSSocial') ) {
+			return true;
+		}
+
+		$oStatus = BSSocialEntities::get( array(
+			'ownerid' => $newUser->getId(),
+			'type' => 'profile',
+		));
+		if( !$oStatus->isOK() ) {
+			//:(
+			return true;
+		}
+		$aEntities = $oStatus->getValue();
+		foreach( $aEntities as $oEntity ) {
+			//Delete user profile entity of the new user!
+			$oEntity->delete( $oldUser );
+		}
+
+		$oStatus = BSSocialEntities::get( array(
+			'ownerid' => $oldUser->getId(),
+		));
+		if( !$oStatus->isOK() ) {
+			//:(
+			return true;
+		}
+		$aEntities = $oStatus->getValue();
+		if( empty($aEntities) ) {
+			return true;
+		}
+		foreach( $aEntities as $oEntity ) {
+			$oEntity
+				->setOwnerID( $newUser->getId() )
+				->save()
+			;
 		}
 		return true;
 	}

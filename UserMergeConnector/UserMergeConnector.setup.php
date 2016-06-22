@@ -57,6 +57,9 @@ $wgHooks['UserMergeAccountFields'][]
 $wgHooks['MergeAccountFromTo'][]
 	= 'UserMergeConnector::onMergeAccountFromToManageReviewTemplates';
 
+$wgHooks['MergeAccountFromTo'][]
+	= 'UserMergeConnector::onMergeAccountFromToManageBSSocial';
+
 //FlaggedRevs
 //TODO: Remove this on later versions, cause this was added already - see:
 //https://gerrit.wikimedia.org/r/#/c/146025/5
