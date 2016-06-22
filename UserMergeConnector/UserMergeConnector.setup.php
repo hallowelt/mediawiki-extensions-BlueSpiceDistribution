@@ -22,7 +22,7 @@ $bsgUserMergeConnectorUpdateFields = array(
 	array( 'echo_notification', 'notification_user' ),
 
 	//BlueSpiceTeamwork
-	array( 'bs_reminder', 'user_id' ),
+	array( 'bs_reminder', 'rem_user_id' ),
 
 	//BlueSpiceRating
 	array( 'bs_rating', 'rat_userid', 'rat_userip' ),
