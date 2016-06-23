@@ -2057,7 +2057,6 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 		$autoAuthDomain = LdapAuthenticationPlugin::getConf( 'AutoAuthDomain' );
 		if ( !empty( $autoAuthDomain ) ) {
 			$domain = $autoAuthDomain;
-			echo $domain;
 		}
 		$user_id = $user->getId();
 		if ( $user_id != 0 ) {
