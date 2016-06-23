@@ -2054,6 +2054,11 @@ class LdapAuthenticationPlugin extends AuthPlugin {
 	 * @return bool
 	 */
 	static function saveDomain( $user, $domain ) {
+		$autoAuthDomain = LdapAuthenticationPlugin::getConf( 'AutoAuthDomain' );
+		if ( !empty( $autoAuthDomain ) ) {
+			$domain = $autoAuthDomain;
+			echo $domain;
+		}
 		$user_id = $user->getId();
 		if ( $user_id != 0 ) {
 			$dbw = wfGetDB( DB_MASTER );
