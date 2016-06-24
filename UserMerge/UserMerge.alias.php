@@ -19,7 +19,7 @@ $specialPageAliases['ar'] = array(
 	'UserMerge' => array( 'دمج_مستخدم' ),
 );
 
-/** Egyptian Spoken Arabic (مصرى) */
+/** Egyptian Arabic (مصرى) */
 $specialPageAliases['arz'] = array(
 	'UserMerge' => array( 'دمج_يوزر' ),
 );
@@ -27,6 +27,11 @@ $specialPageAliases['arz'] = array(
 /** Assamese (অসমীয়া) */
 $specialPageAliases['as'] = array(
 	'UserMerge' => array( 'সদস্য_একত্ৰীকৰণ_কৰক' ),
+);
+
+/** Western Balochi (بلوچی رخشانی) */
+$specialPageAliases['bgn'] = array(
+	'UserMerge' => array( 'کارمرزوکی_ادغام' ),
 );
 
 /** Banjar (Bahasa Banjar) */
@@ -99,7 +104,7 @@ $specialPageAliases['fr'] = array(
 	'UserMerge' => array( 'Fusionner_les_utilisateurs', 'FusionnerLesUtilisateurs', 'Fusionner_utilisateurs', 'FusionnerUtilisateurs', 'Fusionner_utilisateur', 'FusionnerUtilisateur' ),
 );
 
-/** Franco-Provençal (arpetan) */
+/** Arpitan (arpetan) */
 $specialPageAliases['frp'] = array(
 	'UserMerge' => array( 'Fusionar_los_usanciérs', 'FusionarLosUsanciérs' ),
 );

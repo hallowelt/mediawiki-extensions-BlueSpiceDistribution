@@ -91,18 +91,9 @@ class UserMergeConnector {
 			return true;
 		}
 
-		$oStatus = BSSocialEntities::get( array(
-			'ownerid' => $newUser->getId(),
-			'type' => 'profile',
-		));
-		if( !$oStatus->isOK() ) {
-			//:(
-			return true;
-		}
-		$aEntities = $oStatus->getValue();
-		foreach( $aEntities as $oEntity ) {
-			//Delete user profile entity of the new user!
-			$oEntity->delete( $oldUser );
+		$oEntity = BSSocialEntityProfile::newFromUser( $newUser );
+		if( $oEntity && $oEntity->exists() ) {
+			$oEntity->delete();
 		}
 
 		$oStatus = BSSocialEntities::get( array(
@@ -112,6 +103,7 @@ class UserMergeConnector {
 			//:(
 			return true;
 		}
+		error_log(var_export($oStatus->getValue(),1));
 		$aEntities = $oStatus->getValue();
 		if( empty($aEntities) ) {
 			return true;
