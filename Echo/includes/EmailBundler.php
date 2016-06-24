@@ -10,7 +10,7 @@
  * 2. a job is popped off the queue which calls self::processBundleEmail()
  *
  */
-abstract class MWEchoEmailBundler {
+class MWEchoEmailBundler {
 
 	/**
 	 * @var User
@@ -30,7 +30,7 @@ abstract class MWEchoEmailBundler {
 	protected $timestamp;
 
 	/**
-	 * @var Event
+	 * @var EchoEvent
 	 */
 	protected $baseEvent;
 
@@ -43,9 +43,9 @@ abstract class MWEchoEmailBundler {
 	protected $emailInterval;
 
 	/**
-	 * Private constructor
+	 * Protected constructor so subclasses can call it
 	 */
-	private function __construct( $user, $hash ) {
+	protected function __construct( $user, $hash ) {
 		global $wgEchoBundleEmailInterval;
 
 		$this->mUser = $user;
@@ -58,23 +58,6 @@ abstract class MWEchoEmailBundler {
 	}
 
 	/**
-	 * Get the name of the email batch class
-	 * @return string
-	 * @throws MWException
-	 */
-	private static function getEmailBundlerClass() {
-		global $wgEchoBackendName;
-
-		$className = 'MW' . $wgEchoBackendName . 'EchoEmailBundler';
-
-		if ( !class_exists( $className ) ) {
-			throw new MWException( "$wgEchoBackendName email bundler is not supported!" );
-		}
-
-		return $className;
-	}
-
-	/**
 	 * Factory method
 	 */
 	public static function newFromUserHash( User $user, $hash ) {
@@ -84,14 +67,17 @@ abstract class MWEchoEmailBundler {
 		if ( !$hash || !preg_match( '/^[a-f0-9]{32}$/', $hash ) ) {
 			return false;
 		}
-		$className = self::getEmailBundlerClass();
-		return new $className( $user, $hash );
+		return new self( $user, $hash );
 	}
 
 	/**
 	 * Check if a new notification should be added to the batch queue
 	 * true  - added to the queue for bundling email
 	 * false - not added, the client should send single email
+	 *
+	 * @param int $eventId
+	 * @param int $eventPriority
+	 *
 	 * @return bool
 	 */
 	public function addToEmailBatch( $eventId, $eventPriority ) {
@@ -181,10 +167,27 @@ abstract class MWEchoEmailBundler {
 	}
 
 	/**
-	 * Retrieve the base event for email bundling
+	 * Retrieve the base event for email bundling, the one with the largest eeb_id
 	 * @return bool
 	 */
-	abstract protected function retrieveBaseEvent();
+	protected function retrieveBaseEvent() {
+		$dbr = MWEchoDbFactory::getDB( DB_SLAVE );
+		$res = $dbr->selectRow(
+			array( 'echo_email_batch' ),
+			array( 'eeb_event_id' ),
+			array(
+				'eeb_user_id' => $this->mUser->getId(),
+				'eeb_event_hash' => $this->bundleHash
+			),
+			__METHOD__,
+			array( 'ORDER BY' => 'eeb_event_priority DESC, eeb_id DESC', 'LIMIT' => 1 )
+		);
+		if ( !$res ) {
+			return false;
+		}
+		$this->baseEvent = EchoEvent::newFromId( $res->eeb_event_id );
+		return true;
+	}
 
 	/**
 	 * Push the latest bundle data to the queue
@@ -239,7 +242,7 @@ abstract class MWEchoEmailBundler {
 
 		global $wgNotificationSender, $wgNotificationReplyName;
 
-		$toAddress = new MailAddress( $this->mUser );
+		$toAddress = MailAddress::newFromUser( $this->mUser );
 		$fromAddress = new MailAddress( $wgNotificationSender, EchoHooks::getNotificationSenderName() );
 		$replyAddress = new MailAddress( $wgNotificationSender, $wgNotificationReplyName );
 
@@ -268,8 +271,6 @@ abstract class MWEchoEmailBundler {
 
 		$key = $this->getMemcacheKey();
 
-		// Delete existing data
-		$wgMemc->delete( $key );
 		// Store new data and make it expire in 7 days
 		$wgMemc->set(
 			$key,
@@ -283,6 +284,20 @@ abstract class MWEchoEmailBundler {
 	/**
 	 * clear processed event in the queue
 	 */
-	abstract protected function clearProcessedEvent();
+	protected function clearProcessedEvent() {
+		if ( !$this->baseEvent ) {
+			return;
+		}
+		$conds = array( 'eeb_user_id' => $this->mUser->getId(), 'eeb_event_hash' => $this->bundleHash );
 
+		$conds[] = 'eeb_event_id <= ' . intval( $this->baseEvent->getId() );
+
+		$dbw = MWEchoDbFactory::getDB( DB_MASTER );
+		$dbw->delete(
+			'echo_email_batch',
+			$conds,
+			__METHOD__,
+			array()
+		);
+	}
 }

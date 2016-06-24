@@ -13,16 +13,14 @@ class EchoHooks {
 	 * from $wgExtensionFunctions
 	 */
 	public static function initEchoExtension() {
-		global $wgEchoBackend, $wgEchoBackendName, $wgEchoNotifications,
-			$wgEchoNotificationCategories, $wgEchoNotificationIcons, $wgEchoConfig;
+		global $wgEchoNotifications, $wgEchoNotificationCategories, $wgEchoNotificationIcons,
+			$wgEchoConfig;
 
 		// allow extensions to define their own event
-		wfRunHooks( 'BeforeCreateEchoEvent', array( &$wgEchoNotifications, &$wgEchoNotificationCategories, &$wgEchoNotificationIcons ) );
-
-		$wgEchoBackend = MWEchoBackend::factory( $wgEchoBackendName );
+		Hooks::run( 'BeforeCreateEchoEvent', array( &$wgEchoNotifications, &$wgEchoNotificationCategories, &$wgEchoNotificationIcons ) );
 
 		// turn schema off if eventLogging is not enabled
-		if ( !function_exists( 'efLogServerSideEvent' ) ) {
+		if ( !class_exists( 'EventLogging' ) ) {
 			foreach ( $wgEchoConfig['eventlogging'] as $schema => $property ) {
 				if ( $property['enabled'] ) {
 					$wgEchoConfig['eventlogging'][$schema]['enabled'] = false;
@@ -41,38 +39,112 @@ class EchoHooks {
 	}
 
 	/**
-	 * Handler for ResourceLoaderRegisterModules hook
+	 * ResourceLoaderTestModules hook handler
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ResourceLoaderTestModules
+	 *
+	 * @param array $testModules
+	 * @param ResourceLoader $resourceLoader
+	 * @return bool
 	 */
-	public static function onResourceLoaderRegisterModules( ResourceLoader &$resourceLoader ) {
-		global $wgResourceModules, $wgEchoConfig;
+	public static function onResourceLoaderTestModules( array &$testModules,
+		ResourceLoader $resourceLoader
+	) {
+		global $wgResourceModules;
 
-		foreach ( $wgEchoConfig['eventlogging'] as $schema => $property ) {
-			if ( $property['enabled'] ) {
-				$wgResourceModules[ 'schema.' . $schema ] = array(
-					'class'  => 'ResourceLoaderSchemaModule',
-					'schema' => $schema,
-					'revision' => $property['revision'],
-				);
-				$wgResourceModules['ext.echo.base']['dependencies'][] = 'schema.' . $schema;
+		$testModuleBoilerplate = array(
+			'localBasePath' => __DIR__,
+			'remoteExtPath' => 'Echo',
+		);
+
+		// find test files for every RL module
+		$prefix = 'ext.echo';
+		foreach ( $wgResourceModules as $key => $module ) {
+			if ( substr( $key, 0, strlen( $prefix ) ) === $prefix && isset( $module['scripts'] ) ) {
+				$testFiles = array();
+				foreach ( $module['scripts'] as $script ) {
+					$testFile = 'tests/qunit/' . dirname( $script ) . '/test_' . basename( $script );
+					// if a test file exists for a given JS file, add it
+					if ( file_exists( $testModuleBoilerplate['localBasePath'] . '/' . $testFile ) ) {
+						$testFiles[] = $testFile;
+					}
+				}
+				// if test files exist for given module, create a corresponding test module
+				if ( count( $testFiles ) > 0 ) {
+					$testModules['qunit']["$key.tests"] = $testModuleBoilerplate + array(
+						'dependencies' => array( $key ),
+						'scripts' => $testFiles,
+					);
+				}
 			}
 		}
 
 		return true;
 	}
 
+	public static function onEventLoggingRegisterSchemas( array &$schemas ) {
+		global $wgEchoConfig;
+		foreach ( $wgEchoConfig['eventlogging'] as $schema => $property ) {
+			if ( $property['enabled'] && $property['client'] ) {
+				$schemas[$schema] = $property['revision'];
+			}
+		}
+	}
+
+	/**
+	 * Handler for ResourceLoaderRegisterModules hook
+	 */
+	public static function onResourceLoaderRegisterModules( ResourceLoader &$resourceLoader ) {
+		global $wgEchoConfig;
+
+		// ext.echo.logger is used by mobile notifications as well, so be sure not to add any
+		// dependencies that do not target mobile.
+		$definition = array(
+			'position' => 'top',
+			'scripts' => array(
+				'logger/mw.echo.Logger.js',
+			),
+			'dependencies' => array(
+				'oojs'
+			),
+			'localBasePath' => __DIR__ . '/modules',
+			'remoteExtPath' => 'Echo/modules',
+			'targets' => array( 'desktop', 'mobile' ),
+		);
+
+		$hasSchemas = false;
+		foreach ( $wgEchoConfig['eventlogging'] as $schema => $property ) {
+			if ( $property['enabled'] && $property['client'] ) {
+				$definition['dependencies'][] = 'schema.' . $schema;
+				$hasSchemas = true;
+			}
+		}
+
+		if ( $hasSchemas ) {
+			$definition['dependencies'][] = 'ext.eventLogging';
+		}
+
+		$resourceLoader->register( 'ext.echo.logger', $definition );
+	}
+
 	/**
 	 * @param $updater DatabaseUpdater object
-	 * @return bool true in all cases
 	 */
-	public static function getSchemaUpdates( $updater ) {
+	public static function onLoadExtensionSchemaUpdates( DatabaseUpdater $updater ) {
+		global $wgEchoCluster;
+		if ( $wgEchoCluster !== false ) {
+			// DatabaseUpdater does not support other databases, so skip
+			return;
+		}
 		$dir = __DIR__;
 		$baseSQLFile = "$dir/echo.sql";
 		$updater->addExtensionTable( 'echo_event', $baseSQLFile );
 		$updater->addExtensionTable( 'echo_email_batch', "$dir/db_patches/echo_email_batch.sql" );
+		$updater->addExtensionTable( 'echo_target_page', "$dir/db_patches/echo_target_page.sql" );
 
 		if ( $updater->getDB()->getType() === 'sqlite' ) {
 			$updater->modifyExtensionField( 'echo_event', 'event_agent', "$dir/db_patches/patch-event_agent-split.sqlite.sql" );
 			$updater->modifyExtensionField( 'echo_event', 'event_variant', "$dir/db_patches/patch-event_variant_nullability.sqlite.sql" );
+			$updater->addExtensionField( 'echo_target_page', 'etp_id', "$dir/db_patches/patch-multiple_target_pages.sqlite.sql" );
 			// There is no need to run the patch-event_extra-size or patch-event_agent_ip-size because
 			// sqlite ignores numeric arguments in parentheses that follow the type name (ex: VARCHAR(255))
 			// see http://www.sqlite.org/datatype3.html Section 2.2 for more info
@@ -81,6 +153,7 @@ class EchoHooks {
 			$updater->modifyExtensionField( 'echo_event', 'event_variant', "$dir/db_patches/patch-event_variant_nullability.sql" );
 			$updater->modifyExtensionField( 'echo_event', 'event_extra', "$dir/db_patches/patch-event_extra-size.sql" );
 			$updater->modifyExtensionField( 'echo_event', 'event_agent_ip', "$dir/db_patches/patch-event_agent_ip-size.sql" );
+			$updater->addExtensionField( 'echo_target_page', 'etp_id', "$dir/db_patches/patch-multiple_target_pages.sql" );
 		}
 
 		$updater->addExtensionField( 'echo_notification', 'notification_bundle_base',
@@ -96,12 +169,11 @@ class EchoHooks {
 		$updater->addExtensionField( 'echo_event', 'event_page_id', "$dir/db_patches/patch-add-echo_event-event_page_id.sql" );
 		$updater->addExtensionIndex( 'echo_event', 'echo_event_type', "$dir/db_patches/patch-alter-event_type-index.sql" );
 		$updater->addExtensionIndex( 'echo_notification', 'echo_user_timestamp', "$dir/db_patches/patch-alter-user_timestamp-index.sql" );
-
-		return true;
 	}
 
 	/**
 	 * Handler for EchoGetBundleRule hook, which defines the bundle rule for each notification
+	 *
 	 * @param $event EchoEvent
 	 * @param $bundleString string Determines how the notification should be bundled, for example,
 	 * talk page notification is bundled based on namespace and title, the bundle string would be
@@ -109,6 +181,7 @@ class EchoHooks {
 	 * a key to identify bundle-able event.  For web bundling, we bundle further based on user's
 	 * visit to the overlay, we would generate a display hash based on the hash of $bundleString
 	 *
+	 * @return bool
 	 */
 	public static function onEchoGetBundleRules( $event, &$bundleString ) {
 		switch ( $event->getType() ) {
@@ -131,139 +204,19 @@ class EchoHooks {
 	}
 
 	/**
-	 * Handler for EchoGetDefaultNotifiedUsers hook.
-	 * @param $event EchoEvent to get implicitly subscribed users for
-	 * @param &$users Array to append implicitly subscribed users to.
-	 * @return bool true in all cases
-	 */
-	public static function getDefaultNotifiedUsers( $event, &$users ) {
-		switch ( $event->getType() ) {
-			// Everyone deserves to know when something happens
-			// on their user talk page
-			case 'edit-user-talk':
-				if ( !$event->getTitle() || !$event->getTitle()->getNamespace() == NS_USER_TALK ) {
-					break;
-				}
-
-				$username = $event->getTitle()->getText();
-				$user = User::newFromName( $username );
-				if ( $user && $user->getId() ) {
-					$users[$user->getId()] = $user;
-				}
-				break;
-			case 'add-comment':
-			case 'add-talkpage-topic':
-				// Handled by EchoDiscussionParser
-				$extraData = $event->getExtra();
-
-				if ( !isset( $extraData['revid'] ) || !$extraData['revid'] ) {
-					break;
-				}
-
-				$revision = Revision::newFromId( $extraData['revid'] );
-				if ( $revision ) {
-					$users += EchoDiscussionParser::getNotifiedUsersForComment( $revision );
-				}
-				break;
-			case 'welcome':
-				$users[$event->getAgent()->getId()] = $event->getAgent();
-				break;
-			case 'reverted':
-				$extra = $event->getExtra();
-
-				if ( !$extra || !isset( $extra['reverted-user-id'] ) ) {
-					break;
-				}
-				$victimID = $extra['reverted-user-id'];
-				$victim = User::newFromId( $victimID );
-				$users[$victim->getId()] = $victim;
-				break;
-			case 'page-linked':
-				$agent = $event->getAgent();
-				$title = $event->getTitle();
-
-				if ( !$title || $title->getArticleID() <= 0 || !$agent ) {
-					break;
-				}
-
-				$dbr = wfGetDB( DB_SLAVE );
-
-				$res = $dbr->selectRow(
-					array( 'revision' ),
-					array( 'rev_user' ),
-					array( 'rev_page' => $title->getArticleID() ),
-					__METHOD__,
-					array( 'LIMIT' => 1, 'ORDER BY' => 'rev_timestamp, rev_id' )
-				);
-				// No notification if agents link their own articles
-				if ( $res && $res->rev_user && $agent->getID() != $res->rev_user ) {
-					// Map each linked page to a corresponding author
-					$user = User::newFromId( $res->rev_user );
-					if ( $user ) {
-						$users[$user->getID()] = $user;
-					}
-				}
-				break;
-			case 'mention':
-				$extraData = $event->getExtra();
-				foreach ( $extraData['mentioned-users'] as $userId ) {
-					//backward compatibility
-					if ( $userId instanceof User ) {
-						$users[$userId->getID()] = $userId;
-					} else {
-						$users[$userId] = User::newFromId( $userId );
-					}
-				}
-				break;
-			case 'user-rights':
-				$extraData = $event->getExtra();
-				$users[$extraData['user']] = User::newFromId( $extraData['user'] );
-				break;
-		}
-
-		return true;
-	}
-
-	/**
-	 * Handler for EchoGetNotificationTypes hook, Adjust the notify types (e.g. web, email) which
-	 * are applicable to this event and user based on various user options. In other words, allow
-	 * certain non-echo user options to override the echo notification options.
-	 * @param $user User
-	 * @param $event EchoEvent
-	 * @param $notifyTypes
-	 * @return bool
-	 */
-	public static function getNotificationTypes( $user, $event, &$notifyTypes ) {
-		$type = $event->getType();
-		if ( !$user->getOption( 'enotifminoredits' ) ) {
-			$extra = $event->getExtra();
-			if ( !empty( $extra['revid'] ) ) {
-				$rev = Revision::newFromID( $extra['revid'] );
-
-				if ( $rev->isMinor() ) {
-					$notifyTypes = array_diff( $notifyTypes, array( 'email' ) );
-				}
-			}
-		}
-		return true;
-	}
-
-	/**
 	 * Handler for GetPreferences hook.
 	 * @see http://www.mediawiki.org/wiki/Manual:Hooks/GetPreferences
+	 *
 	 * @param $user User to get preferences for
 	 * @param &$preferences Preferences array
+	 *
+	 * @throws MWException
 	 * @return bool true in all cases
 	 */
 	public static function getPreferences( $user, &$preferences ) {
 		global $wgEchoDefaultNotificationTypes, $wgAuth, $wgEchoEnableEmailBatch,
 			$wgEchoNotifiers, $wgEchoNotificationCategories, $wgEchoNotifications,
-			$wgEchoHelpPage, $wgEchoNewMsgAlert, $wgAllowHTMLEmail;
-
-		// Don't show echo preference page if echo is disabled for this user
-		if ( self::isEchoDisabled( $user ) ) {
-			return true;
-		}
+			$wgEchoNewMsgAlert, $wgAllowHTMLEmail;
 
 		// Show email frequency options
 		$never = wfMessage( 'echo-pref-email-frequency-never' )->plain();
@@ -335,9 +288,10 @@ class EchoHooks {
 			if ( isset( $categoryData['no-dismiss'] ) && in_array( 'all' , $categoryData['no-dismiss'] ) ) {
 				continue;
 			}
+			$attributeManager = EchoAttributeManager::newFromGlobalVars();
 			// See if user is eligible to recieve this notification (per user group restrictions)
-			if ( EchoNotificationController::getCategoryEligibility( $user, $category ) ) {
-				$categoriesAndPriorities[$category] = EchoNotificationController::getCategoryPriority( $category );
+			if ( $attributeManager->getCategoryEligibility( $user, $category ) ) {
+				$categoriesAndPriorities[$category] = $attributeManager->getCategoryPriority( $category );
 			}
 		}
 		asort( $categoriesAndPriorities );
@@ -429,14 +383,6 @@ class EchoHooks {
 			unset( $preferences['enotifusertalkpages']['section'] );
 		}
 
-		// Show fly-out display prefs
-		// Per bug 47562, we're going to hide this pref for now until we see
-		// what the community reaction to Echo is on en.wiki.
-		$preferences['echo-notify-show-link'] = array(
-			'type' => 'hidden',
-			'label-message' => 'echo-pref-notify-show-link',
-			//'section' => 'echo/displaynotifications',
-		);
 		return true;
 	}
 
@@ -458,36 +404,41 @@ class EchoHooks {
 	public static function onArticleSaved( &$article, &$user, $text, $summary, $minoredit, $watchthis, $sectionanchor, &$flags, $revision, &$status ) {
 		global $wgEchoNotifications, $wgRequest;
 
-		if ( $revision ) {
-			EchoDiscussionParser::generateEventsForRevision( $revision );
+		if ( !$revision ) {
+			return true;
+		}
 
-			// Handle the case of someone undoing an edit, either through the
-			// 'undo' link in the article history or via the API.
-			if ( isset( $wgEchoNotifications['reverted'] ) ) {
-				$title = $article->getTitle();
-				$undidRevId = $wgRequest->getVal( 'wpUndidRevision' );
-				if ( $undidRevId ) {
-					$undidRevision = Revision::newFromId( $undidRevId );
-					if ( $undidRevision && $undidRevision->getTitle()->equals( $title ) ) {
-						$victimId = $undidRevision->getUser();
-						if ( $victimId ) { // No notifications for anonymous users
-							EchoEvent::create( array(
-								'type' => 'reverted',
-								'title' => $title,
-								'extra' => array(
-									'revid' => $revision->getId(),
-									'reverted-user-id' => $victimId,
-									'reverted-revision-id' => $undidRevId,
-									'method' => 'undo',
-								),
-								'agent' => $user,
-							) );
-						}
+		// Try to do this after the HTTP response
+		DeferredUpdates::addCallableUpdate( function() use ( $revision ) {
+			EchoDiscussionParser::generateEventsForRevision( $revision );
+		} );
+
+		// Handle the case of someone undoing an edit, either through the
+		// 'undo' link in the article history or via the API.
+		if ( isset( $wgEchoNotifications['reverted'] ) ) {
+			$title = $article->getTitle();
+			$undidRevId = $wgRequest->getVal( 'wpUndidRevision' );
+			if ( $undidRevId ) {
+				$undidRevision = Revision::newFromId( $undidRevId );
+				if ( $undidRevision && $undidRevision->getTitle()->equals( $title ) ) {
+					$victimId = $undidRevision->getUser();
+					if ( $victimId ) { // No notifications for anonymous users
+						EchoEvent::create( array(
+							'type' => 'reverted',
+							'title' => $title,
+							'extra' => array(
+								'revid' => $revision->getId(),
+								'reverted-user-id' => $victimId,
+								'reverted-revision-id' => $undidRevId,
+								'method' => 'undo',
+							),
+							'agent' => $user,
+						) );
 					}
 				}
 			}
-
 		}
+
 		return true;
 	}
 
@@ -533,22 +484,43 @@ class EchoHooks {
 		EchoEvent::create( array(
 			'type' => 'welcome',
 			'agent' => $user,
+			// welcome email is sent to agent
+			'extra' => array (
+				'notifyAgent' => true
+			)
 		) );
 
 		return true;
 	}
 
 	/**
-	 * Handler for UserRights hook.
-	 * @see http://www.mediawiki.org/wiki/Manual:Hooks/UserRights
-	 * @param $user User User object that was changed
-	 * @param $add array Array of strings corresponding to groups added
-	 * @param $remove array Array of strings corresponding to groups removed
+	 * Handler for UserGroupsChanged hook.
+	 * @see http://www.mediawiki.org/wiki/Manual:Hooks/UserGroupsChanged
+	 *
+	 * @param User $user user that was changed
+	 * @param string[] $add strings corresponding to groups added
+	 * @param string[] $remove strings corresponding to groups removed
+	 * @param User|bool $performer
+	 *
+	 * @return bool
 	 */
-	public static function onUserRights( &$user, $add, $remove ) {
-		global $wgUser;
+	public static function onUserGroupsChanged( $user, $add, $remove, $performer ) {
+		if ( !$performer ) {
+			// TODO: Implement support for autopromotion
+			return true;
+		}
 
-		if ( $user instanceof User && !$user->isAnon() && $wgUser->getId() != $user->getId() && ( $add || $remove ) ) {
+		if ( !$user instanceof User ) {
+			// TODO: Support UserRightsProxy
+			return true;
+		}
+
+		if ( $user->equals( $performer ) ) {
+			// Don't notify for self changes
+			return true;
+		}
+
+		if ( $add || $remove ) {
 			EchoEvent::create(
 				array(
 					'type' => 'user-rights',
@@ -558,7 +530,7 @@ class EchoHooks {
 						'add' => $add,
 						'remove' => $remove
 					),
-					'agent' => $wgUser,
+					'agent' => $performer,
 				)
 			);
 		}
@@ -600,7 +572,7 @@ class EchoHooks {
 		$max = 10;
 		// Only create notifications for links to content namespace pages
 		// @Todo - use one big insert instead of individual insert inside foreach loop
-		foreach ( $insertions as $key => $page ) {
+		foreach ( $insertions as $page ) {
 			if ( MWNamespace::isContent( $page['pl_namespace'] ) ) {
 				$title = Title::makeTitle( $page['pl_namespace'], $page['pl_title'] );
 				if ( $title->isRedirect() ) {
@@ -633,18 +605,14 @@ class EchoHooks {
 	 * @return bool true in all cases
 	 */
 	static function beforePageDisplay( $out, $skin ) {
-		$user = $out->getUser();
-
-		// Don't show the alert message and badge if echo is disabled for this user
-		if ( self::isEchoDisabled( $user ) ) {
-			return true;
-		}
-
-		if ( $user->isLoggedIn() && $user->getOption( 'echo-notify-show-link' ) ) {
+		if ( $out->getUser()->isLoggedIn() && $skin->getSkinName() !== 'minerva' ) {
 			// Load the module for the Notifications flyout
-			$out->addModules( array( 'ext.echo.overlay' ) );
+			$out->addModules( array( 'ext.echo.init' ) );
 			// Load the styles for the Notifications badge
-			$out->addModuleStyles( 'ext.echo.badge' );
+			$out->addModuleStyles( array(
+				'ext.echo.styles.badge',
+				'ext.echo.badgeicons'
+			) );
 		}
 
 		return true;
@@ -662,36 +630,119 @@ class EchoHooks {
 	static function onPersonalUrls( &$personal_urls, &$title, $sk ) {
 		global $wgEchoNewMsgAlert;
 		$user = $sk->getUser();
-		if ( $user->isAnon() || self::isEchoDisabled( $user ) ) {
+		if ( $user->isAnon() ) {
 			return true;
 		}
 
-		// Add a "My notifications" item to personal URLs
-		if ( $user->getOption( 'echo-notify-show-link' ) ) {
-			$notificationCount = MWEchoNotifUser::newFromUser( $user )->getNotificationCount();
-			$text = EchoNotificationController::formatNotificationCount( $notificationCount );
-			$url = SpecialPage::getTitleFor( 'Notifications' )->getLocalURL();
-			if ( $notificationCount == 0 ) {
-				$linkClasses = array( 'mw-echo-notifications-badge' );
-			} else {
-				$linkClasses = array( 'mw-echo-unread-notifications', 'mw-echo-notifications-badge' );
+		// Attempt to mark a notification as read when visiting a page,
+		// ideally this should be deferred to end of request and update
+		// the notification count accordingly
+		// @Fixme - Find a better place to put this code
+		if ( $title->getArticleID() ) {
+			$mapper = new EchoTargetPageMapper();
+			$targetPages = $mapper->fetchByUserPageId( $user, $title->getArticleID() );
+			if ( $targetPages ) {
+				$eventIds = array_keys( $targetPages );
+				$notifUser = MWEchoNotifUser::newFromUser( $user );
+				$notifUser->markRead( $eventIds );
 			}
-			$notificationsLink = array(
+		}
+
+		// Add a "My notifications" item to personal URLs
+		$notifUser = MWEchoNotifUser::newFromUser( $user );
+		$msgCount = $notifUser->getMessageCount();
+		$alertCount = $notifUser->getAlertCount();
+
+		$msgNotificationTimestamp = $notifUser->getLastUnreadMessageTime();
+		$alertNotificationTimestamp = $notifUser->getLastUnreadAlertTime();
+
+		$seenAlertTime = EchoSeenTime::newFromUser( $user )->getTime( 'alert' );
+		$seenMsgTime = EchoSeenTime::newFromUser( $user )->getTime( 'message' );
+
+		$sk->getOutput()->addJsConfigVars( 'wgEchoSeenTime', array(
+			'alert' => $seenAlertTime,
+			'message' => $seenMsgTime
+		) );
+
+		$msgText = EchoNotificationController::formatNotificationCount( $msgCount );
+		$alertText = EchoNotificationController::formatNotificationCount( $alertCount );
+
+		$url = SpecialPage::getTitleFor( 'Notifications' )->getLocalURL();
+
+		// HACK: inverted icons only work in the "MediaWiki" OOUI theme
+		// Avoid flashes in skins that don't use it (T111821)
+		$sk->getOutput()->setupOOUI( strtolower( $sk->getSkinName() ), $sk->getOutput()->getLanguage()->getDir() );
+		$oouiImageClass = get_class( OOUI\Theme::singleton() ) === 'OOUI\\MediaWikiTheme'
+				? 'oo-ui-image-invert'
+				: '';
+
+		$msgLinkClasses = array( "mw-echo-notifications-badge mw-echo-notification-badge-nojs $oouiImageClass oo-ui-iconElement oo-ui-iconElement-icon oo-ui-icon-speechBubble" );
+		$alertLinkClasses = array( "mw-echo-notifications-badge mw-echo-notification-badge-nojs $oouiImageClass oo-ui-iconElement oo-ui-iconElement-icon" );
+
+		$hasUnseen = false;
+		if (
+			$msgCount != 0 && // no unread notifications
+			$msgNotificationTimestamp !== false && // should already always be false if count === 0
+			( $seenMsgTime === null || $seenMsgTime < $msgNotificationTimestamp->getTimestamp( TS_MW ) ) // there are no unseen notifications
+		) {
+			$msgLinkClasses[] = 'mw-echo-unseen-notifications';
+			$hasUnseen = true;
+		}
+
+		$alertIcon = "bell";
+		if (
+			$alertCount != 0 && // no unread notifications
+			$alertNotificationTimestamp !== false && // should already always be false if count === 0
+			( $seenAlertTime === null || $seenAlertTime < $alertNotificationTimestamp->getTimestamp( TS_MW ) ) // all notifications have already been seen
+		) {
+			$alertLinkClasses[] = 'mw-echo-unseen-notifications';
+			$alertIcon = "bellOn";
+			$hasUnseen = true;
+		}
+		$alertLinkClasses[] = 'oo-ui-icon-' . $alertIcon;
+
+		$alertLink = array(
+			'href' => $url,
+			'text' => $alertText,
+			'active' => ( $url == $title->getLocalUrl() ),
+			'class' => $alertLinkClasses,
+		);
+
+		$insertUrls = array(
+			'notifications-alert' => $alertLink,
+		);
+
+		if ( $notifUser->hasMessages() ) {
+			$msgLink = array(
 				'href' => $url,
-				'text' => $text,
+				'text' => $msgText,
 				'active' => ( $url == $title->getLocalUrl() ),
-				'class' => $linkClasses,
+				'class' => $msgLinkClasses,
 			);
 
-			$insertUrls = array( 'notifications' => $notificationsLink );
-			$personal_urls = wfArrayInsertAfter( $personal_urls, $insertUrls, 'userpage' );
+			$insertUrls['notifications-message'] = $msgLink;
+		}
+
+		$personal_urls = wfArrayInsertAfter( $personal_urls, $insertUrls, 'userpage' );
+
+		if ( $hasUnseen ) {
+			// Record that the user is going to see an indicator that they have unread notifications
+			RequestContext::getMain()->getStats()->increment( 'MediaWiki.echo.unseen' );
 		}
 
 		// If the user has new messages, display a talk page alert
-		if ( $wgEchoNewMsgAlert && $user->getOption( 'echo-show-alert' ) && $user->getNewtalk() ) {
+		// We need to check:
+		// * Orange alert is enabled in configuration
+		// * Enabled in user preferences
+		// * User actually has new messages
+		// * User is not viewing their user talk page, as user_newtalk
+		//   will not have been cleared yet. (bug T107655).
+		if ( $wgEchoNewMsgAlert && $user->getOption( 'echo-show-alert' )
+				&& $user->getNewtalk() && !$user->getTalkPage()->equals( $title )
+		) {
 			$personal_urls['mytalk']['text'] = $sk->msg( 'echo-new-messages' )->text();
 			$personal_urls['mytalk']['class'] = array( 'mw-echo-alert' );
-			$sk->getOutput()->addModuleStyles( 'ext.echo.alert' );
+			$sk->getOutput()->addModuleStyles( 'ext.echo.styles.alert' );
 		}
 
 		return true;
@@ -710,7 +761,7 @@ class EchoHooks {
 		// Send legacy talk page email notification if
 		// 1. echo is disabled for them or
 		// 2. echo talk page notification is disabled
-		if ( self::isEchoDisabled( $targetUser ) || !isset( $wgEchoNotifications['edit-user-talk'] ) ) {
+		if ( !isset( $wgEchoNotifications['edit-user-talk'] ) ) {
 			// Legacy talk page email notification
 			return true;
 		}
@@ -731,10 +782,9 @@ class EchoHooks {
 		// If a user is watching his/her own talk page, do not send talk page watchlist
 		// email notification if the user is receiving Echo talk page notification
 		if ( $title->isTalkPage() && $targetUser->getTalkPage()->equals( $title ) ) {
-			if (
-				!self::isEchoDisabled( $targetUser )
-				&& in_array( 'edit-user-talk', EchoNotificationController::getUserEnabledEvents( $targetUser, 'email' ) )
-			) {
+			$attributeManager = EchoAttributeManager::newFromGlobalVars();
+			$events = $attributeManager->getUserEnabledEvents( $targetUser, 'email' );
+			if ( in_array( 'edit-user-talk', $events ) ) {
 				// Do not send watchlist email notification, the user will receive an Echo notification
 				return false;
 			}
@@ -756,7 +806,6 @@ class EchoHooks {
 
 		// Provide info for the Overlay
 
-		$timestamp = new MWTimestamp( wfTimestampNow() );
 		if ( ! $user->isAnon() ) {
 			$vars['wgEchoOverlayConfiguration'] = array(
 				'notification-count' => MWEchoNotifUser::newFromUser( $user )->getFormattedNotificationCount(),
@@ -764,6 +813,17 @@ class EchoHooks {
 			);
 			$vars['wgEchoHelpPage'] = $wgEchoHelpPage;
 			$vars['wgEchoConfig'] = $wgEchoConfig;
+		} elseif (
+			$outputPage->getTitle()->equals( SpecialPage::getTitleFor( 'JavaScriptTest', 'qunit' ) ) ||
+			// Also if running from /plain or /export
+			$outputPage->getTitle()->isSubpageOf( SpecialPage::getTitleFor( 'JavaScriptTest', 'qunit' ) )
+		) {
+			// For testing purposes
+			$vars['wgEchoConfig'] = array(
+				'eventlogging' => array(
+					'EchoInteraction' => array(),
+				),
+			);
 		}
 
 		return true;
@@ -776,8 +836,22 @@ class EchoHooks {
 	 * @return bool true in all cases
 	 */
 	static function getUnitTests( &$files ) {
-		$files += glob( __DIR__ . '/tests/*Test.php' );
+		// @codeCoverageIgnoreStart
+		$directoryIterator = new RecursiveDirectoryIterator( __DIR__ . '/tests/phpunit/' );
+
+		/**
+		 * @var SplFileInfo $fileInfo
+		 */
+		$ourFiles = array();
+		foreach ( new RecursiveIteratorIterator( $directoryIterator ) as $fileInfo ) {
+			if ( substr( $fileInfo->getFilename(), -8 ) === 'Test.php' ) {
+				$ourFiles[] = $fileInfo->getPathname();
+			}
+		}
+
+		$files = array_merge( $files, $ourFiles );
 		return true;
+		// @codeCoverageIgnoreEnd
 	}
 
 	/**
@@ -801,13 +875,8 @@ class EchoHooks {
 		// If the user has the notifications flyout turned on and is receiving
 		// notifications for talk page messages, disable the new messages alert.
 		if ( $user->isLoggedIn()
-			&& $user->getOption( 'echo-notify-show-link' )
 			&& isset( $wgEchoNotifications['edit-user-talk'] )
 		) {
-			// Show the new messages alert for users with echo disabled
-			if ( self::isEchoDisabled( $user ) ) {
-				return true;
-			}
 			// hide new messages alert
 			return false;
 		} else {
@@ -907,67 +976,57 @@ class EchoHooks {
 	 */
 	public static function onUserClearNewTalkNotification( User $user ) {
 		if ( !$user->isAnon() ) {
-			MWEchoNotifUser::newFromUser( $user )->clearTalkNotification();
+			DeferredUpdates::addCallableUpdate( function() use ( $user ) {
+				MWEchoNotifUser::newFromUser( $user )->clearTalkNotification();
+			} );
 		}
+
 		return true;
 	}
 
 	/**
-	 * Handler for EchoCreateNotificationComplete hook, this will allow some
-	 * extra stuff to be done upon creating a new notification
-	 * @param $notif EchoNotification
+	 * Handler for ParserTestTables hook, makes sure that Echo's tables are present during tests
+	 * @see http://www.mediawiki.org/wiki/Manual:Hooks/UserClearNewTalkNotification
+	 * @param array $tables List of DB tables to be used for parser tests
 	 * @return bool true in all cases
 	 */
-	public static function onEchoCreateNotificationComplete( EchoNotification $notif ) {
-		if ( $notif->getEvent() && $notif->getUser() ) {
-			// Extra stuff for talk page notification
-			if ( $notif->getEvent()->getType() === 'edit-user-talk' ) {
-				$notifUser = MWEchoNotifUser::newFromUser( $notif->getUser() );
-				$notifUser->flagCacheWithNewTalkNotification();
-			}
-		}
-
+	public static function onParserTestTables( &$tables ) {
+		$tables[] = 'echo_event';
+		$tables[] = 'echo_notification';
+		$tables[] = 'echo_email_batch';
 		return true;
 	}
 
 	/**
-	 * Echo should be disabled for users who are under cohort study
-	 * @param $user User
+	 * For integration with the UserMerge extension.
+	 *
+	 * @param array $updateFields
 	 * @return bool
 	 */
-	public static function isEchoDisabled( User $user ) {
-		global $wgEchoCohortInterval;
+	public static function onUserMergeAccountFields( &$updateFields ) {
+		// array( tableName, idField, textField )
+		$dbw = MWEchoDbFactory::newFromDefault()->getEchoDb( DB_MASTER );
+		$updateFields[] = array( 'echo_event', 'event_agent_id', 'db' => $dbw );
+		$updateFields[] = array( 'echo_notification', 'notification_user', 'db' => $dbw, 'options' => array( 'IGNORE' ) );
+		$updateFields[] = array( 'echo_email_batch', 'eeb_user_id', 'db' => $dbw, 'options' => array( 'IGNORE' ) );
+		$updateFields[] = array( 'echo_target_page', 'etp_user', 'db' => $dbw, 'options' => array( 'IGNORE' ) );
 
-		// Make sure the user has an id and cohort study timestamp is specified
-		if ( !$wgEchoCohortInterval || !$user->getId() ) {
-			return false;
-		}
-
-		list( $start, $bucketEnd, $cohortEnd ) = $wgEchoCohortInterval;
-
-		$regTimestamp = $user->getRegistration();
-
-		// Cohort study is for user with a registration timestamp
-		if ( !$regTimestamp ) {
-			return false;
-		}
-
-		// Cohort study is for even user_id
-		if ( $user->getId() % 2 === 1 ) {
-			return false;
-		}
-
-		$now = wfTimestampNow();
-
-		// Make sure the user is registered during the bucketing period
-		// and the cohort study doesn't end yet
-		if ( $start <= $regTimestamp && $regTimestamp <= $bucketEnd
-			&& $start <= $now && $now <= $cohortEnd
-		) {
-			return true;
-		}
-
-		return false;
+		return true;
 	}
 
+	public static function onMergeAccountFromTo( User &$oldUser, User &$newUser ) {
+		MWEchoNotifUser::newFromUser( $oldUser )->resetNotificationCount( DB_MASTER );
+		MWEchoNotifUser::newFromUser( $newUser )->resetNotificationCount( DB_MASTER );
+
+		return true;
+	}
+
+	public static function onUserMergeAccountDeleteTables( &$tables ) {
+		$dbw = MWEchoDbFactory::newFromDefault()->getEchoDb( DB_MASTER );
+		$tables['echo_notification'] = array( 'notification_user', 'db' => $dbw );
+		$tables['echo_email_batch'] = array( 'eeb_user_id', 'db' => $dbw );
+		$tables['echo_target_page'] = array( 'etp_user', 'db' => $dbw );
+
+		return true;
+	}
 }

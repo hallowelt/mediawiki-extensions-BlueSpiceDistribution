@@ -1,8 +1,9 @@
 <?php
 
 abstract class EchoDiscussionParser {
+	const HEADER_REGEX = '^(==+)\s*([^=].*)\s*\1$';
+
 	static protected $timestampRegex;
-	static protected $headerRegex = '^(==+)\s*([^=].*)\s*\1$';
 	static protected $revisionInterpretationCache = array();
 	static protected $diffParser;
 
@@ -15,7 +16,6 @@ abstract class EchoDiscussionParser {
 	 */
 	static function generateEventsForRevision( $revision ) {
 		$interpretation = self::getChangeInterpretationForRevision( $revision );
-		$createdEvents = false;
 
 		// use slave database if there is a previous revision
 		if ( $revision->getPrevious() ) {
@@ -35,54 +35,28 @@ abstract class EchoDiscussionParser {
 		$user = $userID != 0 ? User::newFromId( $userID ) : User::newFromName( $userName, false );
 
 		foreach ( $interpretation as $action ) {
-			// These two event types are disabled temporarily, there is no need to process them
 			if ( $action['type'] == 'add-comment' ) {
 				$fullSection = $action['full-section'];
 				$header = self::extractHeader( $fullSection );
-				/*
-				EchoEvent::create( array(
-					'type' => 'add-comment',
-					'title' => $title,
-					'extra' => array(
-						'revid' => $revision->getID(),
-						'section-title' => $header,
-						'content' => $action['content'],
-					),
-					'agent' => $user,
-				) );
-				*/
 				self::generateMentionEvents( $header, $action['content'], $revision, $user );
-
-				//$createdEvents = true;
 			} elseif ( $action['type'] == 'new-section-with-comment' ) {
 				$content = $action['content'];
 				$header = self::extractHeader( $content );
-				/*
-				EchoEvent::create( array(
-					'type' => 'add-talkpage-topic',
-					'title' => $title,
-					'extra' => array(
-						'revid' => $revision->getID(),
-						'section-title' => $header,
-						'content' => $content,
-					),
-					'agent' => $user,
-				) );
-				*/
 				self::generateMentionEvents( $header, $content, $revision, $user );
-
-				//$createdEvents = true;
 			}
 		}
 
-		if ( !$createdEvents && $title->getNamespace() == NS_USER_TALK ) {
+		if ( $title->getNamespace() == NS_USER_TALK ) {
 			$notifyUser = User::newFromName( $title->getText() );
 			// If the recipient is a valid non-anonymous user and hasn't turned
-			// off thier notifications, generate a talk page post Echo notification.
-			if ( $notifyUser && $notifyUser->getID() && $notifyUser->getOption( 'echo-notify-show-link' ) ) {
+			// off their notifications, generate a talk page post Echo notification.
+			if ( $notifyUser && $notifyUser->getID() ) {
 				// if this is a minor edit, only notify if the agent doesn't have talk page minor edit notification blocked
 				if ( !$revision->isMinor() || !$user->isAllowed( 'nominornewtalk' ) ) {
-					$section = self::detectSectionTitleAndText( $interpretation );
+					$section = self::detectSectionTitleAndText( $interpretation, $title );
+					if ( $section['section-text'] === '' ) {
+						$section['section-text'] = $revision->getComment();
+					}
 					EchoEvent::create( array(
 						'type' => 'edit-user-talk',
 						'title' => $title,
@@ -104,8 +78,10 @@ abstract class EchoDiscussionParser {
 	 *
 	 * @param $interpretation array Results of self::getChangeInterpretationForRevision
 	 * @return array Array containing section title and text
+	 * @param Title $title
 	 */
-	public static function detectSectionTitleAndText( array $interpretation ) {
+	public static function detectSectionTitleAndText( array $interpretation, Title $title = null ) {
+		global $wgLang;
 		$header = $snippet = '';
 		$found = false;
 
@@ -113,26 +89,33 @@ abstract class EchoDiscussionParser {
 			switch( $action['type'] ) {
 				case 'add-comment':
 					$header  = self::extractHeader( $action['full-section'] );
-					$snippet = self::getTextSnippet( self::stripSignature( self::stripHeader( $action['content'] ) ), 150 );
+					$snippet = self::getTextSnippet(
+							self::stripSignature( self::stripHeader( $action['content'] ), $title ),
+							$wgLang,
+							150 );
 					break;
 				case 'new-section-with-comment':
 					$header  = self::extractHeader( $action['content'] );
-					$snippet = self::getTextSnippet( self::stripSignature( self::stripHeader( $action['content'] ) ), 150 );
+					$snippet = self::getTextSnippet(
+							self::stripSignature( self::stripHeader( $action['content'] ), $title ),
+							$wgLang,
+							150 );
 					break;
 			}
 			if ( $header ) {
-				// If we find multiple headers within the same change interpretation then
+				// If we find a second header within the same change interpretation then
 				// we cannot choose just 1 to link to
 				if ( $found ) {
-					return array( 'section-title' => '', 'section-text' => '' );
+					$found = false;
+					break;
 				}
-				$found = $header;
+				$found = true;
 			}
 		}
-		if ( $found ) {
-			return array( 'section-title' => $header, 'section-text' => $snippet );
+		if ( $found === false ) {
+			return array( 'section-title' => '', 'section-text' => '' );
 		}
-		return array( 'section-title' => '', 'section-text' => '' );
+		return array( 'section-title' => $header, 'section-text' => $snippet );
 	}
 
 	/**
@@ -160,6 +143,7 @@ abstract class EchoDiscussionParser {
 
 		foreach ( $links[NS_USER] as $dbk => $page_id ) {
 			$user = User::newFromName( $dbk );
+
 			// we should not add user to 'mention' notification list if
 			// 1. the user name is not valid
 			// 2. the user mentions themselves
@@ -173,9 +157,10 @@ abstract class EchoDiscussionParser {
 			}
 			$mentionedUsers[$user->getId()] = $user->getId();
 			$count++;
-			// This is an unbounded list, put a cap on the allowable mentioned user list
-			if ( $count > 100 ) {
-				break;
+			// If more than 50 users are being pinged this is likely a spam/attack vector
+			// Don't send any mention notifications.
+			if ( $count > 50 ) {
+				return;
 			}
 		}
 
@@ -204,7 +189,7 @@ abstract class EchoDiscussionParser {
 	 * @param $wikitext String
 	 * @param $article Article
 	 *
-	 * @return object
+	 * @return ParserOutput
 	 */
 	static function parseNonEditWikitext( $wikitext, $article ) {
 		static $cache = array();
@@ -222,45 +207,6 @@ abstract class EchoDiscussionParser {
 		$cache[$cacheKey] = $output;
 
 		return $output;
-	}
-
-	/**
-	 * Given a Revision object, determines which users are interested
-	 * in related EchoEvents.
-	 *
-	 * @param $revision Revision object.
-	 * @return Array of User objects
-	 */
-	static function getNotifiedUsersForComment( $revision ) {
-		$interpretation = self::getChangeInterpretationForRevision( $revision );
-		$users = array();
-
-		foreach ( $interpretation as $action ) {
-			if ( $action['type'] == 'add-comment' ) {
-				$fullSection = $action['full-section'];
-				$interestedUsers = array_keys( self::extractSignatures( $fullSection ) );
-
-				foreach ( $interestedUsers as $userName ) {
-					$user = User::newFromName( $userName );
-
-					// Deliberately ignoring anonymous users
-					if ( $user && $user->getID() ) {
-						$users[$user->getID()] = $user;
-					}
-				}
-			}
-		}
-
-		if ( $revision->getTitle()->getNamespace() == NS_USER_TALK ) {
-			$userName = $revision->getTitle()->getText();
-			$user = User::newFromName( $userName );
-
-			if ( $user ) {
-				$users[$user->getID()] = $user;
-			}
-		}
-
-		return $users;
 	}
 
 	/**
@@ -288,7 +234,7 @@ abstract class EchoDiscussionParser {
 		}
 
 		$changes = self::getMachineReadableDiff( $prevText, $revision->getText() );
-		$output = self::interpretDiff( $changes, $user->getName() );
+		$output = self::interpretDiff( $changes, $user->getName(), $revision->getTitle() );
 
 		self::$revisionInterpretationCache[$revision->getID()] = $output;
 		return $output;
@@ -299,8 +245,9 @@ abstract class EchoDiscussionParser {
 	 * in terms of discussion page actions
 	 *
 	 * @todo Expand recognisable actions.
-	 * @param $changes array Output of EchoEvent::getMachineReadableDiff
-	 * @param $user User name
+	 * @param array $changes Output of EchoEvent::getMachineReadableDiff
+	 * @param string $user Username
+	 * @param Title $title
 	 * @return Array of associative arrays.
 	 * Each entry represents an action, which is classified in the 'action' field.
 	 * All types contain a 'content' field except 'unknown'
@@ -324,7 +271,7 @@ abstract class EchoDiscussionParser {
 	 *    These actions are not currently analysed.
 	 * - unknown: Unrecognised change type.
 	 */
-	static function interpretDiff( $changes, $user ) {
+	static function interpretDiff( $changes, $user, Title $title = null ) {
 		// One extra item in $changes for _info
 		$actions = array();
 
@@ -340,9 +287,12 @@ abstract class EchoDiscussionParser {
 
 			if ( $change['action'] == 'add' ) {
 				$content = trim( $change['content'] );
-				$startSection = preg_match( "/\A" . self::$headerRegex . '/um', $content );
+				// The \A means the regex must match at the begining of the string.
+				// This is slightly different than ^ which matches begining of each
+				// line in multiline mode.
+				$startSection = preg_match( "/\A" . self::HEADER_REGEX . '/um', $content );
 				$sectionCount = self::getSectionCount( $content );
-				$signedUsers = array_keys( self::extractSignatures( $content ) );
+				$signedUsers = array_keys( self::extractSignatures( $content, $title ) );
 
 				if (
 					count( $signedUsers ) == 1 &&
@@ -411,7 +361,7 @@ abstract class EchoDiscussionParser {
 	 */
 	static function getFullSection( $lines, $offset ) {
 		$content = $lines[$offset - 1];
-		$headerRegex = '/' . self::$headerRegex . '/um';
+		$headerRegex = '/' . self::HEADER_REGEX . '/um';
 
 		// Expand backwards...
 		$continue = !preg_match( $headerRegex, $lines[$offset - 1] );
@@ -452,7 +402,7 @@ abstract class EchoDiscussionParser {
 		$text = trim( $text );
 
 		$matches = array();
-		preg_match_all( '/' . self::$headerRegex . '/um', $text, $matches );
+		preg_match_all( '/' . self::HEADER_REGEX . '/um', $text, $matches );
 
 		return count( $matches[0] );
 	}
@@ -468,7 +418,7 @@ abstract class EchoDiscussionParser {
 
 		$matches = array();
 
-		if ( !preg_match_all( '/' . self::$headerRegex . '/um', $text, $matches ) ) {
+		if ( !preg_match_all( '/' . self::HEADER_REGEX . '/um', $text, $matches ) ) {
 			return false;
 		}
 
@@ -479,27 +429,20 @@ abstract class EchoDiscussionParser {
 	 * Strips out a signature if possible.
 	 *
 	 * @param $text string The wikitext to strip
+	 * @param Title $title
 	 * @return string
 	 */
-	static function stripSignature( $text ) {
-		$timestampPos = self::getTimestampPosition( $text );
-
-		if ( $timestampPos === false ) {
-			return $text;
-		}
-
-		$output = self::getUserFromLine( $text, $timestampPos );
-
+	static function stripSignature( $text, Title $title = null ) {
+		$output = self::getUserFromLine( $text, $title );
 		if ( $output === false ) {
+			$timestampPos = self::getTimestampPosition( $text );
 			return substr( $text, 0, $timestampPos );
 		}
 
 		// Use truncate() instead of truncateHTML() because truncateHTML()
-		// would not strip signature if the text conatins < or &
+		// would not strip signature if the text contains < or &
 		global $wgContLang;
-		$truncated_text = $wgContLang->truncate( $text, $output[0], '' );
-
-		return $truncated_text;
+		return $wgContLang->truncate( $text, $output[0], '' );
 	}
 
 	/**
@@ -530,7 +473,7 @@ abstract class EchoDiscussionParser {
 	 * @return string: The same text, with the section header stripped out.
 	 */
 	static function stripHeader( $text ) {
-		$text = preg_replace( '/' . self::$headerRegex . '/um', '', $text );
+		$text = preg_replace( '/' . self::HEADER_REGEX . '/um', '', $text );
 
 		return $text;
 	}
@@ -541,16 +484,11 @@ abstract class EchoDiscussionParser {
 	 * @param $text string The text to check.
 	 * @param $user User|bool If set, will only return true if the comment is
 	 *  signed by this user.
+	 * @param Title $title
 	 * @return bool: true or false.
 	 */
-	static function isSignedComment( $text, $user = false ) {
-		$timestampPos = self::getTimestampPosition( $text );
-
-		if ( $timestampPos === false ) {
-			return false;
-		}
-
-		$userData = self::getUserFromLine( $text, $timestampPos );
+	static function isSignedComment( $text, $user = false, Title $title = null ) {
+		$userData = self::getUserFromLine( $text, $title );
 
 		if ( $userData === false ) {
 			return false;
@@ -558,7 +496,7 @@ abstract class EchoDiscussionParser {
 			return true;
 		}
 
-		list( $signaturePos, $foundUser ) = $userData;
+		list( , $foundUser ) = $userData;
 
 		return User::getCanonicalName( $foundUser, false ) === User::getCanonicalName( $user, false );
 	}
@@ -613,13 +551,12 @@ abstract class EchoDiscussionParser {
 	 * Finds and extracts signatures in $text
 	 *
 	 * @param $text string The text in which to look for signed comments.
+	 * @param Title $title
 	 * @return array. Associative array, the key is the username, the value
 	 *  is the last signature that was found.
 	 */
-	static function extractSignatures( $text ) {
+	static function extractSignatures( $text, Title $title = null ) {
 		$lines = explode( "\n", $text );
-		$timestampRegex = self::getTimestampRegex();
-		$endOfLine = self::getLineEndingRegex();
 
 		$output = array();
 
@@ -627,17 +564,9 @@ abstract class EchoDiscussionParser {
 
 		foreach ( $lines as $line ) {
 			++$lineNumber;
-			$timestampPos = self::getTimestampPosition( $line );
-			if ( !$timestampPos ) {
-				// Ignore lines that don't finish with a timestamp
-				// print "I\tNo timestamp\n";
-				// print "$line\n";
-				continue;
-			}
 
-			// Now that we know we have a timestamp, look for
-			// the last user link on the line.
-			$userData = self::getUserFromLine( $line, $timestampPos );
+			// Look for the last user link on the line.
+			$userData = self::getUserFromLine( $line, $title );
 			if ( $userData === false ) {
 				// print "F\t$lineNumber\t$line\n";
 				continue;
@@ -655,86 +584,94 @@ abstract class EchoDiscussionParser {
 	}
 
 	/**
+	 * From a line in the signature, extract all the users linked to
+	 *
+	 * @param string $line Line of text potentially including linked user, user talk,
+	 *  and contribution pages
+	 * @return array Array of users; empty array for none detected
+	 */
+	static public function extractUsersFromLine( $line ) {
+		/*
+		 * Signatures can look like anything (as defined by i18n messages
+		 * "signature" & "signature-anon").
+		 * A signature can, e.g., be both a link to user & user-talk page.
+		 *
+		 */
+		// match all title-like excerpts in this line
+		if ( !preg_match_all( '/\[\[([^\[]+)\]\]/', $line, $matches ) ) {
+			return array();
+		}
+
+		$matches = $matches[1];
+
+		$usernames = array();
+
+		foreach ( $matches as $match ) {
+			/*
+			 * Create an object out of the link title.
+			 * In theory, links can be [[text]], [[text|text]] or pipe tricks
+			 * [[text|]] or [[|text]].
+			 * In the case of reverse pipe trick, the value we use *could* be
+			 * empty, but Parser::pstPass2 should have normalized that for us
+			 * already.
+			 */
+			$match = explode( '|', $match );
+			$title = Title::newFromText( $match[0] );
+
+			// figure out if we the link is related to a user
+			if ( $title && ( $title->getNamespace() === NS_USER || $title->getNamespace() === NS_USER_TALK ) ) {
+				$usernames[] = $title->getText();
+			} elseif ( $title && $title->isSpecial( 'Contributions' ) ) {
+				$parts = explode( '/', $title->getText(), 2 );
+				$usernames[] = end( $parts );
+			} else {
+				// move on to next matched title-like excerpt
+				continue;
+			}
+		}
+
+		return $usernames;
+	}
+
+	/**
 	 * From a line in a wiki page, determine which user, if any,
 	 *  has signed it.
 	 *
-	 * @param $line string The line.
-	 * @param $timestampPos int The offset of the start of the timestamp.
+	 * @param string $line The line.
+	 * @param Title $title
 	 * @return bool|array false for none, Array for success.
 	 * - First element is the position of the signature.
 	 * - Second element is the normalised user name.
 	 */
-	static function getUserFromLine( $line, $timestampPos ) {
-		global $wgContLang;
+	static public function getUserFromLine( $line, Title $title = null ) {
+		global $wgParser;
 
-		// Later entries have a higher precedence
-		// @todo FIXME: handle optional whitespace in links
-		$languages = array( $wgContLang );
-		if ( $wgContLang->getCode() !== 'en' ) {
-			$languages[] = Language::factory( 'en' );
-		}
+		/*
+		 * First we call extractUsersFromLine to get all the potential usernames
+		 * from the line.  Then, we loop backwards through them, figure out which
+		 * match to a user, regenera the signature based on that user, and
+		 * see if it matches!
+		 */
+		$usernames = self::extractUsersFromLine( $line );
+		$usernames = array_reverse( $usernames );
+		foreach ( $usernames as $username ) {
+			// generate (dateless) signature from the user we think we've
+			// discovered the signature from
+			// don't validate the username - anon (IP) is fine!
+			$user = User::newFromName( $username, false );
+			$sig = $wgParser->preSaveTransform( '~~~', $title ?: Title::newMainPage(), $user, new ParserOptions() );
 
-		$possiblePrefixes = array();
-
-		foreach ( $languages as $language ) {
-			$nsNames = $language->getNamespaces();
-			$possiblePrefixes[] = '[[' . $nsNames[NS_USER] . ':';
-			$possiblePrefixes[] = '[[' . $nsNames[NS_USER_TALK] . ':';
-
-			$nsAliases = $language->getNamespaceAliases();
-			foreach ( $nsAliases as $text => $id ) {
-				if ( $id == NS_USER || $id == NS_USER_TALK ) {
-					$possiblePrefixes[] = '[[' . $text . ':';
-				}
-			}
-		}
-
-		// @todo FIXME: Check aliases too
-		$possiblePrefixes[] = '[[' . SpecialPage::getTitleFor( 'Contributions' )->getPrefixedText() . '/';
-
-		foreach ( $possiblePrefixes as $prefix ) {
-			if ( strpos( $prefix, '_' ) !== false ) {
-				$possiblePrefixes[] = str_replace( '_', ' ', $prefix );
-			}
-		}
-
-		$winningUser = false;
-		$winningPos = false;
-
-		// Look for the leftmost link to the rightmost user
-		foreach ( $possiblePrefixes as $prefix ) {
-			$output = self::getLinkFromLine( $line, $prefix );
-
-			if ( $output === false ) {
-				continue;
-			} else {
-				list( $pos, $user ) = $output;
+			// see if we can find this user's generated signature in the content
+			$pos = strrpos( $line, $sig );
+			if ( $pos !== false ) {
+				return array( $pos, $username );
 			}
 
-			// Couldn't be a signature
-			if ( ( $timestampPos - $pos ) > 255 ) {
-				continue;
-			}
-
-			if (
-				$winningPos === false ||
-				( $pos > $winningPos && $user !== $winningUser ) ||
-				(
-					$pos < $winningPos &&
-					$user === $winningUser
-				)
-			) {
-				$winningPos = $pos;
-				$winningUser = ucfirst( trim( $user ) );
-			}
+			// couldn't find sig, move on to next link excerpt and try there
 		}
 
-		if ( $winningUser === false ) {
-			// print "E\tNo winning user\n";
-			return false;
-		}
-
-		return array( $winningPos, $winningUser );
+		// couldn't find any matching signature
+		return false;
 	}
 
 	/**
@@ -861,13 +798,16 @@ abstract class EchoDiscussionParser {
 		$output = $exemplarTimestamp;
 		$tzRegex = '/\s*\(\w+\)\s*$/';
 		$tzMatches = array();
-		preg_match( $tzRegex, $output, $tzMatches );
-		$output = preg_replace( $tzRegex, '', $output );
+		if ( preg_match( $tzRegex, $output, $tzMatches ) ) {
+			$output = preg_replace( $tzRegex, '', $output );
+		}
 		$output = preg_quote( $output, '/' );
 		$output = preg_replace( '/[^\d\W]+/u', '[^\d\W]+', $output );
 		$output = preg_replace( '/\d+/u', '\d+', $output );
 
-		$output .= preg_quote( $tzMatches[0] );
+		if ( $tzMatches ) {
+			$output .= preg_quote( $tzMatches[0] );
+		}
 
 		if ( !preg_match( "/$output/u", $exemplarTimestamp ) ) {
 			throw new MWException( "Timestamp regex does not match exemplar" );
@@ -882,12 +822,11 @@ abstract class EchoDiscussionParser {
 	 * This function returns plain text snippet, it also removes html tag,
 	 * template from text content
 	 * @param $text string
+	 * @param Language $lang
 	 * @param $length int default 150
 	 * @return string
 	 */
-	static function getTextSnippet( $text, $length = 150 ) {
-		global $wgLang;
-
+	static function getTextSnippet( $text, Language $lang, $length = 150 ) {
 		$text = strip_tags( $text );
 		$attempt = 0;
 
@@ -916,7 +855,7 @@ abstract class EchoDiscussionParser {
 		$text = trim( strip_tags( htmlspecialchars_decode( $text ) ) );
 		// strip out non-useful data for snippet
 		$text = str_replace( array( '{', '}' ), '', $text );
-		$text = $wgLang->truncate( $text, $length );
+		$text = $lang->truncate( $text, $length );
 
 		// Return empty string if there is undecoded char left
 		if ( strpos( $text, '&#' ) !== false ) {

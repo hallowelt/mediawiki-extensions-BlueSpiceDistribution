@@ -1,5 +1,6 @@
 ( function ( $, mw ) {
 	'use strict';
+	var useLang = mw.config.get( 'wgUserLanguage' );
 
 	mw.echo.special = {
 
@@ -11,12 +12,10 @@
 		 * Initialize the property in special notification page.
 		 */
 		initialize: function () {
-			var skin = mw.config.get('skin');
+			var skin = mw.config.get( 'skin' );
 
 			// Convert more link into a button
 			$( '#mw-echo-more' )
-				.addClass( 'mw-ui-button mw-ui-primary' )
-				.css( 'margin', '0.5em 0 0 0' )
 				.click( function ( e ) {
 					e.preventDefault();
 					if ( !mw.echo.special.processing ) {
@@ -31,17 +30,19 @@
 			// Set up each individual notification with eventlogging, a close
 			// box and dismiss interface if it is dismissable.
 			$( '.mw-echo-notification' ).each( function () {
-				mw.echo.setupNotificationLogging( $( this ), 'archive' );
-				if ( $( this ).find( '.mw-echo-dismiss' ).length ) {
-					mw.echo.setUpDismissability( this );
-				}
+				mw.echo.logger.logInteraction(
+					'notification-impression',
+					mw.echo.Logger.static.context.archive,
+					Number( $( this ).attr( 'data-notification-event' ) ),
+					$( this ).attr( 'data-notification-type' )
+				);
 			} );
 
 			$( '#mw-echo-moreinfo-link' ).click( function () {
-				mw.echo.logInteraction( 'ui-help-click', 'archive' );
+				mw.echo.logger.logInteraction( 'ui-help-click', mw.echo.Logger.static.context.archive );
 			} );
 			$( '#mw-echo-pref-link' ).click( function () {
-				mw.echo.logInteraction( 'ui-prefs-click', 'archive' );
+				mw.echo.logger.logInteraction( 'ui-prefs-click', mw.echo.Logger.static.context.archive );
 			} );
 
 			// Convert subtitle links into header icons for Vector and Monobook skins
@@ -58,19 +59,22 @@
 		 * Load more notification records.
 		 */
 		loadMore: function () {
-			var api = new mw.Api( { ajax: { cache: false } } ),
-				notifications, data, container, $li, that = this, unread = [], apiData;
+			var notifications, data, container, $li,
+				api = new mw.Api( { ajax: { cache: false } } ),
+				seenTime = mw.config.get( 'wgEchoSeenTime' ),
+				that = this,
+				unread = [],
+				apiData = {
+					action: 'query',
+					meta: 'notifications',
+					notformat: 'html',
+					notprop: 'index|list',
+					notcontinue: this.notcontinue,
+					notlimit: mw.config.get( 'wgEchoDisplayNum' ),
+					uselang: useLang
+				};
 
-			apiData = {
-				'action' : 'query',
-				'meta' : 'notifications',
-				'notformat' : 'html',
-				'notprop' : 'index|list',
-				'notcontinue': this.notcontinue,
-				'notlimit': mw.config.get( 'wgEchoDisplayNum' )
-			};
-
-			api.get( mw.echo.desktop.appendUseLang( apiData ) ).done( function ( result ) {
+			api.get( apiData ).done( function ( result ) {
 				container = $( '#mw-echo-special-container' );
 				notifications = result.query.notifications;
 				unread = [];
@@ -100,11 +104,16 @@
 						unread.push( id );
 					}
 
-					mw.echo.setupNotificationLogging( $li, 'archive' );
-
-					if ( $li.find( '.mw-echo-dismiss' ).length ) {
-						mw.echo.setUpDismissability( $li );
+					if ( seenTime !== null && data.timestamp.mw > seenTime ) {
+						$li.addClass( 'mw-echo-unseen' );
 					}
+
+					mw.echo.logger.logInteraction(
+						'notification-impression',
+						mw.echo.Logger.static.context.archive,
+						Number( $li.attr( 'data-notification-event' ) ),
+						$li.attr( 'data-notification-type' )
+					);
 				} );
 
 				that.notcontinue = notifications['continue'];
@@ -122,19 +131,21 @@
 		 * Mark notifications as read.
 		 */
 		markAsRead: function ( unread ) {
-			var api = new mw.Api(), that = this;
+			var api = new mw.Api(),
+				that = this;
+			api.postWithToken( 'edit', {
+				action: 'echomarkread',
+				list: unread.join( '|' ),
+				uselang: useLang
+			} ).done( function () {
+				// HACK: We should really redo the way the entire special
+				// page handles the notifications now that they are separated
+				// into 'alert' and 'messages'. However, until that happens,
+				// the badges should be updated individually.
+				// Don't try this at home.
+				mw.echo.ui.messageWidget.fetchUnreadCountFromApi();
+				mw.echo.ui.alertWidget.fetchUnreadCountFromApi();
 
-			api.post( mw.echo.desktop.appendUseLang( {
-				'action' : 'echomarkread',
-				'list' : unread.join( '|' ),
-				'token': mw.user.tokens.get( 'editToken' )
-			} ) ).done( function ( result ) {
-				// update the badge if the link is enabled
-				if ( result.query.echomarkread.count !== undefined &&
-					$( '#pt-notifications').length && typeof mw.echo.overlay === 'object'
-				) {
-					mw.echo.overlay.updateCount( result.query.echomarkread.count, result.query.echomarkread.rawcount );
-				}
 				that.onSuccess();
 			} ).fail( function () {
 				that.onError();
