@@ -103,7 +103,7 @@ class UserMergeConnector {
 			//:(
 			return true;
 		}
-		error_log(var_export($oStatus->getValue(),1));
+
 		$aEntities = $oStatus->getValue();
 		if( empty($aEntities) ) {
 			return true;
