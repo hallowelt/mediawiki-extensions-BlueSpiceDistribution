@@ -96,21 +96,19 @@ class UserMergeConnector {
 			$oEntity->delete();
 		}
 
-		$oStatus = BSSocialEntities::get( array(
-			'ownerid' => $oldUser->getId(),
-		));
-		if( !$oStatus->isOK() ) {
-			//:(
-			return true;
-		}
+		$oRes = wfGetDB( DB_SLAVE )->select(
+			'bs_social_entity',
+			'bsse_id',
+			array('bsse_ownerid' => (int) $oldUser->getId()),
+			__METHOD__
+		);
 
-		$aEntities = $oStatus->getValue();
-		if( empty($aEntities) ) {
-			return true;
-		}
-		foreach( $aEntities as $oEntity ) {
+		foreach( $oRes as $o ) {
+			if( !$oEntity = BSSocialEntity::newFromID($o->bsse_id) ) {
+				continue;
+			}
 			$oEntity
-				->setOwnerID( $newUser->getId() )
+				->setOwnerID( (int) $newUser->getId() )
 				->save()
 			;
 		}

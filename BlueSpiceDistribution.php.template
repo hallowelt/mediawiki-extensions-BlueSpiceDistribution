@@ -17,6 +17,9 @@ if( !isset($wgExtensionDirectory) ) {
 }
 $wgExtensionDirectory = "$IP/extensions/BlueSpiceDistribution";
 require_once( __DIR__."/UserMerge/UserMerge.php" );
+$wgUserMergeProtectedGroups = array(); //+there is a hack in
+//SpecialUserMerge:validateOldUser
+$wgUserMergeUnmergeable = array();
 $wgExtensionDirectory = "$IP/extensions";
 
 if (version_compare( $wgVersion, '1.23', '>=' )){
