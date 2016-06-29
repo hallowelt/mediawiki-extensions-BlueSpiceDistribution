@@ -76,6 +76,8 @@ class SpecialUserMerge extends FormSpecialPage {
 		if ( $this->getUser()->getId() === $oldUser->getId() ) {
 			return array( 'usermerge-noselfdelete', $this->getUser()->getName() );
 		}
+		//HWHACK: The following statement is totally broken, so return here -.-
+		return true;
 		if ( count( array_intersect( $oldUser->getGroups(), $wgUserMergeProtectedGroups ) ) ) {
 			return array( 'usermerge-protectedgroup', $oldUser->getName() );
 		}
