@@ -1,21 +1,10 @@
-inherit_from: .rubocop_todo.yml
+AllCops:
+  StyleGuideCopsOnly: true
 
-Metrics/AbcSize:
-  Enabled: false
-
-Metrics/ClassLength:
-  Enabled: false
-
-Metrics/CyclomaticComplexity:
-  Enabled: false
+Metrics/LineLength:
+  Max: 100
 
 Metrics/MethodLength:
-  Enabled: false
-
-Metrics/ParameterLists:
-  Enabled: false
-
-Metrics/PerceivedComplexity:
   Enabled: false
 
 Style/Alias:
@@ -23,3 +12,9 @@ Style/Alias:
 
 Style/SignalException:
   Enabled: false
+
+Style/StringLiterals:
+  EnforcedStyle: single_quotes
+
+Style/TrivialAccessors:
+  ExactNameMatch: true

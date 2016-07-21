@@ -4,18 +4,18 @@
 .mw-echo-notifications-badge {
 	#pt-notifications-alert &,
 	#pt-notifications-message & {
-		border-radius: 0.2em;
-		background-color: #d2d2d2;
-		font-size: 1.125em;
 		font-weight: bold;
-		color: white;
 		cursor: pointer;
 		text-decoration: none;
 		margin-top: -0.2em;
 		display: inline-block;
 
 		padding: @badge-padding (@badge-padding + 0.25em) @badge-padding (@badge-padding + 0.25em + 1.1em);
+		// Override height, width, min-height and min-width from OOUI IconElement
 		height: 1.05em;
+		min-height: 1.05em;
+		width: auto;
+		min-width: 0;
 
 		body.ltr & {
 			background-position: @badge-padding 0.1em;
@@ -32,7 +32,6 @@
 		&:hover,
 		&:active,
 		&:focus {
-			background-color: #c2c2c2;
 			outline: none;
 			-moz-outline-style: none;
 		}
@@ -45,18 +44,15 @@
 	#pt-notifications-message & {
 		margin-left: @badge-distance-adjustment;
 
-		+ .oo-ui-popupWidget {
+		body.ltr & + .oo-ui-popupWidget {
+			// Only add a left adjustment for LTR pages.
+			// In LTR, the correction above moves the badge from the left
+			// which means we have to adjust the positioning of the anchor
+			// to be in the middle of the badge.
+			// In RTL, however, the above will be flipped to margin-right
+			// which doesn't affect the positioning of the anchor and hence
+			// doesn't require a correction.
 			left: (1em + @badge-distance-adjustment);
-		}
-	}
-
-
-	&.mw-echo-unseen-notifications {
-		#pt-notifications-alert & {
-			background-color: @badge-background-unseen-alert;
-		}
-		#pt-notifications-message & {
-			background-color: @badge-background-unseen-message;
 		}
 	}
 }

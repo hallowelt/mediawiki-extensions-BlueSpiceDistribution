@@ -1,5 +1,8 @@
 <?php
 
+use MediaWiki\Auth\AuthManager;
+use MediaWiki\Logger\LoggerFactory;
+
 class EchoHooks {
 	const EMAIL_NEVER = -1; // Never send email notifications
 	const EMAIL_IMMEDIATELY = 0; // Send email notificaitons immediately as they come in
@@ -189,17 +192,48 @@ class EchoHooks {
 				$bundleString = 'edit-user-talk';
 				if ( $event->getTitle() ) {
 					$bundleString .= '-' . $event->getTitle()->getNamespace()
-								. '-' . $event->getTitle()->getDBkey();
+						. '-' . $event->getTitle()->getDBkey();
 				}
-			break;
+				break;
 			case 'page-linked':
 				$bundleString = 'page-linked';
 				if ( $event->getTitle() ) {
 					$bundleString .= '-' . $event->getTitle()->getNamespace()
-								. '-' . $event->getTitle()->getDBkey();
+						. '-' . $event->getTitle()->getDBkey();
 				}
-			break;
+				break;
 		}
+
+		return true;
+	}
+
+	/**
+	 * Handler for the GetBetaFeaturePreferences hook.
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/GetBetaFeaturePreferences
+	 *
+	 * @param $user User to get preferences for
+	 * @param &$preferences Preferences array
+	 *
+	 * @return bool true in all cases
+	 */
+	public static function getBetaFeaturePreferences( User $user, array &$preferences ) {
+		global $wgExtensionAssetsPath, $wgEchoUseCrossWikiBetaFeature, $wgEchoCrossWikiNotifications;
+
+		if ( $wgEchoUseCrossWikiBetaFeature && $wgEchoCrossWikiNotifications ) {
+			$preferences['echo-cross-wiki-notifications'] = array(
+				'label-message' => 'echo-pref-beta-feature-cross-wiki-message',
+				'desc-message' => 'echo-pref-beta-feature-cross-wiki-description',
+				// Paths to images that represents the feature.
+				'screenshot' => array(
+					'rtl' => "$wgExtensionAssetsPath/Echo/images/betafeatures-icon-notifications-rtl.svg",
+					'ltr' => "$wgExtensionAssetsPath/Echo/images/betafeatures-icon-notifications-ltr.svg",
+				),
+				'info-link' => 'https://www.mediawiki.org/wiki/Special:Mylanguage/Help:Notifications/Cross-wiki',
+				// Link to discussion about the feature - talk pages might work
+				'discussion-link' => 'https://www.mediawiki.org/wiki/Help_talk:Notifications',
+			);
+		}
+
 		return true;
 	}
 
@@ -214,9 +248,12 @@ class EchoHooks {
 	 * @return bool true in all cases
 	 */
 	public static function getPreferences( $user, &$preferences ) {
-		global $wgEchoDefaultNotificationTypes, $wgAuth, $wgEchoEnableEmailBatch,
+		global $wgEchoEnableEmailBatch,
 			$wgEchoNotifiers, $wgEchoNotificationCategories, $wgEchoNotifications,
-			$wgEchoNewMsgAlert, $wgAllowHTMLEmail;
+			$wgEchoNewMsgAlert, $wgAllowHTMLEmail, $wgEchoUseCrossWikiBetaFeature,
+			$wgEchoShowFooterNotice, $wgEchoCrossWikiNotifications;
+
+		$attributeManager = EchoAttributeManager::newFromGlobalVars();
 
 		// Show email frequency options
 		$never = wfMessage( 'echo-pref-email-frequency-never' )->plain();
@@ -249,8 +286,9 @@ class EchoHooks {
 			array(),
 			array( 'returnto' => $prefsTitle->getFullText() )
 		);
-		$emailAddress = $user->getEmail() ? htmlspecialchars( $user->getEmail() ) : '';
-		if ( $wgAuth->allowPropChange( 'emailaddress' ) ) {
+		$emailAddress = $user->getEmail() && $user->isAllowed( 'viewmyprivateinfo' )
+			? htmlspecialchars( $user->getEmail() ) : '';
+		if ( $user->isAllowed( 'editmyprivateinfo' ) && self::isEmailChangeAllowed() ) {
 			if ( $emailAddress === '' ) {
 				$emailAddress .= $link;
 			} else {
@@ -273,7 +311,7 @@ class EchoHooks {
 				'type' => 'select',
 				'label-message' => 'echo-pref-email-format',
 				'section' => 'echo/emailsettings',
-				'options' => array (
+				'options' => array(
 					wfMessage( 'echo-pref-email-format-html' )->plain() => self::EMAIL_FORMAT_HTML,
 					wfMessage( 'echo-pref-email-format-plain-text' )->plain() => self::EMAIL_FORMAT_PLAIN_TEXT
 				)
@@ -282,13 +320,12 @@ class EchoHooks {
 
 		// Sort notification categories by priority
 		$categoriesAndPriorities = array();
-		foreach ( $wgEchoNotificationCategories as $category => $categoryData ) {
-			// See if the category is not dismissable at all. Must do strict
-			// comparison to true since no-dismiss can also be an array
-			if ( isset( $categoryData['no-dismiss'] ) && in_array( 'all' , $categoryData['no-dismiss'] ) ) {
+		foreach ( $attributeManager->getInternalCategoryNames() as $category ) {
+			// See if the category should be hidden from preferences.
+			if ( !$attributeManager->isCategoryDisplayedInPreferences( $category ) ) {
 				continue;
 			}
-			$attributeManager = EchoAttributeManager::newFromGlobalVars();
+
 			// See if user is eligible to recieve this notification (per user group restrictions)
 			if ( $attributeManager->getCategoryEligibility( $user, $category ) ) {
 				$categoriesAndPriorities[$category] = $attributeManager->getCategoryPriority( $category );
@@ -305,7 +342,7 @@ class EchoHooks {
 		// new wikis or Echo is disabled and re-enabled for some reason.  We can update the name
 		// if Echo is ever merged to core
 
-		// Build the columns (output formats)
+		// Build the columns (notify types)
 		$columns = array();
 		foreach ( $wgEchoNotifiers as $notifierType => $notifierData ) {
 			$formatMessage = wfMessage( 'echo-pref-' . $notifierType )->escaped();
@@ -327,19 +364,12 @@ class EchoHooks {
 		$forceOptionsOff = $forceOptionsOn = array();
 		foreach ( $wgEchoNotifiers as $notifierType => $notifierData ) {
 			foreach ( $validSortedCategories as $category ) {
-				// See if this output format is non-dismissable
-				if ( isset( $wgEchoNotificationCategories[$category]['no-dismiss'] )
-					&& in_array( $notifierType, $wgEchoNotificationCategories[$category]['no-dismiss'] ) )
-				{
+				// See if this notify type is non-dismissable
+				if ( !$attributeManager->isNotifyTypeDismissableForCategory( $category, $notifierType ) ) {
 					$forceOptionsOn[] = "$notifierType-$category";
 				}
 
-				// Make sure this output format is possible for this notification category
-				if ( isset( $wgEchoDefaultNotificationTypes[$category] ) ) {
-					if ( !$wgEchoDefaultNotificationTypes[$category][$notifierType] ) {
-						$forceOptionsOff[] = "$notifierType-$category";
-					}
-				} elseif ( !$wgEchoDefaultNotificationTypes['all'][$notifierType] ) {
+				if ( !$attributeManager->isNotifyTypeAvailableForCategory( $category, $notifierType ) ) {
 					$forceOptionsOff[] = "$notifierType-$category";
 				}
 			}
@@ -363,6 +393,14 @@ class EchoHooks {
 			'tooltips' => $tooltips,
 		);
 
+		if ( !$wgEchoUseCrossWikiBetaFeature && $wgEchoCrossWikiNotifications ) {
+			$preferences['echo-cross-wiki-notifications'] = array(
+				'type' => 'toggle',
+				'label-message' => 'echo-pref-cross-wiki-notifications',
+				'section' => 'echo/echocrosswiki'
+			);
+		}
+
 		if ( $wgEchoNewMsgAlert ) {
 			$preferences['echo-show-alert'] = array(
 				'type' => 'toggle',
@@ -383,7 +421,27 @@ class EchoHooks {
 			unset( $preferences['enotifusertalkpages']['section'] );
 		}
 
+		if ( $wgEchoShowFooterNotice ) {
+			$preferences['echo-dismiss-beta-invitation'] = array(
+				'type' => 'api',
+			);
+		}
+
 		return true;
+	}
+
+	/**
+	 * Test whether email address change is supposed to be allowed
+	 * @return boolean
+	 */
+	private static function isEmailChangeAllowed() {
+		global $wgAuth, $wgDisableAuthManager;
+
+		if ( class_exists( AuthManager::class ) && !$wgDisableAuthManager ) {
+			return AuthManager::singleton()->allowsPropertyChange( 'emailaddress' );
+		} else {
+			return $wgAuth->allowPropChange( 'emailaddress' );
+		}
 	}
 
 	/**
@@ -408,15 +466,71 @@ class EchoHooks {
 			return true;
 		}
 
+		// unless status is "good" (not only ok, also no warnings or errors), we
+		// probably shouldn't process it at all (e.g. null edits)
+		if ( !$status->isGood() ) {
+			return true;
+		}
+
+		$title = $article->getTitle();
+
 		// Try to do this after the HTTP response
-		DeferredUpdates::addCallableUpdate( function() use ( $revision ) {
+		DeferredUpdates::addCallableUpdate( function () use ( $revision ) {
 			EchoDiscussionParser::generateEventsForRevision( $revision );
 		} );
+
+		// If the user is not an IP and this is not a null edit,
+		// test for them reaching a congratulatory threshold
+		$thresholds = [ 1, 10, 100, 1000, 10000, 100000, 1000000 ];
+		if ( $user->isLoggedIn() && $status->value['revision'] ) {
+			// This edit hasn't been added to the edit count yet
+			$thresholdCount = $user->getEditCount() + 1;
+			if ( in_array( $thresholdCount, $thresholds ) ) {
+				$id = $user->getId();
+				DeferredUpdates::addCallableUpdate( function () use ( $id, $title, $thresholdCount ) {
+					// Fresh User object
+					$user = User::newFromId( $id );
+					$userEditCount = $user->getEditCount();
+					if ( (int)$userEditCount !== (int)$thresholdCount ) {
+						// Race condition with multiple simultaneous requests, skip
+						LoggerFactory::getInstance( 'Echo' )->debug(
+							'thank-you-edit race condition detected: {user} (id: {id}) should ' .
+							'have had {expectedCount} edits but has {actualCount}',
+							array(
+								'user' => $user->getName(),
+								'id' => $user->getId(),
+								'expectedCount' => $thresholdCount,
+								'actualCount' => $userEditCount,
+							)
+						);
+						return;
+					}
+					LoggerFactory::getInstance( 'Echo' )->debug(
+						'Thanking {user} (id: {id}) for their {count} edit',
+						array(
+							'user' => $user->getName(),
+							'id' => $user->getId(),
+							'count' => $thresholdCount,
+						)
+					);
+					EchoEvent::create( array(
+							'type' => 'thank-you-edit',
+							'title' => $title,
+							'agent' => $user,
+							// Edit threshold notifications are sent to the agent
+							'extra' => array(
+								'notifyAgent' => true,
+								'editCount' => $thresholdCount,
+							)
+						)
+					);
+				} );
+			}
+		}
 
 		// Handle the case of someone undoing an edit, either through the
 		// 'undo' link in the article history or via the API.
 		if ( isset( $wgEchoNotifications['reverted'] ) ) {
-			$title = $article->getTitle();
 			$undidRevId = $wgRequest->getVal( 'wpUndidRevision' );
 			if ( $undidRevId ) {
 				$undidRevision = Revision::newFromId( $undidRevId );
@@ -431,6 +545,7 @@ class EchoHooks {
 								'reverted-user-id' => $victimId,
 								'reverted-revision-id' => $undidRevId,
 								'method' => 'undo',
+								'summary' => $summary,
 							),
 							'agent' => $user,
 						) );
@@ -465,30 +580,46 @@ class EchoHooks {
 	}
 
 	/**
-	 * Handler for AddNewAccount hook.
-	 * @see http://www.mediawiki.org/wiki/Manual:Hooks/AddNewAccount
+	 * Get overrides for new users.  This allows changes that only apply going forward,
+	 * without affecting existing users.
+	 *
+	 * @return Associative array mapping key to boolean for whether it should be enabled
+	 */
+	public static function getNewUserPreferenceOverrides() {
+		return array(
+			'echo-subscriptions-web-reverted' => false,
+			'echo-subscriptions-email-reverted' => false,
+			'echo-subscriptions-web-article-linked' => true,
+			'echo-subscriptions-email-mention' => true,
+			'echo-subscriptions-email-article-linked' => true,
+		);
+	}
+
+	/**
+	 * Handler for LocalUserCreated hook.
+	 * @see http://www.mediawiki.org/wiki/Manual:Hooks/LocalUserCreated
 	 * @param $user User object that was created.
-	 * @param $byEmail bool True when account was created "by email".
+	 * @param $autocreated bool True when account was auto-created
 	 * @return bool
 	 */
-	public static function onAccountCreated( $user, $byEmail ) {
+	public static function onLocalUserCreated( $user, $autocreated ) {
+		if ( !$autocreated ) {
+			$overrides = self::getNewUserPreferenceOverrides();
+			foreach ( $overrides as $prefKey => $value ) {
+				$user->setOption( $prefKey, $value );
+			}
 
-		// new users get echo preferences set that are not the default settings for existing users
-		$user->setOption( 'echo-subscriptions-web-reverted', false );
-		$user->setOption( 'echo-subscriptions-email-reverted', false );
-		$user->setOption( 'echo-subscriptions-web-article-linked', true );
-		$user->setOption( 'echo-subscriptions-email-mention', true );
-		$user->setOption( 'echo-subscriptions-email-article-linked', true );
-		$user->saveSettings();
+			$user->saveSettings();
 
-		EchoEvent::create( array(
-			'type' => 'welcome',
-			'agent' => $user,
-			// welcome email is sent to agent
-			'extra' => array (
-				'notifyAgent' => true
-			)
-		) );
+			EchoEvent::create( array(
+				'type' => 'welcome',
+				'agent' => $user,
+				// Welcome notification is sent to the agent
+				'extra' => array(
+					'notifyAgent' => true
+				)
+			) );
+		}
 
 		return true;
 	}
@@ -501,10 +632,11 @@ class EchoHooks {
 	 * @param string[] $add strings corresponding to groups added
 	 * @param string[] $remove strings corresponding to groups removed
 	 * @param User|bool $performer
+	 * @param string|bool $reason Reason given by the user changing the rights
 	 *
 	 * @return bool
 	 */
-	public static function onUserGroupsChanged( $user, $add, $remove, $performer ) {
+	public static function onUserGroupsChanged( $user, $add, $remove, $performer, $reason ) {
 		if ( !$performer ) {
 			// TODO: Implement support for autopromotion
 			return true;
@@ -528,12 +660,14 @@ class EchoHooks {
 					'extra' => array(
 						'user' => $user->getID(),
 						'add' => $add,
-						'remove' => $remove
+						'remove' => $remove,
+						'reason' => $reason,
 					),
 					'agent' => $performer,
 				)
 			);
 		}
+
 		return true;
 	}
 
@@ -546,8 +680,9 @@ class EchoHooks {
 	 * @return bool
 	 */
 	public static function onLinksUpdateAfterInsert( $linksUpdate, $table, $insertions ) {
-		global $wgRequest, $wgUser;
+		global $wgRequest;
 
+		// FIXME: This doesn't work in 1.27+
 		// Rollback or undo should not trigger link notification
 		// @Todo Implement a better solution so it doesn't depend on the checking of
 		// a specific set of request variables
@@ -561,9 +696,16 @@ class EchoHooks {
 		// 3. non-transcluding pages &&
 		// 4. non-redirect pages
 		if ( $table !== 'pagelinks' || !MWNamespace::isContent( $linksUpdate->mTitle->getNamespace() )
-			|| !$linksUpdate->mRecursive || $linksUpdate->mTitle->isRedirect() )
-		{
+			|| !$linksUpdate->mRecursive || $linksUpdate->mTitle->isRedirect()
+		) {
 			return true;
+		}
+
+		if ( is_callable( array( $linksUpdate, 'getTriggeringUser' ) ) ) {
+			$user = $linksUpdate->getTriggeringUser();
+		} else {
+			global $wgUser;
+			$user = $wgUser;
 		}
 
 		// link notification is boundless as you can include infinite number of links in a page
@@ -582,7 +724,7 @@ class EchoHooks {
 				EchoEvent::create( array(
 					'type' => 'page-linked',
 					'title' => $title,
-					'agent' => $wgUser,
+					'agent' => $user,
 					'extra' => array(
 						'link-from-page-id' => $linksUpdate->mTitle->getArticleId(),
 					)
@@ -628,30 +770,68 @@ class EchoHooks {
 	 * @return bool true in all cases
 	 */
 	static function onPersonalUrls( &$personal_urls, &$title, $sk ) {
-		global $wgEchoNewMsgAlert;
+		global $wgEchoNewMsgAlert, $wgEchoShowFooterNotice;
 		$user = $sk->getUser();
 		if ( $user->isAnon() ) {
 			return true;
 		}
 
-		// Attempt to mark a notification as read when visiting a page,
-		// ideally this should be deferred to end of request and update
-		// the notification count accordingly
-		// @Fixme - Find a better place to put this code
+		// Attempt to mark a notification as read when visiting a page
+		// @todo should this really be here?
+		$subtractAlerts = 0;
+		$subtractMessages = 0;
+		$eventIds = array();
 		if ( $title->getArticleID() ) {
-			$mapper = new EchoTargetPageMapper();
-			$targetPages = $mapper->fetchByUserPageId( $user, $title->getArticleID() );
-			if ( $targetPages ) {
-				$eventIds = array_keys( $targetPages );
+			$targetPageMapper = new EchoTargetPageMapper();
+			$fetchedTargetPages = $targetPageMapper->fetchByUserPageId( $user, $title->getArticleID() );
+			if ( $fetchedTargetPages ) {
+				$attribManager = EchoAttributeManager::newFromGlobalVars();
+				/* @var EchoTargetPage[] $targetPages */
+				foreach ( $fetchedTargetPages as $id => $targetPages ) {
+					// Only look at the first target page since they'll
+					// all point to the same event
+					$section = $attribManager->getNotificationSection(
+						$targetPages[0]->getEventType()
+					);
+					if ( $section === EchoAttributeManager::MESSAGE ) {
+						$subtractMessages++;
+					} else {
+						// ALERT
+						$subtractAlerts++;
+					}
+					$eventIds[] = $id;
+				}
+			}
+		}
+		// Attempt to mark as read the event ID in the ?markasread= parameter, if present
+		$markAsReadId = $sk->getOutput()->getRequest()->getInt( 'markasread' );
+		if ( $markAsReadId !== 0 && !in_array( $markAsReadId, $eventIds ) ) {
+			$notifMapper = new EchoNotificationMapper();
+			$notif = $notifMapper->fetchByUserEvent( $user, $markAsReadId );
+			if ( $notif && !$notif->getReadTimestamp() ) {
+				if ( $notif->getEvent()->getSection() === EchoAttributeManager::MESSAGE ) {
+					$subtractMessages++;
+				} else {
+					$subtractAlerts++;
+				}
+				$eventIds[] = $markAsReadId;
+			}
+		}
+		if ( $eventIds ) {
+			DeferredUpdates::addCallableUpdate( function () use ( $user, $eventIds ) {
 				$notifUser = MWEchoNotifUser::newFromUser( $user );
 				$notifUser->markRead( $eventIds );
-			}
+			} );
 		}
 
 		// Add a "My notifications" item to personal URLs
 		$notifUser = MWEchoNotifUser::newFromUser( $user );
-		$msgCount = $notifUser->getMessageCount();
-		$alertCount = $notifUser->getAlertCount();
+		$msgCount = $notifUser->getMessageCount() - $subtractMessages;
+		$alertCount = $notifUser->getAlertCount() - $subtractAlerts;
+
+		// But make sure we never show a negative number (T130853)
+		$msgCount = max( 0, $msgCount );
+		$alertCount = max( 0, $alertCount );
 
 		$msgNotificationTimestamp = $notifUser->getLastUnreadMessageTime();
 		$alertNotificationTimestamp = $notifUser->getLastUnreadAlertTime();
@@ -659,10 +839,27 @@ class EchoHooks {
 		$seenAlertTime = EchoSeenTime::newFromUser( $user )->getTime( 'alert' );
 		$seenMsgTime = EchoSeenTime::newFromUser( $user )->getTime( 'message' );
 
+		$sk->getOutput()->addJsConfigVars( 'wgEchoInitialNotifCount', array(
+			'alert' => $alertCount,
+			'message' => $msgCount
+		) );
+
 		$sk->getOutput()->addJsConfigVars( 'wgEchoSeenTime', array(
 			'alert' => $seenAlertTime,
 			'message' => $seenMsgTime
 		) );
+
+		if (
+			$wgEchoShowFooterNotice &&
+			!$user->getOption( 'echo-cross-wiki-notifications' ) &&
+			!$user->getOption( 'echo-dismiss-beta-invitation' )
+		) {
+			$globalCount = $notifUser->getNotificationCount( true, DB_SLAVE, EchoAttributeManager::ALL, true );
+			$localCount = $notifUser->getNotificationCount( true, DB_SLAVE, EchoAttributeManager::ALL, false );
+			if ( $globalCount - $localCount > 0 ) {
+				$sk->getOutput()->addJsConfigVars( 'wgEchoShowBetaInvitation', true );
+			}
+		}
 
 		$msgText = EchoNotificationController::formatNotificationCount( $msgCount );
 		$alertText = EchoNotificationController::formatNotificationCount( $alertCount );
@@ -673,10 +870,10 @@ class EchoHooks {
 		// Avoid flashes in skins that don't use it (T111821)
 		$sk->getOutput()->setupOOUI( strtolower( $sk->getSkinName() ), $sk->getOutput()->getLanguage()->getDir() );
 		$oouiImageClass = get_class( OOUI\Theme::singleton() ) === 'OOUI\\MediaWikiTheme'
-				? 'oo-ui-image-invert'
-				: '';
+			? 'oo-ui-image-invert'
+			: '';
 
-		$msgLinkClasses = array( "mw-echo-notifications-badge mw-echo-notification-badge-nojs $oouiImageClass oo-ui-iconElement oo-ui-iconElement-icon oo-ui-icon-speechBubble" );
+		$msgLinkClasses = array( "mw-echo-notifications-badge mw-echo-notification-badge-nojs $oouiImageClass oo-ui-iconElement oo-ui-iconElement-icon oo-ui-icon-speechBubbles" );
 		$alertLinkClasses = array( "mw-echo-notifications-badge mw-echo-notification-badge-nojs $oouiImageClass oo-ui-iconElement oo-ui-iconElement-icon" );
 
 		$hasUnseen = false;
@@ -712,22 +909,20 @@ class EchoHooks {
 			'notifications-alert' => $alertLink,
 		);
 
-		if ( $notifUser->hasMessages() ) {
-			$msgLink = array(
-				'href' => $url,
-				'text' => $msgText,
-				'active' => ( $url == $title->getLocalUrl() ),
-				'class' => $msgLinkClasses,
-			);
+		$msgLink = array(
+			'href' => $url,
+			'text' => $msgText,
+			'active' => ( $url == $title->getLocalUrl() ),
+			'class' => $msgLinkClasses,
+		);
 
-			$insertUrls['notifications-message'] = $msgLink;
-		}
+		$insertUrls['notifications-message'] = $msgLink;
 
 		$personal_urls = wfArrayInsertAfter( $personal_urls, $insertUrls, 'userpage' );
 
 		if ( $hasUnseen ) {
 			// Record that the user is going to see an indicator that they have unread notifications
-			RequestContext::getMain()->getStats()->increment( 'MediaWiki.echo.unseen' );
+			RequestContext::getMain()->getStats()->increment( 'echo.unseen' );
 		}
 
 		// If the user has new messages, display a talk page alert
@@ -738,7 +933,7 @@ class EchoHooks {
 		// * User is not viewing their user talk page, as user_newtalk
 		//   will not have been cleared yet. (bug T107655).
 		if ( $wgEchoNewMsgAlert && $user->getOption( 'echo-show-alert' )
-				&& $user->getNewtalk() && !$user->getTalkPage()->equals( $title )
+			&& $user->getNewtalk() && !$user->getTalkPage()->equals( $title )
 		) {
 			$personal_urls['mytalk']['text'] = $sk->msg( 'echo-new-messages' )->text();
 			$personal_urls['mytalk']['class'] = array( 'mw-echo-alert' );
@@ -789,6 +984,7 @@ class EchoHooks {
 				return false;
 			}
 		}
+
 		// Proceed to send watchlist email notification
 		return true;
 	}
@@ -801,17 +997,12 @@ class EchoHooks {
 	 * @return bool true in all cases
 	 */
 	public static function makeGlobalVariablesScript( &$vars, OutputPage $outputPage ) {
-		global $wgEchoHelpPage, $wgEchoMaxNotificationCount, $wgEchoConfig;
+		global $wgEchoConfig;
 		$user = $outputPage->getUser();
 
 		// Provide info for the Overlay
 
-		if ( ! $user->isAnon() ) {
-			$vars['wgEchoOverlayConfiguration'] = array(
-				'notification-count' => MWEchoNotifUser::newFromUser( $user )->getFormattedNotificationCount(),
-				'max-notification-count' => $wgEchoMaxNotificationCount,
-			);
-			$vars['wgEchoHelpPage'] = $wgEchoHelpPage;
+		if ( $user->isLoggedIn() ) {
 			$vars['wgEchoConfig'] = $wgEchoConfig;
 		} elseif (
 			$outputPage->getTitle()->equals( SpecialPage::getTitleFor( 'JavaScriptTest', 'qunit' ) ) ||
@@ -850,6 +1041,7 @@ class EchoHooks {
 		}
 
 		$files = array_merge( $files, $ourFiles );
+
 		return true;
 		// @codeCoverageIgnoreEnd
 	}
@@ -932,6 +1124,7 @@ class EchoHooks {
 			// and changes made through the options API (since both call this hook).
 			MWEchoNotifUser::newFromUser( $user )->resetNotificationCount();
 		}
+
 		return true;
 	}
 
@@ -945,8 +1138,9 @@ class EchoHooks {
 	public static function onUserLoadOptions( $user, &$options ) {
 		// Use existing enotifusertalkpages option for echo-subscriptions-email-edit-user-talk
 		if ( isset( $options['enotifusertalkpages'] ) ) {
-			$options['echo-subscriptions-email-edit-user-talk'] =  $options['enotifusertalkpages'];
+			$options['echo-subscriptions-email-edit-user-talk'] = $options['enotifusertalkpages'];
 		}
+
 		return true;
 	}
 
@@ -976,7 +1170,7 @@ class EchoHooks {
 	 */
 	public static function onUserClearNewTalkNotification( User $user ) {
 		if ( !$user->isAnon() ) {
-			DeferredUpdates::addCallableUpdate( function() use ( $user ) {
+			DeferredUpdates::addCallableUpdate( function () use ( $user ) {
 				MWEchoNotifUser::newFromUser( $user )->clearTalkNotification();
 			} );
 		}
@@ -994,6 +1188,47 @@ class EchoHooks {
 		$tables[] = 'echo_event';
 		$tables[] = 'echo_notification';
 		$tables[] = 'echo_email_batch';
+
+		return true;
+	}
+
+	/**
+	 * Handler for EmailUserComplete hook.
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/EmailUserComplete
+	 * @param $address MailAddress Adress of receiving user
+	 * @param $from MailAddress Adress of sending user
+	 * @param $subject string Subject of the mail
+	 * @param $text string Text of the mail
+	 * @return bool true in all cases
+	 */
+	public static function onEmailUserComplete( $address, $from, $subject, $text ) {
+		global $wgContLang;
+
+		if ( $from->name === $address->name ) {
+			// nothing to notify
+			return true;
+		}
+		$userTo = User::newFromName( $address->name );
+		$userFrom = User::newFromName( $from->name );
+
+		$autoSubject = wfMessage( 'defemailsubject', $from->name )->inContentLanguage()->text();
+		if ( $subject === $autoSubject ) {
+			$autoFooter = "\n\n-- \n" . wfMessage( 'emailuserfooter', $from->name, $address->name )->inContentLanguage()->text();
+			$textWithoutFooter = preg_replace( '/' . preg_quote( $autoFooter, '/' ) . '$/', '', $text );
+			$preview = $wgContLang->truncate( $textWithoutFooter, 125 );
+		} else {
+			$preview = $subject;
+		}
+
+		EchoEvent::create( array(
+			'type' => 'emailuser',
+			'extra' => array(
+				'to-user-id' => $userTo->getId(),
+				'preview' => $preview,
+			),
+			'agent' => $userFrom,
+		) );
+
 		return true;
 	}
 
@@ -1016,7 +1251,10 @@ class EchoHooks {
 
 	public static function onMergeAccountFromTo( User &$oldUser, User &$newUser ) {
 		MWEchoNotifUser::newFromUser( $oldUser )->resetNotificationCount( DB_MASTER );
-		MWEchoNotifUser::newFromUser( $newUser )->resetNotificationCount( DB_MASTER );
+
+		if ( !$newUser->isAnon() ) {
+			MWEchoNotifUser::newFromUser( $newUser )->resetNotificationCount( DB_MASTER );
+		}
 
 		return true;
 	}
@@ -1029,4 +1267,20 @@ class EchoHooks {
 
 		return true;
 	}
+
+	// Sets custom login message for redirect from notification page
+	public static function onLoginFormValidErrorMessages( &$messages ) {
+		$messages[] = 'echo-notification-loginrequired';
+		return true;
+	}
+
+	public static function onResourceLoaderGetConfigVars( &$vars ) {
+	global $wgEchoFooterNoticeURL;
+
+		$vars['wgEchoMaxNotificationCount'] = MWEchoNotifUser::MAX_BADGE_COUNT;
+		$vars['wgEchoFooterNoticeURL'] = $wgEchoFooterNoticeURL;
+
+		return true;
+	}
+
 }

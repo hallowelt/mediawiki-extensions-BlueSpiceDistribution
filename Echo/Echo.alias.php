@@ -12,6 +12,7 @@ $specialPageAliases = array();
 /** English (English) */
 $specialPageAliases['en'] = array(
 	'Notifications' => array( 'Notifications' ),
+	'DisplayNotificationsConfiguration' => array( 'DisplayNotificationsConfiguration' ),
 );
 
 /** Arabic (العربية) */
@@ -42,6 +43,11 @@ $specialPageAliases['cdo'] = array(
 /** Chechen (нохчийн) */
 $specialPageAliases['ce'] = array(
 	'Notifications' => array( 'ДӀахаийтар' ),
+);
+
+/** Czech (čeština) */
+$specialPageAliases['cs'] = array(
+	'Notifications' => array( 'Upozornění' ),
 );
 
 /** German (Deutsch) */

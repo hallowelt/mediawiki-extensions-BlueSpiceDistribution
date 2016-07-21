@@ -1,12 +1,22 @@
 <?php
 
 class ApiEchoNotifications extends ApiQueryBase {
+	/**
+	 * @var EchoForeignNotifications
+	 */
+	protected $foreignNotifications;
+
+	/**
+	 * @var bool
+	 */
+	protected $crossWikiSummary = false;
 
 	public function __construct( $query, $moduleName ) {
 		parent::__construct( $query, $moduleName, 'not' );
 	}
 
 	public function execute() {
+		global $wgEchoCrossWikiNotifications;
 		// To avoid API warning, register the parameter used to bust browser cache
 		$this->getMain()->getVal( '_' );
 
@@ -18,49 +28,69 @@ class ApiEchoNotifications extends ApiQueryBase {
 		$params = $this->extractRequestParams();
 		$prop = $params['prop'];
 
+		/* @deprecated */
+		if ( $params['format'] === 'flyout' ) {
+			$this->setWarning(
+				"notformat=flyout has been deprecated and will be removed soon.\n".
+				"Use notformat=model to get the raw data or notformat=special\n".
+				"for pre-rendered HTML."
+			);
+		} elseif ( $params['format'] === 'html' ) {
+			$this->setWarning(
+				"notformat=html has been deprecated and will be removed soon.\n".
+				"Use notformat=special instead."
+			);
+		}
+
+		if ( $wgEchoCrossWikiNotifications ) {
+			$this->foreignNotifications = new EchoForeignNotifications( $user );
+			$this->crossWikiSummary = $params['crosswikisummary'];
+		} else {
+			$this->foreignNotifications = null;
+			$this->crossWikiSummary = false;
+		}
+
 		$result = array();
 		if ( in_array( 'list', $prop ) ) {
 			// Group notification results by section
 			if ( $params['groupbysection'] ) {
-				wfProfileIn( __METHOD__ . '-group-by-section' );
 				foreach ( $params['sections'] as $section ) {
 					$result[$section] = $this->getSectionPropList(
-						$user, $section, $params['limit'],
+						$user, $section, $params['filter'], $params['limit'],
 						$params[$section . 'continue'], $params['format'], $params[$section . 'unreadfirst']
 					);
-					$this->getResult()->setIndexedTagName( $result[$section]['list'], 'notification' );
-					// 'index' is built on top of 'list'
-					if ( in_array( 'index', $prop ) ) {
-						$result[$section]['index'] = $this->getPropIndex( $result[$section]['list'] );
-						$this->getResult()->setIndexedTagName( $result[$section]['index'], 'id' );
+
+					if ( $this->crossWikiSummary && $this->foreignNotifications->getCount( $section ) > 0 ) {
+						// insert fake notification for foreign notifications
+						array_unshift( $result[$section]['list'], $this->makeForeignNotification( $user, $params['format'], $section ) );
 					}
+
+					$this->getResult()->setIndexedTagName( $result[$section]['list'], 'notification' );
 				}
-				wfProfileOut( __METHOD__ . '-group-by-section' );
 			} else {
-				wfProfileIn( __METHOD__ . '-group-by-none' );
 				$attributeManager = EchoAttributeManager::newFromGlobalVars();
 				$result = $this->getPropList(
 					$user,
 					$attributeManager->getUserEnabledEventsbySections( $user, 'web', $params['sections'] ),
-					$params['limit'], $params['continue'], $params['format']
+					$params['filter'], $params['limit'], $params['continue'], $params['format'], $params['unreadfirst']
 				);
-				$this->getResult()->setIndexedTagName( $result['list'], 'notification' );
-				// 'index' is built on top of 'list'
-				if ( in_array( 'index', $prop ) ) {
-					$result['index'] = $this->getPropIndex( $result['list'] );
-					$this->getResult()->setIndexedTagName( $result['index'], 'id' );
+
+				// if exactly 1 section is specified, we consider only that section, otherwise
+				// we pass ALL to consider all foreign notifications
+				$section = count( $params['sections'] ) === 1 ? reset( $params['sections'] ) : EchoAttributeManager::ALL;
+				if ( $this->crossWikiSummary && $this->foreignNotifications->getCount( $section ) > 0 ) {
+					array_unshift( $result['list'], $this->makeForeignNotification( $user, $params['format'], $section ) );
 				}
-				wfProfileOut( __METHOD__ . '-group-by-none' );
+
+				$this->getResult()->setIndexedTagName( $result['list'], 'notification' );
 			}
 		}
 
 		if ( in_array( 'count', $prop ) ) {
-			wfProfileIn( __METHOD__ . '-count' );
 			$result = array_merge_recursive(
 				$result,
-				$this->getPropcount( $user, $params['sections'], $params['groupbysection'] )
+				$this->getPropCount( $user, $params['sections'], $params['groupbysection'] )
 			);
-			wfProfileOut( __METHOD__ . '-count' );
 		}
 
 		$this->getResult()->setIndexedTagName( $result, 'notification' );
@@ -71,14 +101,14 @@ class ApiEchoNotifications extends ApiQueryBase {
 	 * Internal method for getting the property 'list' data for individual section
 	 * @param User $user
 	 * @param string $section 'alert' or 'message'
+	 * @param string $filter 'all', 'read' or 'unread'
 	 * @param int $limit
 	 * @param string $continue
 	 * @param string $format
 	 * @param boolean $unreadFirst
 	 * @return array
 	 */
-	protected function getSectionPropList( User $user, $section, $limit, $continue, $format, $unreadFirst = false ) {
-		$notifUser = MWEchoNotifUser::newFromUser( $user );
+	protected function getSectionPropList( User $user, $section, $filter, $limit, $continue, $format, $unreadFirst = false ) {
 		$attributeManager = EchoAttributeManager::newFromGlobalVars();
 		$sectionEvents = $attributeManager->getUserEnabledEventsbySections( $user, 'web', array( $section ) );
 
@@ -89,9 +119,10 @@ class ApiEchoNotifications extends ApiQueryBase {
 			);
 		} else {
 			$result = $this->getPropList(
-				$user, $sectionEvents, $limit, $continue, $format, $unreadFirst
+				$user, $sectionEvents, $filter, $limit, $continue, $format, $unreadFirst
 			);
 		}
+
 		return $result;
 	}
 
@@ -101,13 +132,14 @@ class ApiEchoNotifications extends ApiQueryBase {
 	 * of a set of sections or a single section
 	 * @param User $user
 	 * @param string[] $eventTypes
+	 * @param string $filter 'all', 'read' or 'unread'
 	 * @param int $limit
 	 * @param string $continue
 	 * @param string $format
 	 * @param boolean $unreadFirst
 	 * @return array
 	 */
-	protected function getPropList( User $user, array $eventTypes, $limit, $continue, $format, $unreadFirst = false ) {
+	protected function getPropList( User $user, array $eventTypes, $filter, $limit, $continue, $format, $unreadFirst = false ) {
 		$result = array(
 			'list' => array(),
 			'continue' => null
@@ -115,46 +147,79 @@ class ApiEchoNotifications extends ApiQueryBase {
 
 		$notifMapper = new EchoNotificationMapper();
 
-		// Prefer unread notifications. We don't care about next offset in this case
-		if ( $unreadFirst ) {
-			wfProfileIn( __METHOD__ . '-fetch-data-unread-first' );
-			$notifs = $notifMapper->fetchUnreadByUser( $user, $limit, $eventTypes );
-			// If there are less unread notifications than we requested,
-			// then fill the result with some read notifications
-			$count = count( $notifs );
-			if ( $count < $limit ) {
-				// Query planner should be smart enough that passing a short list of ids to exclude
-				// will only visit at most that number of extra rows.
-				$mixedNotifs = $notifMapper->fetchByUser(
-					$user,
-					$limit - $count,
-					null,
-					$eventTypes,
-					array_keys( $notifs )
-				);
-				foreach ( $mixedNotifs as $notif ) {
-					$notifs[$notif->getEvent()->getId()] = $notif;
+		// check if we want both read & unread...
+		if ( in_array( 'read', $filter ) && in_array( '!read', $filter ) ) {
+			// Prefer unread notifications. We don't care about next offset in this case
+			if ( $unreadFirst ) {
+				// query for unread notifications past 'continue' (offset)
+				$notifs = $notifMapper->fetchUnreadByUser( $user, $limit + 1, $continue, $eventTypes );
+
+				/*
+				 * 'continue' has a timestamp & id (to start with, in case
+				 * there would be multiple events with that same timestamp)
+				 * Unread notifications should always load first, but may be
+				 * older than read ones, but we can work with current
+				 * 'continue' format:
+				 * * if there's no continue, first load unread notifications
+				 * * if there's a continue, fetch unread notifications first
+				 * * if there are no unread ones, continue must've been
+				 *   about read notifications: fetch 'em
+				 * * if there are unread ones but first one doesn't match
+				 *   continue id, it must've been about read notifications:
+				 *   discard unread & fetch read
+				 */
+				if ( $notifs && $continue ) {
+					/** @var EchoNotification $first */
+					$first = reset( $notifs );
+					$continueId = intval( trim( strrchr( $continue, '|' ), '|' ) );
+					if ( $first->getEvent()->getID() !== $continueId ) {
+						// notification doesn't match continue id, it must've been
+						// about read notifications: discard all unread ones
+						$notifs = array();
+					}
 				}
+
+				// If there are less unread notifications than we requested,
+				// then fill the result with some read notifications
+				$count = count( $notifs );
+				// we need 1 more than $limit, so we can respond 'continue'
+				if ( $count <= $limit ) {
+					// Query planner should be smart enough that passing a short list of ids to exclude
+					// will only visit at most that number of extra rows.
+					$mixedNotifs = $notifMapper->fetchByUser(
+						$user,
+						$limit - $count + 1,
+						// if there were unread notifications, 'continue' was for
+						// unread notifications and we should start fetching read
+						// notifications from start
+						$count > 0 ? null : $continue,
+						$eventTypes,
+						array_keys( $notifs )
+					);
+					foreach ( $mixedNotifs as $notif ) {
+						$notifs[$notif->getEvent()->getId()] = $notif;
+					}
+				}
+			} else {
+				$notifs = $notifMapper->fetchByUser( $user, $limit + 1, $continue, $eventTypes );
 			}
-			wfProfileOut( __METHOD__ . '-fetch-data-unread-first' );
-		} else {
-			wfProfileIn( __METHOD__ . '-fetch-data' );
-			$notifs = $notifMapper->fetchByUser( $user, $limit + 1, $continue, $eventTypes );
-			wfProfileOut( __METHOD__ . '-fetch-data' );
+		} elseif ( in_array( 'read', $filter ) ) {
+			$notifs = $notifMapper->fetchReadByUser( $user, $limit + 1, $continue, $eventTypes );
+		} else { // = if ( in_array( '!read', $filter ) ) {
+			$notifs = $notifMapper->fetchUnreadByUser( $user, $limit + 1, $continue, $eventTypes );
 		}
 
-		wfProfileIn( __METHOD__ . '-formatting' );
 		foreach ( $notifs as $notif ) {
-			$result['list'][$notif->getEvent()->getID()] = EchoDataOutputFormatter::formatOutput( $notif, $format, $user );
+			$output = EchoDataOutputFormatter::formatOutput( $notif, $format, $user, $this->getLanguage() );
+			if ( $output !== false ) {
+				$result['list'][] = $output;
+			}
 		}
-		wfProfileOut( __METHOD__ . '-formatting' );
 
 		// Generate offset if necessary
-		if ( !$unreadFirst ) {
-			if ( count( $result['list'] ) > $limit ) {
-				$lastItem = array_pop( $result['list'] );
-				$result['continue'] = $lastItem['timestamp']['utcunix'] . '|' . $lastItem['id'];
-			}
+		if ( count( $result['list'] ) > $limit ) {
+			$lastItem = array_pop( $result['list'] );
+			$result['continue'] = $lastItem['timestamp']['utcunix'] . '|' . $lastItem['id'];
 		}
 
 		return $result;
@@ -170,46 +235,89 @@ class ApiEchoNotifications extends ApiQueryBase {
 	protected function getPropCount( User $user, array $sections, $groupBySection ) {
 		$result = array();
 		$notifUser = MWEchoNotifUser::newFromUser( $user );
+		$global = $this->crossWikiSummary ? 'preference' : false;
 		// Always get total count
-		$rawCount = $notifUser->getNotificationCount();
+		$rawCount = $notifUser->getNotificationCount( true, DB_SLAVE, EchoAttributeManager::ALL, $global );
 		$result['rawcount'] = $rawCount;
 		$result['count'] = EchoNotificationController::formatNotificationCount( $rawCount );
 
 		if ( $groupBySection ) {
 			foreach ( $sections as $section ) {
-				$rawCount = $notifUser->getNotificationCount( /* $tryCache = */true, DB_SLAVE, $section );
+				$rawCount = $notifUser->getNotificationCount( /* $tryCache = */true, DB_SLAVE, $section, $global );
 				$result[$section]['rawcount'] = $rawCount;
 				$result[$section]['count'] = EchoNotificationController::formatNotificationCount( $rawCount );
 			}
 		}
+
 		return $result;
 	}
 
-	/**
-	 * Internal helper method for getting property 'index' data
-	 * @param array $list
-	 * @return array
-	 */
-	protected function getPropIndex( $list ) {
-		$result = array();
-		foreach ( array_keys( $list ) as $key ) {
-			// Don't include the XML tag name ('_element' key)
-			if ( $key != '_element' ) {
-				$result[] = $key;
-			}
+	protected function makeForeignNotification( User $user, $format, $section = EchoAttributeManager::ALL ) {
+		$wikis = $this->foreignNotifications->getWikis( $section );
+		$count = $this->foreignNotifications->getCount( $section );
+
+		// Sort wikis by timestamp, in descending order (newest first)
+		usort( $wikis, function ( $a, $b ) use ( $section ) {
+			$aTimestamp = $this->foreignNotifications->getWikiTimestamp( $a, $section ) ?: new MWTimestamp( 0 );
+			$bTimestamp = $this->foreignNotifications->getWikiTimestamp( $b, $section ) ?: new MWTimestamp( 0 );
+			return $bTimestamp->getTimestamp( TS_UNIX ) - $aTimestamp->getTimestamp( TS_UNIX );
+		} );
+
+		$row = new StdClass;
+		$row->event_id = -1;
+		$row->event_type = 'foreign';
+		$row->event_variant = null;
+		$row->event_agent_id = $user->getId();
+		$row->event_agent_ip = null;
+		$row->event_page_id = null;
+		$row->event_page_namespace = null;
+		$row->event_page_title = null;
+		$row->event_extra = serialize( array(
+			'section' => $section ?: 'all',
+			'wikis' => $wikis,
+			'count' => $count
+		) );
+
+		$row->notification_user = $user->getId();
+		$row->notification_timestamp = $this->foreignNotifications->getTimestamp( $section );
+		$row->notification_read_timestamp = null;
+		$row->notification_bundle_base = 1;
+		$row->notification_bundle_hash = md5( 'bogus' );
+		$row->notification_bundle_display_hash = md5( 'also-bogus' );
+
+		// Format output like any other notification
+		$notif = EchoNotification::newFromRow( $row );
+		$output = EchoDataOutputFormatter::formatOutput( $notif, $format, $user, $this->getLanguage() );
+
+		// Add cross-wiki-specific data
+		$output['section'] = $section ?: 'all';
+		$output['count'] = $count;
+		$output['sources'] = EchoForeignNotifications::getApiEndpoints( $wikis );
+		// Add timestamp information
+		foreach ( $output['sources'] as $wiki => &$data ) {
+			$data['ts'] = $this->foreignNotifications->getWikiTimestamp( $wiki, $section )->getTimestamp( TS_MW );
 		}
-		return $result;
+		return $output;
 	}
 
 	public function getAllowedParams() {
+		global $wgEchoCrossWikiNotifications;
+
 		$sections = EchoAttributeManager::$sections;
 		$params = array(
+			'filter' => array(
+				ApiBase::PARAM_ISMULTI => true,
+				ApiBase::PARAM_DFLT => 'read|!read',
+				ApiBase::PARAM_TYPE => array(
+					'read',
+					'!read',
+				),
+			),
 			'prop' => array(
 				ApiBase::PARAM_ISMULTI => true,
 				ApiBase::PARAM_TYPE => array(
 					'list',
 					'count',
-					'index',
 				),
 				ApiBase::PARAM_DFLT => 'list',
 			),
@@ -225,9 +333,12 @@ class ApiEchoNotifications extends ApiQueryBase {
 			'format' => array(
 				ApiBase::PARAM_TYPE => array(
 					'text',
-					'flyout',
-					'html',
+					'model',
+					'special',
+					'flyout', /* @deprecated */
+					'html', /* @deprecated */
 				),
+				ApiBase::PARAM_HELP_MSG_PER_VALUE => array(),
 			),
 			'limit' => array(
 				ApiBase::PARAM_TYPE => 'limit',
@@ -236,10 +347,12 @@ class ApiEchoNotifications extends ApiQueryBase {
 				ApiBase::PARAM_MAX => ApiBase::LIMIT_SML1,
 				ApiBase::PARAM_MAX2 => ApiBase::LIMIT_SML2,
 			),
-			'index' => false,
 			'continue' => array(
-				/** @todo Once support for MediaWiki < 1.25 is dropped, just use ApiBase::PARAM_HELP_MSG directly */
-				constant( 'ApiBase::PARAM_HELP_MSG' ) ?: '' => 'api-help-param-continue',
+				ApiBase::PARAM_HELP_MSG => 'api-help-param-continue',
+			),
+			'unreadfirst' => array(
+				ApiBase::PARAM_TYPE => 'boolean',
+				ApiBase::PARAM_DFLT => false,
 			),
 		);
 		foreach ( $sections as $section ) {
@@ -249,43 +362,19 @@ class ApiEchoNotifications extends ApiQueryBase {
 				ApiBase::PARAM_DFLT => false,
 			);
 		}
+
+		if ( $wgEchoCrossWikiNotifications ) {
+			$params += array(
+				// create "x notifications from y wikis" notification bundle &
+				// include unread counts from other wikis in prop=count results
+				'crosswikisummary' => array(
+					ApiBase::PARAM_TYPE => 'boolean',
+					ApiBase::PARAM_DFLT => false,
+				),
+			);
+		}
+
 		return $params;
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getParamDescription() {
-		return array(
-			'prop' => 'Details to request.',
-			'sections' => 'The notification sections to query (i.e. some combination of \'alert\' and \'message\').',
-			'groupbysection' => 'Whether to group the result by section, each section is fetched separately if set',
-			'format' => 'If specified, notifications will be returned formatted this way.',
-			'index' => 'If specified, a list of notification IDs, in order, will be returned.',
-			'limit' => 'The maximum number of notifications to return.',
-			'continue' => 'When more results are available, use this to continue, this is used only when groupbysection is not set.',
-			'alertcontinue' => 'When more alert results are available, use this to continue.',
-			'messagecontinue' => 'When more message results are available, use this to continue.',
-			'alertunreadfirst' => 'Whether to show unread message notifications first',
-			'messageunreadfirst' => 'Whether to show unread alert notifications first'
-		);
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getDescription() {
-		return 'Get notifications waiting for the current user';
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getExamples() {
-		return array(
-			'api.php?action=query&meta=notifications',
-			'api.php?action=query&meta=notifications&notprop=count&notsections=alert|message&notgroupbysection=1',
-		);
 	}
 
 	/**

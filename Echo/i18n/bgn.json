@@ -1,7 +1,8 @@
 {
 	"@metadata": {
 		"authors": [
-			"Baloch Afghanistan"
+			"Baloch Afghanistan",
+			"Ibrahim khashrowdi"
 		]
 	},
 	"echo-pref-send-me": "په من دیم دئ:",
@@ -17,8 +18,9 @@
 	"echo-no-agent": "[هیچ کس]",
 	"echo-no-title": "[بیدون ورق]",
 	"notifications": "نئ مئلوماتان",
-	"tooltip-pt-notifications": "شمی مئلوماتان",
-	"echo-specialpage": "نئ مئلوماتان",
+	"tooltip-pt-notifications-alert": "{{GENDER:|شمئ}} اخطاران",
+	"tooltip-pt-notifications-message": "{{GENDER:|شمئ}} پیامان",
+	"echo-specialpage": "اعلان‌هان",
 	"notification-link-text-view-message": "پیامئ دیستین",
 	"notification-link-text-view-page": "تاکدیمی دیستین",
 	"echo-date-today": "مروچی",

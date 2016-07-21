@@ -28,20 +28,20 @@ class EchoUserNotificationGatewayTest extends MediaWikiTestCase {
 
 	public function testGetNotificationCount() {
 		// unsuccessful select
-		$gateway = new EchoUserNotificationGateway( $this->mockUser(), $this->mockMWEchoDbFactory( array( 'select' => false ) ) );
-		$this->assertEquals( 0, $gateway->getNotificationCount( DB_SLAVE, array( 'event_one' ) ) );
+		$gateway = new EchoUserNotificationGateway( $this->mockUser(), $this->mockMWEchoDbFactory( array( 'selectRowCount' => 0 ) ) );
+		$this->assertEquals( 0, $gateway->getCappedNotificationCount( DB_SLAVE, array( 'event_one' ) ) );
 
 		// successful select of alert
-		$gateway = new EchoUserNotificationGateway( $this->mockUser(), $this->mockMWEchoDbFactory( array( 'select' => array( 1, 2 ) ) ) );
-		$this->assertEquals( 2, $gateway->getNotificationCount( DB_SLAVE, array( 'event_one', 'event_two' ) ) );
+		$gateway = new EchoUserNotificationGateway( $this->mockUser(), $this->mockMWEchoDbFactory( array( 'selectRowCount' => 2 ) ) );
+		$this->assertEquals( 2, $gateway->getCappedNotificationCount( DB_SLAVE, array( 'event_one', 'event_two' ) ) );
 
 		// there is event, should return 0
-		$gateway = new EchoUserNotificationGateway( $this->mockUser(), $this->mockMWEchoDbFactory( array( 'select' => array( 1, 2 ) ) ) );
-		$this->assertEquals( 0, $gateway->getNotificationCount( DB_SLAVE, array() ) );
+		$gateway = new EchoUserNotificationGateway( $this->mockUser(), $this->mockMWEchoDbFactory( array( 'selectRowCount' => 2 ) ) );
+		$this->assertEquals( 0, $gateway->getCappedNotificationCount( DB_SLAVE, array() ) );
 
 		// successful select
-		$gateway = new EchoUserNotificationGateway( $this->mockUser(), $this->mockMWEchoDbFactory( array( 'select' => array( 1, 2, 3 ) ) ) );
-		$this->assertEquals( 3, $gateway->getNotificationCount( DB_SLAVE, array( 'event_one' ) ) );
+		$gateway = new EchoUserNotificationGateway( $this->mockUser(), $this->mockMWEchoDbFactory( array( 'selectRowCount' => 3 ) ) );
+		$this->assertEquals( 3, $gateway->getCappedNotificationCount( DB_SLAVE, array( 'event_one' ) ) );
 	}
 
 	public function testGetUnreadNotifications() {
@@ -74,6 +74,7 @@ class EchoUserNotificationGatewayTest extends MediaWikiTestCase {
 		$user->expects( $this->any() )
 			->method( 'getGroups' )
 			->will( $this->returnValue( array( $group ) ) );
+
 		return $user;
 	}
 
@@ -87,6 +88,7 @@ class EchoUserNotificationGatewayTest extends MediaWikiTestCase {
 		$dbFactory->expects( $this->any() )
 			->method( 'getEchoDb' )
 			->will( $this->returnValue( $this->mockDb( $dbResult ) ) );
+
 		return $dbFactory;
 	}
 
@@ -98,6 +100,7 @@ class EchoUserNotificationGatewayTest extends MediaWikiTestCase {
 			'update' => '',
 			'select' => '',
 			'selectRow' => '',
+			'selectRowCount' => '',
 		);
 		$db = $this->getMockBuilder( 'DatabaseMysql' )
 			->disableOriginalConstructor()
@@ -112,8 +115,12 @@ class EchoUserNotificationGatewayTest extends MediaWikiTestCase {
 			->method( 'selectRow' )
 			->will( $this->returnValue( $dbResult['selectRow'] ) );
 		$db->expects( $this->any() )
+			->method( 'selectRowCount' )
+			->will( $this->returnValue( $dbResult['selectRowCount'] ) );
+		$db->expects( $this->any() )
 			->method( 'numRows' )
 			->will( $this->returnValue( count( $dbResult['select'] ) ) );
+
 		return $db;
 	}
 

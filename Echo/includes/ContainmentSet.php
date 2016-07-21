@@ -22,9 +22,10 @@ interface EchoContainmentList {
  * from multiple sources like global variables, wiki pages, etc.
  *
  * Initialize:
+ *   $cache = ObjectCache::getLocalClusterIntance();
  *   $set = new EchoContainmentSet;
  *   $set->addArray( $wgSomeGlobalParameter );
- *   $set->addOnWiki( NS_USER, 'Foo/bar-baz', $wgMemc, 'some_user_specific_cache_key' );
+ *   $set->addOnWiki( NS_USER, 'Foo/bar-baz', $cache, 'some_user_specific_cache_key' );
  *
  * Usage:
  *   if ( $set->contains( 'SomeUser' ) ) {
@@ -33,7 +34,7 @@ interface EchoContainmentList {
  */
 class EchoContainmentSet {
 	/**
-	 * @var $lists array of EchoContainmentList objects
+	 * @var EchoContainmentList[]
 	 */
 	protected $lists = array();
 
@@ -102,7 +103,7 @@ class EchoContainmentSet {
  */
 class EchoArrayList implements EchoContainmentList {
 	/**
-	 * @param $list array
+	 * @var array
 	 */
 	protected $list;
 
@@ -134,7 +135,7 @@ class EchoArrayList implements EchoContainmentList {
  */
 class EchoOnWikiList implements EchoContainmentList {
 	/**
-	 * @var $title Title|null A title object representing the page to source the list from,
+	 * @var Title|null A title object representing the page to source the list from,
 	 *                        or null if the page does not exist.
 	 */
 	protected $title;

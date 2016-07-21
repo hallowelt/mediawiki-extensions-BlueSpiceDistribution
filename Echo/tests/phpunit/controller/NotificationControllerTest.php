@@ -25,7 +25,9 @@ class NotificationControllerTest extends MediaWikiTestCase {
 				// expected result
 				array( array( 123 ) ),
 				// event user locator config
-				function() { return array( 123 => 123 ); }
+				function () {
+					return array( 123 => 123 );
+				}
 			),
 
 			array(
@@ -34,8 +36,12 @@ class NotificationControllerTest extends MediaWikiTestCase {
 				array( array( 123 ), array( 456 ) ),
 				// event user locator config
 				array(
-					function() { return array( 123 => 123 ); },
-					function() { return array( 456 => 456 ); },
+					function () {
+						return array( 123 => 123 );
+					},
+					function () {
+						return array( 456 => 456 );
+					},
 				),
 			),
 
@@ -48,7 +54,7 @@ class NotificationControllerTest extends MediaWikiTestCase {
 					array( 'EchoUserLocator::locateFromEventExtra', array( 'other-user' ) ),
 				),
 				// additional setup
-				function( $test, $event ) {
+				function ( $test, $event ) {
 					$event->expects( $test->any() )
 						->method( 'getExtraParam' )
 						->with( 'other-user' )
@@ -65,7 +71,7 @@ class NotificationControllerTest extends MediaWikiTestCase {
 		$this->setMwGlobals( array(
 			'wgEchoNotifications' => array(
 				'unit-test' => array(
-					'user-locators' => $locatorConfigForEventType
+					EchoAttributeManager::ATTR_LOCATORS => $locatorConfigForEventType
 				),
 			),
 		) );
@@ -81,13 +87,13 @@ class NotificationControllerTest extends MediaWikiTestCase {
 			$setup( $this, $event );
 		}
 
-		$result = EchoNotificationController::evaluateUserLocators( $event );
+		$result = EchoNotificationController::evaluateUserCallable( $event, EchoAttributeManager::ATTR_LOCATORS );
 		$this->assertEquals( $expect, array_map( 'array_keys', $result ), $message );
 	}
 
 	public function testEvaluateUserLocatorPassesParameters() {
 		$test = $this;
-		$callback = function( $event, $firstOption, $secondOption ) use( $test ) {
+		$callback = function ( $event, $firstOption, $secondOption ) use ( $test ) {
 			$test->assertInstanceOf( 'EchoEvent', $event );
 			$test->assertEquals( 'first', $firstOption );
 			$test->assertEquals( 'second', $secondOption );
@@ -141,7 +147,9 @@ class NotificationControllerTest extends MediaWikiTestCase {
 		$this->setMwGlobals( array(
 			'wgEchoNotifications' => array(
 				'unit-test' => array(
-					'user-locators' => function() use( $users ) { return $users; },
+					EchoAttributeManager::ATTR_LOCATORS => function () use ( $users ) {
+						return $users;
+					},
 				),
 			),
 		) );
@@ -185,9 +193,12 @@ class NotificationControllerTest extends MediaWikiTestCase {
 				// event type
 				'bar',
 				// default notification types configuration
+				array( 'web' => true ),
+				// type-specific
 				array(
-					'all' => array( 'web' => true ),
-					'foo' => array( 'email' => true ),
+					'foo' => array(
+						'notify-type-availability' => array( 'email' => true ),
+					),
 				),
 			),
 
@@ -198,21 +209,41 @@ class NotificationControllerTest extends MediaWikiTestCase {
 				// event type
 				'foo',
 				// default notification types configuration
+				array( 'web' => true, 'email' => true ),
+				// type-specific
 				array(
-					'all' => array( 'web' => true, 'email' => true ),
-					'foo' => array( 'email' => false ),
-					'bar' => array( 'sms' => true ),
+					'foo' => array(
+						'notify-type-availability' => array( 'email' => false ),
+					),
+					'bar' => array(
+						'notify-type-availability' => array( 'sms' => true ),
+					),
 				),
 			),
+
+			array(
+				'Uses all configuration when notify-type-availability not set at all',
+				// expected result
+				array( 'web', 'email' ),
+				// event type
+				'baz',
+				// default notification types configuration
+				array( 'web' => true, 'email' => true ),
+				// type-specific
+				array(
+					'baz' => array(),
+				),
+			)
 		);
 	}
 
 	/**
 	 * @dataProvider getEventNotifyTypesProvider
 	 */
-	public function testGetEventNotifyTypes( $message, $expect, $type, array $notificationTypes ) {
+	public function testGetEventNotifyTypes( $message, $expect, $type, array $defaultNotifyTypeAvailability, array $notifications ) {
 		$this->setMwGlobals( array(
-			'wgEchoDefaultNotificationTypes' => $notificationTypes,
+			'wgDefaultNotifyTypeAvailability' => $defaultNotifyTypeAvailability,
+			'wgEchoNotifications' => $notifications,
 		) );
 		$result = EchoNotificationController::getEventNotifyTypes( $type );
 		$this->assertEquals( $expect, $result, $message );

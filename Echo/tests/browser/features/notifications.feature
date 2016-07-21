@@ -1,40 +1,22 @@
-@chrome @en.wikipedia.beta.wmflabs.org @firefox @login @test2.wikipedia.org
-Feature: Notification types
+@chrome @en.wikipedia.beta.wmflabs.org @firefox @integration @vagrant
+Feature: Testing notification types
 
-  # Scenarios which trigger notifications
-  Scenario: Someone links to a page I created
-    Given I am logged in with no notifications
-      And another user has linked to a page I created from another page
-      And I reload the page 5 times or until a notification shows up
-    When I am on the "Selenium Echo flyout test page" page
-    Then I have new notifications
+  Background:
+    Given I am logged in
+    And all my notifications are read
 
-  Scenario: Mention message triggers notification
-    Given I am logged in with no notifications
-      And another user mentions me on the wiki
-      And I reload the page 5 times or until a notification shows up
-    When I am on the "Selenium Echo flyout test page" page
-    Then I have new notifications
+  Scenario: Someone mentions me
+    Given another user mentions me
+    When I refresh the page
+    Then the alert badge is showing unseen notifications
+    And the alert badge value is "1"
 
-  Scenario: Talk page message triggers talk notification
-    Given I am logged in with no notifications
-      # And I do not have Flow boards enabled on the user talk namespace
-      And another user writes on my talk page
-      And I reload the page 5 times or until a notification shows up
-    When I am on the "Selenium Echo flyout test page" page
-    Then I have new notifications
-
-  Scenario: New user gets a sign up notification
-    Given I am logged in as a new user
-       And I am on the "Selenium Echo flyout test page" page
-    Then I have new notifications
-
-  Scenario: Page revert
-    # Too hard. Will do later.
-
-  # Scenarios which do not trigger notifications (but might be expected to)
-  Scenario: The @ message is not a keyword
-    Given I am logged in with no notifications
-      And another user @s me on "Talk:Echo at test"
-    When I am on the "Selenium Echo flyout test page" page
-    Then I have no new notifications
+  @skip
+  Scenario: Someone writes on my talk page
+    Given another user writes on my talk page
+    When I refresh the page
+    Then the message badge is showing unseen notifications
+    And the message badge value is "1"
+    When I click the message badge
+    And I see the message popup
+    Then there are "1" unread notifications in the message popup

@@ -12,7 +12,7 @@ abstract class EchoNotificationFormatter {
 	 * List of valid output format
 	 * @var array
 	 */
-	protected $validOutputFormats = array( 'text', 'flyout', 'html', 'email', 'htmlemail' );
+	protected $validOutputFormats = array( 'text', 'email', 'htmlemail' );
 
 	/**
 	 * List of valid distribution type
@@ -54,11 +54,11 @@ abstract class EchoNotificationFormatter {
 	 * @return Mixed; depends on output format
 	 * @see EchoNotificationFormatter::setOutputFormat
 	 */
-	public abstract function format( $event, $user, $type );
+	abstract public function format( $event, $user, $type );
 
 	/**
 	 * Set the output format that the notification will be displayed in.
-	 * @param $format string A valid output format (by default, 'text', 'html', 'flyout', and 'email' are allowed)
+	 * @param $format string A valid output format (by default, 'text', and 'email' are allowed)
 	 * @throws InvalidArgumentException
 	 */
 	public function setOutputFormat( $format ) {
@@ -122,6 +122,7 @@ abstract class EchoNotificationFormatter {
 	protected function formatTimestamp( $ts ) {
 		$timestamp = new MWTimestamp( $ts );
 		$ts = $timestamp->getHumanTimestamp();
+
 		return $ts;
 	}
 

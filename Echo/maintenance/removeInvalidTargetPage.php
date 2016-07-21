@@ -14,7 +14,7 @@ require_once ( getenv( 'MW_INSTALL_PATH' ) !== false
  *
  * @ingroup Maintenance
  */
-class removeInvalidTargetPage extends Maintenance {
+class RemoveInvalidTargetPage extends Maintenance {
 
 	public function __construct() {
 		parent::__construct();
@@ -23,8 +23,6 @@ class removeInvalidTargetPage extends Maintenance {
 	}
 
 	public function execute() {
-		global $wgEchoCluster;
-
 		$dbFactory = MWEchoDbFactory::newFromDefault();
 		$dbw = $dbFactory->getEchoDb( DB_MASTER );
 		$dbr = $dbFactory->getEchoDb( DB_SLAVE );
@@ -77,7 +75,7 @@ class removeInvalidTargetPage extends Maintenance {
 			// Reset the head of the iterator
 			$res->rewind();
 			$count = $invalidCount = 0;
-			foreach( $res as $row ) {
+			foreach ( $res as $row ) {
 				if (
 					// Delete if notification is read
 					$row->notification_read_timestamp
@@ -109,5 +107,5 @@ class removeInvalidTargetPage extends Maintenance {
 	}
 }
 
-$maintClass = 'removeInvalidTargetPage'; // Tells it to run the class
-require_once( RUN_MAINTENANCE_IF_MAIN );
+$maintClass = 'RemoveInvalidTargetPage'; // Tells it to run the class
+require_once ( RUN_MAINTENANCE_IF_MAIN );

@@ -57,6 +57,30 @@ class EchoUserNotificationGateway {
 	}
 
 	/**
+	 * Mark notifications as unread
+	 * @param $eventIDs array
+	 * @return boolean
+	 */
+	public function markUnRead( array $eventIDs ) {
+		if ( !$eventIDs ) {
+			return;
+		}
+
+		$dbw = $this->dbFactory->getEchoDb( DB_MASTER );
+
+		return $dbw->update(
+			self::$notificationTable,
+			array( 'notification_read_timestamp' => null ),
+			array(
+				'notification_user' => $this->user->getId(),
+				'notification_event' => $eventIDs,
+				'notification_read_timestamp IS NOT NULL'
+			),
+			__METHOD__
+		);
+	}
+
+	/**
 	 * Mark all notification as read, use MWEchoNotifUer::markAllRead() instead
 	 * @deprecated may need this when running in a job or revive this when we
 	 * have updateJoin()
@@ -69,7 +93,7 @@ class EchoUserNotificationGateway {
 			array( 'notification_read_timestamp' => $dbw->timestamp( wfTimestampNow() ) ),
 			array(
 				'notification_user' => $this->user->getId(),
-				'notification_read_timestamp' => NULL,
+				'notification_read_timestamp' => null,
 				'notification_bundle_base' => 1,
 			),
 			__METHOD__
@@ -78,11 +102,12 @@ class EchoUserNotificationGateway {
 
 	/**
 	 * Get notification count for the types specified
-	 * @param int use master or slave storage to pull count
-	 * @param array event types to retrieve
+	 * @param int $dbSource use master or slave storage to pull count
+	 * @param array $eventTypesToLoad event types to retrieve
+	 * @param int $cap Max count
 	 * @return int
 	 */
-	public function getNotificationCount( $dbSource, array $eventTypesToLoad = array() ) {
+	public function getCappedNotificationCount( $dbSource, array $eventTypesToLoad = array(), $cap = MWEchoNotifUser::MAX_BADGE_COUNT ) {
 		// double check
 		if ( !in_array( $dbSource, array( DB_SLAVE, DB_MASTER ) ) ) {
 			$dbSource = DB_SLAVE;
@@ -92,15 +117,13 @@ class EchoUserNotificationGateway {
 			return 0;
 		}
 
-		global $wgEchoMaxNotificationCount;
-
 		$db = $this->dbFactory->getEchoDb( $dbSource );
-		$res = $db->select(
+		return $db->selectRowCount(
 			array(
 				self::$notificationTable,
 				self::$eventTable
 			),
-			array( 'notification_event' ),
+			array( '1' ),
 			array(
 				'notification_user' => $this->user->getId(),
 				'notification_bundle_base' => 1,
@@ -108,22 +131,17 @@ class EchoUserNotificationGateway {
 				'event_type' => $eventTypesToLoad,
 			),
 			__METHOD__,
-			array( 'LIMIT' => $wgEchoMaxNotificationCount + 1 ),
+			array( 'LIMIT' => $cap ),
 			array(
 				'echo_event' => array( 'LEFT JOIN', 'notification_event=event_id' ),
 			)
 		);
-		if ( $res ) {
-			return $db->numRows( $res );
-		} else {
-			return 0;
-		}
 	}
 
 	/**
 	 * IMPORTANT: should only call this function if the number of unread notification
 	 * is reasonable, for example, unread notification count is less than the max
-	 * display defined in $wgEchoMaxNotificationCount
+	 * display defined in MWEchoNotifUser::MAX_BADGE_COUNT
 	 * @param string
 	 * @return int[]
 	 */

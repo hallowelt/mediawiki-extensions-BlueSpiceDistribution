@@ -59,7 +59,7 @@
 		 * Load more notification records.
 		 */
 		loadMore: function () {
-			var notifications, data, container, $li,
+			var notifications, container, $li,
 				api = new mw.Api( { ajax: { cache: false } } ),
 				seenTime = mw.config.get( 'wgEchoSeenTime' ),
 				that = this,
@@ -67,8 +67,8 @@
 				apiData = {
 					action: 'query',
 					meta: 'notifications',
-					notformat: 'html',
-					notprop: 'index|list',
+					notformat: 'special',
+					notprop: 'list',
 					notcontinue: this.notcontinue,
 					notlimit: mw.config.get( 'wgEchoDisplayNum' ),
 					uselang: useLang
@@ -79,9 +79,7 @@
 				notifications = result.query.notifications;
 				unread = [];
 
-				$.each( notifications.index, function ( index, id ) {
-					data = notifications.list[id];
-
+				$.each( notifications.list, function ( index, data ) {
 					if ( that.header !== data.timestamp.date ) {
 						that.header = data.timestamp.date;
 						$( '<li></li>' ).addClass( 'mw-echo-date-section' ).append( that.header ).appendTo( container );
@@ -89,19 +87,19 @@
 
 					$li = $( '<li></li>' )
 						.data( 'details', data )
-						.data( 'id', id )
+						.data( 'id', data.id )
 						.addClass( 'mw-echo-notification' )
 						.attr( {
 							'data-notification-category': data.category,
 							'data-notification-event': data.id,
 							'data-notification-type': data.type
 						} )
-						.append( data['*'] )
+						.append( data[ '*' ] )
 						.appendTo( container );
 
 					if ( !data.read ) {
 						$li.addClass( 'mw-echo-unread' );
-						unread.push( id );
+						unread.push( data.id );
 					}
 
 					if ( seenTime !== null && data.timestamp.mw > seenTime ) {
@@ -116,7 +114,7 @@
 					);
 				} );
 
-				that.notcontinue = notifications['continue'];
+				that.notcontinue = notifications[ 'continue' ];
 				if ( unread.length > 0 ) {
 					that.markAsRead( unread );
 				} else {

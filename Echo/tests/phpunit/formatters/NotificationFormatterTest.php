@@ -5,7 +5,7 @@
  */
 class EchoNotificationFormatterTest extends MediaWikiTestCase {
 
-	public function setUp() {
+	protected function setUp() {
 		parent::setUp();
 		$user = new User();
 		$user->setName( 'Notification-formatter-test' );
@@ -40,35 +40,10 @@ class EchoNotificationFormatterTest extends MediaWikiTestCase {
 
 		# Reset the Title cache
 		$mainPage = Title::newMainPage();
-		$mainPage->setFragment('');
+		$mainPage->setFragment( '' );
 		# And assert it has been cleaned up
 		$mainPageCached = Title::newMainPage();
 		$this->assertEquals( '', $mainPageCached->getFragment() );
-
-	}
-
-	public static function provider_editUserTalk() {
-		return array(
-			// if there is a section-title, the message should be '[[User:user_name|user_name]] left a message on
-			// your talk page in '[[User talk:user_name#section_title|section_title]]'
-			array( '/[[User talk:[^#]+#moar_cowbell|moar_cowbell]]/', 'moar_cowbell', 'text' ),
-			array( '/#moar_cowbell/', 'moar_cowbell', 'html' ),
-			array( '/#moar_cowbell/', 'moar_cowbell', 'flyout' ),
-		);
-	}
-
-	/**
-	 * @dataProvider provider_editUserTalk
-	 */
-	public function testEditUserTalkFlyoutSectionLinkFragment( $pattern, $sectionTitle, $format ) {
-		// Required hack so parser doesnt turn the links into redlinks which contain no fragment
-		global $wgUser;
-		LinkCache::singleton()->addGoodLinkObj( 42, $wgUser->getTalkPage() );
-
-		$event = $this->mockEvent( 'edit-user-talk', array(
-			'section-title' => $sectionTitle,
-		) );
-		$this->assertRegExp( $pattern, $this->format( $event, $format ) );
 	}
 
 	public function provider_formatterDoesntFail() {
@@ -96,7 +71,7 @@ class EchoNotificationFormatterTest extends MediaWikiTestCase {
 				'remove' => array( 'other' ),
 			),
 		);
-		$formats = array( 'html', 'flyout', 'email', 'text' );
+		$formats = array( 'email', 'text' );
 		$tests = array();
 		$loggedUser = User::newFromName( 'Notification-formatter-test' );
 		$anonUser = new User();
@@ -120,7 +95,7 @@ class EchoNotificationFormatterTest extends MediaWikiTestCase {
 		$tests = array();
 		$events = array( 'edit-user-talk' );
 		foreach ( $events as $eventType ) {
-			$tests[] = array( $eventType, $sectionText, 0);
+			$tests[] = array( $eventType, $sectionText, 0 );
 			$tests[] = array( $eventType, $sectionText, Revision::DELETED_TEXT );
 		}
 
@@ -138,9 +113,9 @@ class EchoNotificationFormatterTest extends MediaWikiTestCase {
 			new Revision( compact( 'deleted' ) )
 		);
 		if ( $deleted === Revision::DELETED_TEXT ) {
-			$this->assertNotContains( $text, $this->format( $event, 'html' ) );
+			$this->assertNotContains( $text, $this->format( $event, 'htmlemail' ) );
 		} else {
-			$this->assertContains( $text, $this->format( $event, 'html' ) );
+			$this->assertContains( $text, $this->format( $event, 'htmlemail' ) );
 		}
 	}
 
@@ -174,17 +149,17 @@ class EchoNotificationFormatterTest extends MediaWikiTestCase {
 			->method( 'getAgent' )
 			->will( $this->returnValue( $user ) );
 
-		$this->assertContains( $expect, $this->format( $event, 'html' ) );
+		$this->assertContains( $expect, $this->format( $event, 'text' ) );
 	}
 
 	public static function provider_sectionTitle() {
 		$message = "some_section_title"; // underscores simplifies the test, since it will transform ' ' to '_'
-		$suppressed = wfMessage( 'echo-rev-deleted-text-view')->text();
+		$suppressed = wfMessage( 'echo-rev-deleted-text-view' )->text();
 
 		$tests = array();
 		$events = array( 'mention' ); // currently only mention uses sectionTitle, but likely edit-user-talk will soon as well
 		foreach ( $events as $eventType ) {
-			$tests[] = array( $eventType, $message, $message, 0);
+			$tests[] = array( $eventType, $message, $message, 0 );
 			$tests[] = array( $eventType, $suppressed, $message, Revision::DELETED_TEXT );
 		}
 
@@ -217,7 +192,7 @@ class EchoNotificationFormatterTest extends MediaWikiTestCase {
 			new Revision( compact( 'deleted' ) )
 		);
 
-		$this->assertContains( $expect, $this->format( $event, 'html' ) );
+		$this->assertContains( $expect, $this->format( $event, 'text' ) );
 	}
 
 	protected function format( EchoEvent $event, $format, $user = false, $type = 'web' ) {
@@ -253,6 +228,7 @@ class EchoNotificationFormatterTest extends MediaWikiTestCase {
 				->method( 'getRevision' )
 				->will( $this->returnValue( $rev ) );
 		}
+
 		return $event;
 	}
 

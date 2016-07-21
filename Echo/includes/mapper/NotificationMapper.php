@@ -33,7 +33,7 @@ class EchoNotificationMapper extends EchoAbstractMapper {
 		$row = $notification->toDbArray();
 		$listeners = $this->getMethodListeners( __FUNCTION__ );
 
-		$dbw->onTransactionIdle( function() use ( $dbw, $row, $fname, $listeners ) {
+		$dbw->onTransactionIdle( function () use ( $dbw, $row, $fname, $listeners ) {
 			$dbw->startAtomic( $fname );
 			// reset the bundle base if this notification has a display hash
 			// the result of this operation is that all previous notifications
@@ -71,7 +71,7 @@ class EchoNotificationMapper extends EchoAbstractMapper {
 	 * @return int[]
 	 */
 	protected function extractQueryOffset( $continue ) {
-		$offset = array (
+		$offset = array(
 			'timestamp' => 0,
 			'offset' => 0,
 		);
@@ -95,42 +95,30 @@ class EchoNotificationMapper extends EchoAbstractMapper {
 	 * which is done via a deleteJob
 	 * @param User $user
 	 * @param int $limit
+	 * @param string $continue Used for offset
 	 * @param string[] $eventTypes
-	 * @param int $dbSource Use master or slave database to pull count
+	 * @param int $dbSource Use master or slave database
 	 * @return EchoNotification[]
 	 */
-	public function fetchUnreadByUser( User $user, $limit, array $eventTypes = array(), $dbSource = DB_SLAVE ) {
-		$data = array();
+	public function fetchUnreadByUser( User $user, $limit, $continue, array $eventTypes = array(), $dbSource = DB_SLAVE ) {
+		return $this->fetchByUserInternal( $user, $limit, $continue, $eventTypes, array( 'notification_read_timestamp' => null ), $dbSource );
+	}
 
-		if ( !$eventTypes ) {
-			return $data;
-		}
-
-		$dbr = $this->dbFactory->getEchoDb( $dbSource );
-		$res = $dbr->select(
-			array( 'echo_notification', 'echo_event' ),
-			'*',
-			array(
-				'notification_user' => $user->getID(),
-				'event_type' => $eventTypes,
-				'notification_bundle_base' => 1,
-				'notification_read_timestamp' => NULL
-			),
-			__METHOD__,
-			array(
-				'LIMIT' => $limit,
-				'ORDER BY' => 'notification_timestamp DESC'
-			),
-			array(
-				'echo_event' => array( 'LEFT JOIN', 'notification_event=event_id' ),
-			)
-		);
-		if ( $res ) {
-			foreach ( $res as $row ) {
-				$data[$row->event_id] = EchoNotification::newFromRow( $row );
-			}
-		}
-		return $data;
+	/**
+	 * Get read notifications by user in the amount specified by limit order by
+	 * notification timestamp in descending order.  We have an index to retrieve
+	 * unread notifications but it's not optimized for ordering by timestamp.  The
+	 * descending order is only allowed if we keep the notification in low volume,
+	 * which is done via a deleteJob
+	 * @param User $user
+	 * @param int $limit
+	 * @param string $continue Used for offset
+	 * @param string[] $eventTypes
+	 * @param int $dbSource Use master or slave database
+	 * @return EchoNotification[]
+	 */
+	public function fetchReadByUser( User $user, $limit, $continue, array $eventTypes = array(), $dbSource = DB_SLAVE ) {
+		return $this->fetchByUserInternal( $user, $limit, $continue, $eventTypes, array( 'notification_read_timestamp IS NOT NULL' ), $dbSource );
 	}
 
 	/**
@@ -146,27 +134,42 @@ class EchoNotificationMapper extends EchoAbstractMapper {
 	public function fetchByUser( User $user, $limit, $continue, array $eventTypes = array(), array $excludeEventIds = array() ) {
 		$dbr = $this->dbFactory->getEchoDb( DB_SLAVE );
 
+		$conds = array();
+		if ( $excludeEventIds ) {
+			$conds[] = 'event_id NOT IN ( ' . $dbr->makeList( $excludeEventIds ) . ' ) ';
+		}
+
+		return $this->fetchByUserInternal( $user, $limit, $continue, $eventTypes, $conds );
+	}
+
+	/**
+	 * @param User $user the user to get notifications for
+	 * @param int $limit The maximum number of notifications to return
+	 * @param string $continue Used for offset
+	 * @param array $eventTypes Event types to load
+	 * @param array $conds Additional query conditions.
+	 * @param int $dbSource Use master or slave database
+	 * @return EchoNotification[]
+	 */
+	protected function fetchByUserInternal( User $user, $limit, $continue, array $eventTypes = array(), array $conds = array(), $dbSource = DB_SLAVE ) {
+		$dbr = $this->dbFactory->getEchoDb( $dbSource );
+
 		if ( !$eventTypes ) {
 			return array();
 		}
 
 		// There is a problem with querying by event type, if a user has only one or none
-		// flow notification and huge amount other notications, the lookup of only flow
+		// flow notification and huge amount other notifications, the lookup of only flow
 		// notification will result in a slow query.  Luckily users won't have that many
 		// notifications.  We should have some cron job to remove old notifications so
 		// the notification volume is in a reasonable amount for such case.  The other option
 		// is to denormalize notification table with event_type and lookup index.
-		//
 		// Look for notifications with base = 1
 		$conds = array(
 			'notification_user' => $user->getID(),
 			'event_type' => $eventTypes,
 			'notification_bundle_base' => 1
-		);
-
-		if ( $excludeEventIds ) {
-			$conds[] = 'event_id NOT IN ( ' . $dbr->makeList( $excludeEventIds ) . ' ) ';
-		}
+		) + $conds;
 
 		$offset = $this->extractQueryOffset( $continue );
 
@@ -191,7 +194,6 @@ class EchoNotificationMapper extends EchoAbstractMapper {
 				'echo_target_page' => array( 'LEFT JOIN', array( 'notification_event=etp_event', 'notification_user=etp_user' ) ),
 			)
 		);
-
 
 		// query failure of some sort
 		if ( !$res ) {
@@ -225,13 +227,14 @@ class EchoNotificationMapper extends EchoAbstractMapper {
 				MWExceptionHandler::logException( $e );
 			}
 		}
+
 		return $data;
 	}
 
 	/**
 	 * Get the last notification in a set of bundle-able notifications by a bundle hash
-	 * @param User
-	 * @param string The hash used to identify a set of bundle-able notifications
+	 * @param User $user
+	 * @param string $bundleHash The hash used to identify a set of bundle-able notifications
 	 * @return EchoNotification|bool
 	 */
 	public function fetchNewestByUserBundleHash( User $user, $bundleHash ) {
@@ -256,6 +259,34 @@ class EchoNotificationMapper extends EchoAbstractMapper {
 			return false;
 		}
 	}
+
+	/**
+	 * Create an EchoNotification by user and event ID.
+	 *
+	 * @param User $user
+	 * @param int $eventID
+	 * @return EchoNotification|bool
+	 */
+	public function fetchByUserEvent( User $user, $eventId ) {
+		$dbr = $this->dbFactory->getEchoDb( DB_SLAVE );
+
+		$row = $dbr->selectRow(
+			array( 'echo_notification', 'echo_event' ),
+			'*',
+			array(
+				'notification_user' => $user->getId(),
+				'notification_event' => $eventId
+			),
+			 __METHOD__
+		 );
+
+		if ( $row ) {
+			return EchoNotification::newFromRow( $row );
+		} else {
+			return false;
+		}
+	}
+
 
 	/**
 	 * Fetch a notification by user in the specified offset.  The caller should
@@ -307,6 +338,7 @@ class EchoNotificationMapper extends EchoAbstractMapper {
 			),
 			__METHOD__
 		);
+
 		return $res;
 	}
 

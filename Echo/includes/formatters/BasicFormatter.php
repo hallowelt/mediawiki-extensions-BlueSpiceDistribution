@@ -12,30 +12,24 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 
 	/**
 	 * Notification title data for archive page
-	 * @param array
+	 * @var array
 	 */
 	protected $title;
 
 	/**
-	 * Notification title data for flyout
-	 * @param array
-	 */
-	protected $flyoutTitle;
-
-	/**
-	 * Notification title data for bundling ( flyout and archive page )
+	 * Notification title data for bundling ( archive page )
 	 */
 	protected $bundleTitle;
 
 	/**
 	 * Notification email data
-	 * @param array
+	 * @var array
 	 */
 	protected $email;
 
 	/**
 	 * Notification icon for each type
-	 * @param string
+	 * @var string
 	 */
 	protected $icon;
 
@@ -43,7 +37,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 * @todo make this private
 	 * The language to format a message, default language
 	 * is the current language
-	 * @param mixed Language code or Language object
+	 * @var mixed Language code or Language object
 	 */
 	protected $language;
 
@@ -52,7 +46,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 * should be used in function processParams()
 	 * @var array
 	 */
-	protected $bundleData = array (
+	protected $bundleData = array(
 		'use-bundle' => false,
 		'raw-data-count' => 1
 	);
@@ -82,13 +76,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			'params' => $params['title-params']
 		);
 
-		// Title for the flyout
-		$this->flyoutTitle = array(
-			'message' => $params['flyout-message'],
-			'params' => $params['flyout-params']
-		);
-
-		// Bundle title for both archive page and flyout
+		// Bundle title for both archive page
 		$this->bundleTitle = array(
 			'message' => $params['bundle-message'],
 			'params' => $params['bundle-params']
@@ -137,9 +125,6 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			'icon' => 'placeholder'
 		);
 
-		// default flyout-message to title-message if not defined
-		$params += array ( 'flyout-message' => $params['title-message'],  'flyout-params' => $params['title-params'] );
-
 		return $params;
 	}
 
@@ -156,7 +141,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 		// Use the bundle message if use-bundle is true and there is a bundle message
 		$this->generateBundleData( $event, $user, $type );
 		if ( $this->bundleData['use-bundle'] && $this->bundleTitle['message'] ) {
-			$this->title = $this->flyoutTitle = $this->bundleTitle;
+			$this->title = $this->bundleTitle;
 		}
 	}
 
@@ -211,11 +196,6 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 		// Add footer (timestamp and secondary link)
 		$content .= $this->formatFooter( $event, $user );
 
-		// Add the primary link (hidden)
-		if ( $this->outputFormat === 'flyout' ) {
-			$content .= $this->getLink( $event, $user, 'primary' );
-		}
-
 		$output .= Xml::tags( 'div', array( 'class' => 'mw-echo-content' ), $content ) . "\n";
 
 		// The state div is used to visually indicate read or unread status. This is
@@ -232,11 +212,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 * @return string
 	 */
 	protected function formatNotificationTitle( $event, $user ) {
-		if ( $this->outputFormat === 'flyout' ) {
-			return $this->formatFragment( $this->flyoutTitle, $event, $user );
-		} else {
-			return $this->formatFragment( $this->title, $event, $user );
-		}
+		return $this->formatFragment( $this->title, $event, $user );
 	}
 
 	/**
@@ -280,7 +256,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			$outputFormat = $this->outputFormat;
 			$this->setOutputFormat( 'htmlemail' );
 			// Add single email html body if user prefers html format
-			$content['body'] = array (
+			$content['body'] = array(
 				'text' => $content['body'],
 				'html' => $htmlEmailFormatter->formatEmail()
 			);
@@ -313,6 +289,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			$content['icon'] = $this->icon;
 			$this->setOutputFormat( $outputFormat );
 		}
+
 		return $content;
 	}
 
@@ -335,6 +312,9 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 		if ( $this->language ) {
 			return wfGetLangObj( $this->language );
 		}
+
+		// Make sure we unstub first
+		StubObject::unstub( $wgLang );
 
 		return $wgLang;
 	}
@@ -405,6 +385,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 		$content = EchoDiscussionParser::stripHeader( $extra['content'] );
 		$content = EchoDiscussionParser::stripSignature( $content );
 		$content = EchoDiscussionParser::stripIndents( $content );
+
 		return EchoDiscussionParser::getTextSnippet( $content, $this->getLanguage(), 200 );
 	}
 
@@ -443,6 +424,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 		if ( $secondaryLink ) {
 			$footer = $this->getLanguage()->pipeList( array( $footer, $secondaryLink ) );
 		}
+
 		return Xml::tags( 'div', array( 'class' => 'mw-echo-notification-footer' ), $footer ) . "\n";
 	}
 
@@ -456,6 +438,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 		$title = $event->getTitle();
 		if ( !$title ) {
 			$message->params( $this->getMessage( 'echo-no-title' )->text() );
+
 			return;
 		}
 
@@ -485,7 +468,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			$title->setFragment( "#$fragment" );
 		}
 
-		if ( in_array( $this->outputFormat, array( 'html', 'flyout', 'htmlemail' ) ) ) {
+		if ( in_array( $this->outputFormat, array( 'htmlemail' ) ) ) {
 			$attribs = array();
 			if ( isset( $props['attribs'] ) ) {
 				$attribs = (array)$props['attribs'];
@@ -505,6 +488,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			return array( Message::rawParam( Linker::link( $title, $linkText, $attribs, $param, $options ) ) );
 		} elseif ( $this->outputFormat === 'email' ) {
 			$url = $title->getFullURL( $param, false, PROTO_HTTPS );
+
 			return $this->sanitizeEmailLink( $url );
 		} else {
 			return $title->getFullURL( $param );
@@ -530,6 +514,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			);
 			$url = substr( $url, 0, -1 ) . $lastChar;
 		}
+
 		return $url;
 	}
 
@@ -713,11 +698,11 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			}
 			if ( is_string( $target ) ) {
 				$attribs['href'] = wfAppendQuery( $target, $query );
+
 				return Html::element( 'a', $attribs, $message );
 			} else {
 				return Linker::link( $target, $message, $attribs, $query, $options );
 			}
-
 		}
 	}
 
@@ -732,8 +717,8 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 	 */
 	protected function getLinkParams( $event, $user, $destination ) {
 		$target = null;
-		$query  = array();
-		$title  = $event->getTitle();
+		$query = array();
+		$title = $event->getTitle();
 		// Set up link parameters based on the destination
 		switch ( $destination ) {
 			case 'agent':
@@ -784,6 +769,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 				}
 				break;
 		}
+
 		return array( $target, $query );
 	}
 
@@ -802,7 +788,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 			// First try cache data from preivous query
 			if ( isset( $this->bundleData['last-raw-data'] ) ) {
 				$data = $this->bundleData['last-raw-data'];
-			// Then try to query the storage
+				// Then try to query the storage
 			} else {
 				$eventMapper = new EchoEventMapper();
 				$data = $eventMapper->fetchByUserBundleHash(
@@ -861,21 +847,12 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 				}
 			}
 		// example: {7} others, {99+} others
-		} elseif ( $param === 'agent-other-display' ) {
-			global $wgEchoMaxNotificationCount;
-
-			if ( $this->bundleData['agent-other-count'] > $wgEchoMaxNotificationCount ) {
-				$message->params(
-					$this->getMessage( 'echo-notification-count' )
-					->numParams( $wgEchoMaxNotificationCount )
-					->text()
-				);
-			} else {
-				$message->numParams( $this->bundleData['agent-other-count'] );
-			}
-		// the number used for plural support
-		} elseif ( $param === 'agent-other-count' ) {
-			$message->params( $this->bundleData['agent-other-count'] );
+		// agent-other-display is no longer needed for new messags, but kept for
+		// backwards compatibility.
+		} elseif ( $param === 'agent-other-count' || $param === 'agent-other-display' ) {
+			$message->numParams(
+				EchoNotificationController::getCappedNotificationCount( $this->bundleData['agent-other-count'] )
+			);
 		} elseif ( $param === 'user' ) {
 			$message->params( $user->getName() );
 		} elseif ( $param === 'title' ) {
@@ -884,7 +861,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 				$message->params( $this->getMessage( 'echo-no-title' )->text() );
 			} else {
 				if ( $this->outputFormat === 'htmlemail' ) {
-					$props = array (
+					$props = array(
 						'attribs' => array( 'style' => $this->getHTMLLinkStyle() )
 					);
 					$this->setTitleLink( $event, $message, $props );
@@ -919,6 +896,7 @@ class EchoBasicFormatter extends EchoNotificationFormatter {
 		if ( !property_exists( $this, $key ) ) {
 			throw new MWException( "Call to non-existing property $key in " . get_class( $this ) );
 		}
+
 		return $this->$key;
 	}
 

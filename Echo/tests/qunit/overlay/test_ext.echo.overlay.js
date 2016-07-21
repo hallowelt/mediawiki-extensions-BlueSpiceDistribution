@@ -1,12 +1,14 @@
 ( function ( $, mw ) {
 	QUnit.module( 'ext.echo.overlay', {
 		setup: function () {
+			var ApiStub;
+
 			this.$badge = $( '<a class="mw-echo-notifications-badge mw-echo-unseen-notifications">1</a>' );
 			this.sandbox.stub( mw.echo, 'getBadge' ).returns( this.$badge );
 			// Kill any existing overlays to avoid clashing with other tests
 			$( '.mw-echo-overlay' ).remove();
 
-			var ApiStub = function ( mode, numberUnreadMessages ) {
+			ApiStub = function ( mode, numberUnreadMessages ) {
 				this.mode = mode;
 				this.numberUnreadMessages = numberUnreadMessages || 7;
 			};
@@ -62,7 +64,7 @@
 						for ( i = 0; i < 7; i++ ) {
 							id = 500 + i;
 							index.push( id );
-							listObj[id] = {
+							listObj[ id ] = {
 								'*': '!',
 								category: 'message',
 								id: id,

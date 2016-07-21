@@ -36,6 +36,25 @@ class MWEchoNotifUser {
 	private $targetPageMapper;
 
 	/**
+	 * @var EchoForeignNotifications
+	 */
+	private $foreignNotifications = null;
+
+	/**
+	 * @var array
+	 */
+	private $cached;
+
+	// The max notification count shown in badge
+
+	// The max number shown in bundled message, eg, <user> and 99+ others <action>.
+	// This is really a totally separate thing, and could be its own constant.
+
+	// WARNING: If you change this, you should also change all references in the
+	// i18n messages (100 and 99) in all repositories using Echo.
+	const MAX_BADGE_COUNT = 99;
+
+	/**
 	 * Usually client code doesn't need to initialize the object directly
 	 * because it could be obtained from factory method newFromUser()
 	 * @param User $user
@@ -68,9 +87,10 @@ class MWEchoNotifUser {
 		if ( $user->isAnon() ) {
 			throw new MWException( 'User must be logged in to view notification!' );
 		}
-		global $wgMemc;
+
 		return new MWEchoNotifUser(
-			$user, $wgMemc,
+			$user,
+			ObjectCache::getMainStashInstance(),
 			new EchoUserNotificationGateway( $user, MWEchoDbFactory::newFromDefault() ),
 			new EchoNotificationMapper(),
 			new EchoTargetPageMapper()
@@ -132,9 +152,7 @@ class MWEchoNotifUser {
 	 * @return bool
 	 */
 	public function notifCountHasReachedMax() {
-		global $wgEchoMaxNotificationCount;
-
-		if ( $this->getNotificationCount() > $wgEchoMaxNotificationCount ) {
+		if ( $this->getLocalNotificationCount() >= self::MAX_BADGE_COUNT ) {
 			return true;
 		} else {
 			return false;
@@ -163,75 +181,40 @@ class MWEchoNotifUser {
 		return $this->getNotificationCount( $cached, $dbSource, EchoAttributeManager::ALERT );
 	}
 
-	/**
-	 * Get the memcache key for 'has ever had messages' value
-	 * @return string
-	 */
-	private function getHasMessagesKey() {
-		global $wgEchoConfig;
-		return wfMemcKey( 'echo', 'user', 'had', 'messages', $this->mUser->getId(), $wgEchoConfig['version'] );
-	}
-
-	/**
-	 * Check whether the user has ever had messages.
-	 *
-	 * @param boolean $cached Set to false to bypass the cache. (Optional. Defaults to true)
-	 * @return boolean User has received messages
-	 */
-	public function hasMessages( $cached = true ) {
-		global $wgEchoConfig;
-		$section = EchoAttributeManager::MESSAGE;
-
-		$memcKey = $this->getHasMessagesKey();
-		if ( $cached ) {
-			$data = $this->cache->get( $memcKey );
-			if ( $data !== false && $data !== null ) {
-				return (bool)$data;
-			}
-		}
-		$attributeManager = EchoAttributeManager::newFromGlobalVars();
-		$eventTypesToLoad = $attributeManager->getUserEnabledEventsbySections( $this->mUser, 'web', array( $section ) );
-
-		$count = count( $this->notifMapper->fetchByUser( $this->mUser, 1, 0, $eventTypesToLoad ) );
-
-		$result = (int)( $count > 0 );
-		$this->cache->set( $memcKey, $result, 86400 );
-
-		return (bool)$result;
-	}
-
-	/**
-	 * Cache the fact that the user has messages.
-	 * This is used after the user receives a message, making the system skip the actual test
-	 * of whether they have messages against the database at all.
-	 */
-	public function cacheHasMessages() {
-		$this->cache->set( $this->getHasMessagesKey(), 1, 86400 );
+	public function getLocalNotificationCount( $cached = true, $dbSource = DB_SLAVE, $section = EchoAttributeManager::ALL ) {
+		return $this->getNotificationCount( $cached, $dbSource, $section, false );
 	}
 
 	/**
 	 * Retrieves number of unread notifications that a user has, would return
-	 * $wgEchoMaxNotificationCount + 1 at most
+	 * MWEchoNotifUser::MAX_BADGE_COUNT + 1 at most.
+	 *
+	 * If $wgEchoCrossWikiNotifications is disabled, the $global parameter is ignored.
 	 *
 	 * @param boolean $cached Set to false to bypass the cache. (Optional. Defaults to true)
 	 * @param int $dbSource Use master or slave database to pull count (Optional. Defaults to DB_SLAVE)
 	 * @param string $section Notification section
+	 * @param bool|string $global Whether to include foreign notifications. If set to 'preference', uses the user's preference.
 	 * @return int
 	 */
-	public function getNotificationCount( $cached = true, $dbSource = DB_SLAVE, $section = EchoAttributeManager::ALL ) {
-		global $wgEchoConfig;
-
+	public function getNotificationCount( $cached = true, $dbSource = DB_SLAVE, $section = EchoAttributeManager::ALL, $global = 'preference' ) {
 		if ( $this->mUser->isAnon() ) {
 			return 0;
 		}
 
-		$memcKey = wfMemcKey(
-			'echo-notification-count' . ( $section === EchoAttributeManager::ALL ? '' : ( '-' . $section ) ),
-			$this->mUser->getId(),
-			$wgEchoConfig['version']
-		);
+		global $wgEchoCrossWikiNotifications;
+		if ( !$wgEchoCrossWikiNotifications ) {
+			// Ignore the $global parameter
+			$global = false;
+		}
+
+		if ( $global === 'preference' ) {
+			$global = $this->getForeignNotifications()->isEnabledByUser();
+		}
+
+		$memcKey = $this->getMemcKey( 'echo-notification-count' . ( $section === EchoAttributeManager::ALL ? '' : ( '-' . $section ) ), $global );
 		if ( $cached ) {
-			$data = $this->cache->get( $memcKey );
+			$data = $this->getFromCache( $memcKey );
 			if ( $data !== false && $data !== null ) {
 				return (int)$data;
 			}
@@ -244,10 +227,14 @@ class MWEchoNotifUser {
 			$eventTypesToLoad = $attributeManager->getUserEnabledEventsbySections( $this->mUser, 'web', array( $section ) );
 		}
 
-		$count = $this->userNotifGateway->getNotificationCount( $dbSource, $eventTypesToLoad );
-		$this->cache->set( $memcKey, $count, 86400 );
+		$count = (int) $this->userNotifGateway->getCappedNotificationCount( $dbSource, $eventTypesToLoad, MWEchoNotifUser::MAX_BADGE_COUNT + 1 );
 
-		return (int)$count;
+		if ( $global ) {
+			$count += $this->getForeignNotifications()->getCount( $section );
+		}
+
+		$this->setInCache( $memcKey, $count, 86400 );
+		return $count;
 	}
 
 	/**
@@ -255,7 +242,7 @@ class MWEchoNotifUser {
 	 *
 	 * @param boolean $cached Set to false to bypass the cache. (Optional. Defaults to true)
 	 * @param int $dbSource Use master or slave database to pull count (Optional. Defaults to DB_SLAVE)
-	 * @return int
+	 * @return bool|MWTimestamp
 	 */
 	public function getLastUnreadAlertTime( $cached = true, $dbSource = DB_SLAVE ) {
 		return $this->getLastUnreadNotificationTime( $cached, $dbSource, EchoAttributeManager::ALERT );
@@ -266,7 +253,7 @@ class MWEchoNotifUser {
 	 *
 	 * @param boolean $cached Set to false to bypass the cache. (Optional. Defaults to true)
 	 * @param int $dbSource Use master or slave database to pull count (Optional. Defaults to DB_SLAVE)
-	 * @return int
+	 * @return bool|MWTimestamp
 	 */
 	public function getLastUnreadMessageTime( $cached = true, $dbSource = DB_SLAVE ) {
 		return $this->getLastUnreadNotificationTime( $cached, $dbSource, EchoAttributeManager::MESSAGE );
@@ -275,50 +262,82 @@ class MWEchoNotifUser {
 	/**
 	 * Returns the timestamp of the last unread notification.
 	 *
+	 * If $wgEchoCrossWikiNotifications is disabled, the $global parameter is ignored.
+	 *
 	 * @param boolean $cached Set to false to bypass the cache. (Optional. Defaults to true)
 	 * @param int $dbSource Use master or slave database to pull count (Optional. Defaults to DB_SLAVE)
 	 * @param string $section Notification section
+	 * @param bool|string $global Whether to include foreign notifications. If set to 'preference', uses the user's preference.
 	 * @return bool|MWTimestamp Timestamp of last notification, or false if there is none
 	 */
-	public function getLastUnreadNotificationTime( $cached = true, $dbSource = DB_SLAVE, $section = EchoAttributeManager::ALL ) {
-		global $wgEchoConfig;
-
+	public function getLastUnreadNotificationTime( $cached = true, $dbSource = DB_SLAVE, $section = EchoAttributeManager::ALL, $global = 'preference' ) {
 		if ( $this->mUser->isAnon() ) {
 			return false;
 		}
 
-		$memcKey = wfMemcKey(
-			'echo-notification-timestamp' . ( $section === EchoAttributeManager::ALL ? '' : ( '-' . $section ) ),
-			$this->mUser->getId(),
-			$wgEchoConfig['version']
-		);
+		global $wgEchoCrossWikiNotifications;
+		if ( !$wgEchoCrossWikiNotifications ) {
+			// Ignore the $global parameter
+			$global = false;
+		}
+
+		if ( $global === 'preference' ) {
+			$global = $this->getForeignNotifications()->isEnabledByUser();
+		}
+
+		$memcKey = $this->getMemcKey( 'echo-notification-timestamp' . ( $section === EchoAttributeManager::ALL ? '' : ( '-' . $section ) ), $global );
 
 		// read from cache, if allowed
 		if ( $cached ) {
-			$timestamp = $this->cache->get( $memcKey );
-			if ( $timestamp !== false ) {
+			$timestamp = $this->getFromCache( $memcKey );
+			if ( $timestamp === -1 ) {
+				// -1 means the user has no notifications
+				return false;
+			} elseif ( $timestamp !== false ) {
 				return new MWTimestamp( $timestamp );
 			}
+			// else cache miss
 		}
 
+		$timestamp = false;
+
+		// Get timestamp of most recent local notification, if there is one
 		$attributeManager = EchoAttributeManager::newFromGlobalVars();
 		if ( $section === EchoAttributeManager::ALL ) {
 			$eventTypesToLoad = $attributeManager->getUserEnabledEvents( $this->mUser, 'web' );
 		} else {
 			$eventTypesToLoad = $attributeManager->getUserEnabledEventsbySections( $this->mUser, 'web', array( $section ) );
 		}
-
-		$notifications = $this->notifMapper->fetchUnreadByUser( $this->mUser, 1, $eventTypesToLoad, $dbSource );
+		$notifications = $this->notifMapper->fetchUnreadByUser( $this->mUser, 1, null, $eventTypesToLoad, $dbSource );
 		if ( $notifications ) {
 			$notification = reset( $notifications );
-			$timestamp = $notification->getTimestamp();
-
-			// store to cache & return
-			$this->cache->set($memcKey, $timestamp, 86400);
-			return new MWTimestamp( $timestamp );
+			$timestamp = new MWTimestamp( $notification->getTimestamp() );
 		}
 
-		return false;
+		// Use timestamp of most recent foreign notification, if it's more recent
+		if ( $global ) {
+			$foreignTime = $this->getForeignNotifications()->getTimestamp( $section );
+			if (
+				$foreignTime !== false &&
+				// $foreignTime < $timestamp = invert 0
+				// $foreignTime > $timestamp = invert 1
+				( $timestamp === false || $foreignTime->diff( $timestamp )->invert === 1 )
+			) {
+				$timestamp = $foreignTime;
+			}
+		}
+
+		if ( $timestamp === false ) {
+			// No notifications, so no timestamp
+			$returnValue = false;
+			$cacheValue = -1;
+		} else {
+			$returnValue = $timestamp;
+			$cacheValue = $timestamp->getTimestamp( TS_MW );
+		}
+
+		$this->setInCache( $memcKey, $cacheValue, 86400 );
+		return $returnValue;
 	}
 
 	/**
@@ -342,12 +361,42 @@ class MWEchoNotifUser {
 			// After this 'mark read', is there any unread edit-user-talk
 			// remaining?  If not, we should clear the newtalk flag.
 			if ( $this->mUser->getNewtalk() ) {
-				$unreadEditUserTalk = $this->notifMapper->fetchUnreadByUser( $this->mUser, 1, array( 'edit-user-talk' ), DB_MASTER );
+				$unreadEditUserTalk = $this->notifMapper->fetchUnreadByUser( $this->mUser, 1, null, array( 'edit-user-talk' ), DB_MASTER );
 				if ( count( $unreadEditUserTalk ) === 0 ) {
 					$this->mUser->setNewtalk( false );
 				}
 			}
 		}
+
+		return $res;
+	}
+
+	/**
+	 * Mark one or more notifications unread for a user.
+	 * @param $eventIds Array of event IDs to mark unread
+	 * @return boolean
+	 */
+	public function markUnRead( $eventIds ) {
+		$eventIds = array_filter( (array)$eventIds, 'is_numeric' );
+		if ( !$eventIds || wfReadOnly() ) {
+			return false;
+		}
+
+		$res = $this->userNotifGateway->markUnRead( $eventIds );
+		if ( $res ) {
+			// Update notification count in cache
+			$this->resetNotificationCount( DB_MASTER );
+
+			// After this 'mark unread', is there any unread edit-user-talk?
+			// If so, we should add the edit-user-talk flag
+			if ( !$this->mUser->getNewtalk() ) {
+				$unreadEditUserTalk = $this->notifMapper->fetchUnreadByUser( $this->mUser, 1, null, array( 'edit-user-talk' ), DB_MASTER );
+				if ( count( $unreadEditUserTalk ) > 0 ) {
+					$this->mUser->setNewtalk( true );
+				}
+			}
+		}
+
 		return $res;
 	}
 
@@ -376,10 +425,10 @@ class MWEchoNotifUser {
 		$attributeManager = EchoAttributeManager::newFromGlobalVars();
 		$eventTypes = $attributeManager->getUserEnabledEventsbySections( $this->mUser, 'web', $sections );
 
-		$notifs = $this->notifMapper->fetchUnreadByUser( $this->mUser, $wgEchoMaxUpdateCount, $eventTypes );
+		$notifs = $this->notifMapper->fetchUnreadByUser( $this->mUser, $wgEchoMaxUpdateCount, null, $eventTypes );
 
 		$eventIds = array_filter(
-			array_map( function( EchoNotification $notif ) {
+			array_map( function ( EchoNotification $notif ) {
 				// This should not happen at all, but use 0 in
 				// such case so to keep the code running
 				if ( $notif->getEvent() ) {
@@ -398,6 +447,7 @@ class MWEchoNotifUser {
 				$this->flagCacheWithNoTalkNotification();
 			}
 		}
+
 		return $res;
 	}
 
@@ -406,29 +456,65 @@ class MWEchoNotifUser {
 	 * @param $dbSource int use master or slave database to pull count
 	 */
 	public function resetNotificationCount( $dbSource = DB_SLAVE ) {
-		// Reset notification count for all sections as well
-		$this->getNotificationCount( false, $dbSource, EchoAttributeManager::ALL );
-		$this->getNotificationCount( false, $dbSource, EchoAttributeManager::ALERT );
-		$this->getNotificationCount( false, $dbSource, EchoAttributeManager::MESSAGE );
-		// when notification count needs to be updated, last notification may have
-		// changed too, so we need to invalidate that cache too
-		$this->getLastUnreadNotificationTime( false, $dbSource, EchoAttributeManager::ALL );
-		$this->getLastUnreadNotificationTime( false, $dbSource, EchoAttributeManager::ALERT );
-		$this->getLastUnreadNotificationTime( false, $dbSource, EchoAttributeManager::MESSAGE );
-		$this->mUser->invalidateCache();
-	}
+		global $wgEchoCrossWikiNotifications;
+		// Reset alert and message counts, and store them for later
+		$alertCount = $this->getNotificationCount( false, $dbSource, EchoAttributeManager::ALERT, false );
+		$msgCount = $this->getNotificationCount( false, $dbSource, EchoAttributeManager::MESSAGE, false );
+		// For performance, compute the ALL count by adding alerts and messages
+		$allCount = $alertCount + $msgCount;
 
-	/**
-	 * Retrieves formatted number of unread notifications that a user has.
-	 * @param boolean $cached Set to false to bypass the cache. (Optional. Defaults to true)
-	 * @param int $dbSource Use master or slave database to pull count (Optional. Defaults to DB_SLAVE)
-	 * @param string $section
-	 * @return string
-	 */
-	public function getFormattedNotificationCount( $cached = true, $dbSource = DB_SLAVE, $section = EchoAttributeManager::ALL ) {
-		return EchoNotificationController::formatNotificationCount(
-			$this->getNotificationCount( $cached, $dbSource, $section )
-		);
+		// When notification counts need to be updated, the last notification may have changed,
+		// so we also need to recompute the cached timestamp values.
+		$alertUnread = $this->getLastUnreadNotificationTime( false, $dbSource, EchoAttributeManager::ALERT, false );
+		$msgUnread = $this->getLastUnreadNotificationTime( false, $dbSource, EchoAttributeManager::MESSAGE, false );
+		// For performance, compute the ALL count as the highest of these two
+		$allUnread = $alertUnread !== false &&
+			( $msgUnread === false || $alertUnread->diff( $msgUnread )->invert === 1 ) ?
+			$alertUnread : $msgUnread;
+
+		// Write computed values to cache
+		$this->setInCache( $this->getMemcKey( 'echo-notification-count' ), $allCount, 86400 );
+		$this->setInCache( $this->getMemcKey( 'echo-notification-timestamp' ), $allUnread === false ? -1 : $allUnread->getTimestamp( TS_MW ), 86400 );
+
+		if ( $wgEchoCrossWikiNotifications ) {
+			// For performance, compute the global counts by adding foreign counts to the above
+			$globalAlertCount = $alertCount + $this->getForeignNotifications()->getCount( EchoAttributeManager::ALERT );
+			$globalMsgCount = $msgCount + $this->getForeignNotifications()->getCount( EchoAttributeManager::MESSAGE );
+			$globalAllCount = $globalAlertCount + $globalMsgCount;
+
+			// For performance, compute the global timestamps as max( localTimestamp, foreignTimestamp )
+			$foreignAlertUnread = $this->getForeignNotifications()->getTimestamp( EchoAttributeManager::ALERT );
+			$globalAlertUnread = $alertUnread !== false &&
+				( $foreignAlertUnread === false || $alertUnread->diff( $foreignAlertUnread )->invert === 1 ) ?
+				$alertUnread : $foreignAlertUnread;
+			$foreignMsgUnread = $this->getForeignNotifications()->getTimestamp( EchoAttributeManager::MESSAGE );
+			$globalMsgUnread = $msgUnread !== false &&
+				( $foreignMsgUnread === false || $msgUnread->diff( $foreignMsgUnread )->invert === 1 ) ?
+				$msgUnread : $foreignMsgUnread;
+			$globalAllUnread = $globalAlertUnread !== false &&
+				( $globalMsgUnread === false || $globalAlertUnread->diff( $globalMsgUnread )->invert === 1 ) ?
+				$globalAlertUnread : $globalMsgUnread;
+
+			// Write computed values to cache
+			$this->setInCache( $this->getGlobalMemcKey( 'echo-notification-count-alert' ), $globalAlertCount, 86400 );
+			$this->setInCache( $this->getGlobalMemcKey( 'echo-notification-count-message' ), $globalMsgCount, 86400 );
+			$this->setInCache( $this->getGlobalMemcKey( 'echo-notification-count' ), $globalAllCount, 86400 );
+			$this->setInCache( $this->getGlobalMemcKey( 'echo-notification-timestamp-alert' ), $globalAlertUnread === false ? -1 : $globalAlertUnread->getTimestamp( TS_MW ), 86400 );
+			$this->setInCache( $this->getGlobalMemcKey( 'echo-notification-timestamp-message' ), $globalMsgUnread === false ? -1 : $globalMsgUnread->getTimestamp( TS_MW ), 86400 );
+			$this->setInCache( $this->getGlobalMemcKey( 'echo-notification-timestamp' ), $globalAllUnread === false ? -1 : $globalAllUnread->getTimestamp( TS_MW ), 86400 );
+
+			// Schedule an update to the echo_unread_wikis table
+			$user = $this->mUser;
+			DeferredUpdates::addCallableUpdate( function () use ( $user, $alertCount, $alertUnread, $msgCount, $msgUnread ) {
+				$uw = EchoUnreadWikis::newFromUser( $user );
+				if ( $uw ) {
+					$uw->updateCount( wfWikiID(), $alertCount, $alertUnread, $msgCount, $msgUnread );
+				}
+			} );
+		}
+
+		// Invalidate the user's cache
+		$this->mUser->invalidateCache();
 	}
 
 	/**
@@ -445,4 +531,109 @@ class MWEchoNotifUser {
 		}
 	}
 
+	/**
+	 * Get a cache entry from the cache, using a preloaded instance cache.
+	 * @param  string|false $memcKey Cache key returned by getMemcKey()
+	 * @return mixed Cache value
+	 */
+	protected function getFromCache( $memcKey ) {
+		// getMemcKey() can return false
+		if ( $memcKey === false ) {
+			return false;
+		}
+
+		// Populate the instance cache
+		if ( $this->cached === null ) {
+			$keys = $this->preloadKeys();
+			$this->cached = $this->cache->getMulti( $keys );
+			// also keep track of cache values that couldn't be found (getMulti
+			// omits them...)
+			$this->cached += array_fill_keys( $keys, false );
+		}
+
+		if ( isset( $this->cached[$memcKey] ) ) {
+			return $this->cached[$memcKey];
+		}
+
+		return $this->cache->get( $memcKey );
+	}
+
+	/**
+	 * Set a cache entry both in the cache and in the instance cache.
+	 * Use this to write to keys that were loaded with getFromCache().
+	 * @param string|false $memcKey Cache key returned by getMemcKey()
+	 * @param mixed $value Cache value to set
+	 * @param int $expiry Expiry, see BagOStuff::set()
+	 */
+	protected function setInCache( $memcKey, $value, $expiry ) {
+		// getMemcKey() can return false
+		if ( $memcKey === false ) {
+			return;
+		}
+
+		// Update the instance cache if it's already been populated
+		if ( $this->cached !== null ) {
+			$this->cached[$memcKey] = $value;
+		}
+
+		$this->cache->set( $memcKey, $value, $expiry );
+	}
+
+	/**
+	 * Array of memcached keys to load at once.
+	 *
+	 * @return array
+	 */
+	protected function preloadKeys() {
+		$keys = array(
+			'echo-notification-timestamp',
+			'echo-notification-timestamp-' . EchoAttributeManager::MESSAGE,
+			'echo-notification-timestamp-' . EchoAttributeManager::ALERT,
+			'echo-notification-count',
+			'echo-notification-count-' . EchoAttributeManager::MESSAGE,
+			'echo-notification-count-' . EchoAttributeManager::ALERT,
+		);
+
+		return array_merge(
+			array_map( array( $this, 'getMemcKey' ), $keys ),
+			array_map( array( $this, 'getGlobalMemcKey' ), $keys )
+		);
+	}
+
+	/**
+	 * Build a memcached key.
+	 * @param string $key Key, typically prefixed with echo-notification-
+	 * @param bool $global If true, return a global memc key; if false, return one local to this wiki
+	 * @return string|false Memcached key, or false if one could not be generated
+	 */
+	protected function getMemcKey( $key, $global = false ) {
+		global $wgEchoConfig;
+		if ( !$global ) {
+			return wfMemcKey( $key, $this->mUser->getId(), $wgEchoConfig['version'] );
+		}
+
+		$lookup = CentralIdLookup::factory();
+		$globalId = $lookup->centralIdFromLocalUser( $this->mUser, CentralIdLookup::AUDIENCE_RAW );
+		if ( !$globalId ) {
+			return false;
+		}
+		return wfGlobalCacheKey( $key, $globalId, $wgEchoConfig['version'] );
+
+	}
+
+	protected function getGlobalMemcKey( $key ) {
+		return $this->getMemcKey( $key, true );
+	}
+
+	/**
+	 * Lazy-construct an EchoForeignNotifications instance. This instance is force-enabled, so it
+	 * returns information about cross-wiki notifications even if the user has them disabled.
+	 * @return EchoForeignNotifications
+	 */
+	protected function getForeignNotifications() {
+		if ( !$this->foreignNotifications ) {
+			$this->foreignNotifications = new EchoForeignNotifications( $this->mUser, true );
+		}
+		return $this->foreignNotifications;
+	}
 }

@@ -132,12 +132,9 @@ class EchoDiscussionParserTest extends MediaWikiTestCase {
 			$this->setMwGlobals( array( 'wgDiff' => false ) );
 		}
 
-		// we only need to add these users once, we won't (can't) tear them down anyway
-		static $executed = false;
-		if ( $executed === true ) {
-			return;
-		}
-
+		// users need to be added for each test, resetDB() removes them
+		// TODO: Only add users needed for each test, instead of adding them
+		// all for every one.
 		foreach ( $this->testUsers as $username => $preferences ) {
 			$user = User::createNew( $username );
 
@@ -149,8 +146,6 @@ class EchoDiscussionParserTest extends MediaWikiTestCase {
 				$user->saveSettings();
 			}
 		}
-
-		$executed = true;
 	}
 
 	protected function tearDown() {
@@ -309,6 +304,7 @@ class EchoDiscussionParserTest extends MediaWikiTestCase {
 			$result = $this->$precondition();
 			if ( $result !== true ) {
 				$this->markTestSkipped( $result );
+
 				return;
 			}
 		}
@@ -373,7 +369,7 @@ class EchoDiscussionParserTest extends MediaWikiTestCase {
 		// to catch the generated event, I'm going to attach a callback to the
 		// hook that's being run just prior to sending the notifications out
 		$events = array();
-		$callback = function( EchoEvent $event ) use ( &$events ) {
+		$callback = function ( EchoEvent $event ) use ( &$events ) {
 			$events[] = array(
 				'type' => $event->getType(),
 				'agent' => $event->getAgent()->getName(),
@@ -414,7 +410,7 @@ line 2
 line 3
 line 4
 TEXT
-				,
+,
 				<<<TEXT
 line 1
 line c
@@ -440,7 +436,7 @@ TEXT
 	}
 
 	public function testGetTimestampPosition() {
-		$line = 'Hello World. '. self::getExemplarTimestamp();
+		$line = 'Hello World. ' . self::getExemplarTimestamp();
 		$pos = EchoDiscussionParser::getTimestampPosition( $line );
 		$this->assertEquals( 13, $pos );
 	}
@@ -452,6 +448,7 @@ TEXT
 	public function testSigningDetection( $line, $expectedUser ) {
 		if ( !EchoDiscussionParser::isSignedComment( $line ) ) {
 			$this->assertEquals( $expectedUser, false );
+
 			return;
 		}
 
@@ -470,6 +467,7 @@ TEXT
 
 	public function signingDetectionData() {
 		$ts = self::getExemplarTimestamp();
+
 		return array(
 			// Basic
 			array(
@@ -505,7 +503,7 @@ TEXT
 			),
 			// No signature
 			array(
-				"Well, \nI do think that [[User:Newyorkbrad]] is pretty cool, but what do I know?", 
+				"Well, \nI do think that [[User:Newyorkbrad]] is pretty cool, but what do I know?",
 				false
 			),
 			// Hash symbols in usernames
@@ -581,12 +579,12 @@ line 2
 line 3
 line 4
 TEXT
-				,<<<TEXT
+			, <<<TEXT
 line 1
 line 3
 line 4
 TEXT
-				,
+			,
 				array( array(
 					'action' => 'subtract',
 					'content' => 'line 2',
@@ -601,14 +599,14 @@ line 2
 line 3
 line 4
 TEXT
-				,<<<TEXT
+			, <<<TEXT
 line 1
 line 2
 line 2.5
 line 3
 line 4
 TEXT
-				,
+			,
 				array( array(
 					'action' => 'add',
 					'content' => 'line 2.5',
@@ -623,13 +621,13 @@ line 2
 line 3
 line 4
 TEXT
-				,<<<TEXT
+			, <<<TEXT
 line 1
 line b
 line 3
 line 4
 TEXT
-				,
+			,
 				array( array(
 					'action' => 'change',
 					'old_content' => 'line 2',
@@ -645,7 +643,7 @@ line 2
 line 3
 line 4
 TEXT
-				,<<<TEXT
+			, <<<TEXT
 line 1
 line b
 line c
@@ -653,7 +651,7 @@ line d
 line 3
 line 4
 TEXT
-				,
+			,
 				array(
 					array(
 						'action' => 'change',
@@ -778,7 +776,7 @@ TEXT
 == Section 1a ==
 Hmmm? [[User:Jdforrester|Jdforrester]] ([[User talk:Jdforrester|talk]]) $ts
 TEXT
-						,
+					,
 						'left-pos' => 4,
 						'right-pos' => 4,
 					),
@@ -811,7 +809,7 @@ TEXT
 == Section 1a ==
 Hmmm? [[User:Jdforrester|Jdforrester]] ([[User talk:Jdforrester|talk]]) $ts
 TEXT
-						,
+					,
 					),
 				),
 			),
@@ -828,7 +826,7 @@ Well well well. [[User:DarTar|DarTar]] ([[User talk:DarTar|talk]]) $ts
 == Section 3 ==
 Hai [[User:Bsitu|Bsitu]] ([[User talk:Bsitu|talk]]) $ts
 TEXT
-					,
+,
 					<<<TEXT
 == Section 1 ==
 I do not like you. [[User:Jorm|Jorm]] ([[User talk:Jorm|talk]]) $ts
@@ -875,7 +873,7 @@ TEXT
 
 ''The Boston Post'' source that was used in the reception section has a couple of problems. First, it's actually a repost of ''The Washington Post'', but ''The Washington Post'' doesn't allow the Internet Archive to preserve it. Should it still be sourced to Boston or to Washington? Second, it seems to be a lot of analysis that can't be summed up easily without trimming it out, and doesn't really fit with the reception section and should probably moved next to Wilson's testimony. Any suggestions? --[[User:RAN1|RAN1]] ([[User talk:RAN1|talk]]) 01:44, 11 December 2014 (UTC)
 TEXT
-					,
+,
 					<<<TEXT
 == Washington Post Reception Source ==
 
@@ -917,7 +915,7 @@ TEXT
 		return $exemplarTimestamp;
 	}
 
-	static public function provider_detectSectionTitleAndText() {
+	public static function provider_detectSectionTitleAndText() {
 		$name = 'Werdna'; // See EchoDiscussionParserTest::$testusers
 		$comment = self::signedMessage( $name );
 
@@ -1043,7 +1041,7 @@ $comment
 		return 'foo';
 	}
 
-	static public function provider_getFullSection() {
+	public static function provider_getFullSection() {
 		$tests = array(
 			array(
 				'Extracts full section',
@@ -1056,7 +1054,7 @@ bar
 ==Header 3==
 baz
 TEXT
-				,
+			,
 				// Map of Line numbers to expanded section content
 				array(
 					1 => "==Header 1==\nfoo",

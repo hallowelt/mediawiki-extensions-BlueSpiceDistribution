@@ -23,4 +23,5 @@
 	OO.initClass( mw.echo.dm.NotificationList );
 	OO.mixinClass( mw.echo.dm.NotificationList, OO.EventEmitter );
 	OO.mixinClass( mw.echo.dm.NotificationList, mw.echo.dm.List );
+
 } )( mediaWiki );

@@ -64,7 +64,8 @@ abstract class EchoDiscussionParser {
 							'revid' => $revision->getID(),
 							'minoredit' => $revision->isMinor(),
 							'section-title' => $section['section-title'],
-							'section-text' => $section['section-text']
+							'section-text' => $section['section-text'],
+							'target-page' => $title->getArticleID(),
 						),
 						'agent' => $user,
 					) );
@@ -85,21 +86,23 @@ abstract class EchoDiscussionParser {
 		$header = $snippet = '';
 		$found = false;
 
+		StubObject::unstub( $wgLang );
+
 		foreach ( $interpretation as $action ) {
-			switch( $action['type'] ) {
+			switch ( $action['type'] ) {
 				case 'add-comment':
-					$header  = self::extractHeader( $action['full-section'] );
+					$header = self::extractHeader( $action['full-section'] );
 					$snippet = self::getTextSnippet(
-							self::stripSignature( self::stripHeader( $action['content'] ), $title ),
-							$wgLang,
-							150 );
+						self::stripSignature( self::stripHeader( $action['content'] ), $title ),
+						$wgLang,
+						150 );
 					break;
 				case 'new-section-with-comment':
-					$header  = self::extractHeader( $action['content'] );
+					$header = self::extractHeader( $action['content'] );
 					$snippet = self::getTextSnippet(
-							self::stripSignature( self::stripHeader( $action['content'] ), $title ),
-							$wgLang,
-							150 );
+						self::stripSignature( self::stripHeader( $action['content'] ), $title ),
+						$wgLang,
+						150 );
 					break;
 			}
 			if ( $header ) {
@@ -115,6 +118,7 @@ abstract class EchoDiscussionParser {
 		if ( $found === false ) {
 			return array( 'section-title' => '', 'section-text' => '' );
 		}
+
 		return array( 'section-title' => $header, 'section-text' => $snippet );
 	}
 
@@ -237,6 +241,7 @@ abstract class EchoDiscussionParser {
 		$output = self::interpretDiff( $changes, $user->getName(), $revision->getTitle() );
 
 		self::$revisionInterpretationCache[$revision->getID()] = $output;
+
 		return $output;
 	}
 
@@ -436,12 +441,14 @@ abstract class EchoDiscussionParser {
 		$output = self::getUserFromLine( $text, $title );
 		if ( $output === false ) {
 			$timestampPos = self::getTimestampPosition( $text );
+
 			return substr( $text, 0, $timestampPos );
 		}
 
 		// Use truncate() instead of truncateHTML() because truncateHTML()
 		// would not strip signature if the text contains < or &
 		global $wgContLang;
+
 		return $wgContLang->truncate( $text, $output[0], '' );
 	}
 
@@ -544,6 +551,7 @@ abstract class EchoDiscussionParser {
 		if ( !isset( self::$diffParser ) ) {
 			self::$diffParser = new EchoDiffParser;
 		}
+
 		return self::$diffParser->getChangeSet( $oldText, $newText );
 	}
 
@@ -590,7 +598,7 @@ abstract class EchoDiscussionParser {
 	 *  and contribution pages
 	 * @return array Array of users; empty array for none detected
 	 */
-	static public function extractUsersFromLine( $line ) {
+	public static function extractUsersFromLine( $line ) {
 		/*
 		 * Signatures can look like anything (as defined by i18n messages
 		 * "signature" & "signature-anon").
@@ -643,7 +651,7 @@ abstract class EchoDiscussionParser {
 	 * - First element is the position of the signature.
 	 * - Second element is the normalised user name.
 	 */
-	static public function getUserFromLine( $line, Title $title = null ) {
+	public static function getUserFromLine( $line, Title $title = null ) {
 		global $wgParser;
 
 		/*
@@ -666,7 +674,6 @@ abstract class EchoDiscussionParser {
 			if ( $pos !== false ) {
 				return array( $pos, $username );
 			}
-
 			// couldn't find sig, move on to next link excerpt and try there
 		}
 
@@ -819,49 +826,32 @@ abstract class EchoDiscussionParser {
 	}
 
 	/**
-	 * This function returns plain text snippet, it also removes html tag,
-	 * template from text content
+	 * Parse wikitext into truncated plain text.
 	 * @param $text string
 	 * @param Language $lang
 	 * @param $length int default 150
 	 * @return string
 	 */
 	static function getTextSnippet( $text, Language $lang, $length = 150 ) {
-		$text = strip_tags( $text );
-		$attempt = 0;
+		// Parse wikitext
+		$html = MessageCache::singleton()->parse( $text )->getText();
+		// Remove HTML tags and decode HTML entities
+		$plaintext = trim( html_entity_decode( strip_tags( $html ), ENT_QUOTES ) );
+		return $lang->truncate( $plaintext, $length );
+	}
 
-		// 10 attempts at most, the logic here is to find the first }} and
-		// find the matching {{ for that }}
-		while ( $attempt < 10 ) {
-			$closeCurPos = strpos( $text, '}}' );
-
-			if ( $closeCurPos === false ) {
-				break;
-			}
-			$tempStr = substr( $text, 0, $closeCurPos + 2 );
-
-			$openCurPos = strrpos( $tempStr,  '{{' );
-			if ( $openCurPos === false ) {
-				$text = substr_replace( $text, '', $closeCurPos, 2 );
-			} else {
-				$text = substr_replace( $text, '', $openCurPos, $closeCurPos - $openCurPos + 2 );
-			}
-			$attempt++;
-		}
-
-		// See Parser::parse() function, &#160; is replaced specifically, replace it back here
-		// with a space as this html entity won't be handled by htmlspecialchars_decode()
-		$text = str_replace( '&#160;', ' ', MessageCache::singleton()->parse( $text )->getText() );
-		$text = trim( strip_tags( htmlspecialchars_decode( $text ) ) );
-		// strip out non-useful data for snippet
-		$text = str_replace( array( '{', '}' ), '', $text );
-		$text = $lang->truncate( $text, $length );
-
-		// Return empty string if there is undecoded char left
-		if ( strpos( $text, '&#' ) !== false ) {
-			$text = '';
-		}
-
-		return $text;
+	/**
+	 * Parse an edit summary into truncated plain text.
+	 * @param $text string
+	 * @param Language $lang
+	 * @param $length int default 150
+	 * @return string
+	 */
+	static function getTextSnippetFromSummary( $text, Language $lang, $length = 150 ) {
+		// Parse wikitext with summary parser
+		$html = Linker::formatLinksInComment( Sanitizer::escapeHtmlAllowEntities( $text ) );
+		// Remove HTML tags and decode HTML entities
+		$plaintext = trim( html_entity_decode( strip_tags( $html ), ENT_QUOTES ) );
+		return $lang->truncate( $plaintext, $length );
 	}
 }

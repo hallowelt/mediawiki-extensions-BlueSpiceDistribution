@@ -20,15 +20,8 @@ class SpecialNotifications extends SpecialPage {
 
 		$user = $this->getUser();
 		if ( $user->isAnon() ) {
-			// return to this title upon login
-			$returnTo = array( 'returnto' => $this->getPageTitle()->getPrefixedDBkey() );
-			// the html message for anon users
-			$anonMsgHtml = $this->msg(
-				'echo-anon',
-				SpecialPage::getTitleFor( 'Userlogin', 'signup' )->getFullURL( $returnTo ),
-				SpecialPage::getTitleFor( 'Userlogin' )->getFullURL( $returnTo )
-			)->parse();
-			$out->addHTML( Html::rawElement( 'span', array( 'class' => 'plainlinks' ), $anonMsgHtml ) );
+			// Redirect to login page and inform user of the need to login
+			$this->requireLogin( 'echo-notification-loginrequired' );
 			return;
 		}
 
@@ -49,18 +42,23 @@ class SpecialNotifications extends SpecialPage {
 			$continue,
 			$attributeManager->getUserEnabledEvents( $user, 'web' )
 		);
-		foreach ( $notifications as $notification ) {
-			$notif[] = EchoDataOutputFormatter::formatOutput( $notification, 'html', $user );
-		}
 
 		// If there are no notifications, display a message saying so
-		if ( !$notif ) {
+		if ( !$notifications ) {
 			$out->addWikiMsg( 'echo-none' );
+
 			return;
 		}
 
+		foreach ( $notifications as $notification ) {
+			$output = EchoDataOutputFormatter::formatOutput( $notification, 'special', $user, $this->getLanguage() );
+			if ( $output ) {
+				$notif[] = $output;
+			}
+		}
+
 		// Check if there is more data to load for next request
-		if ( count( $notif ) > self::DISPLAY_NUM ) {
+		if ( count( $notifications ) > self::DISPLAY_NUM ) {
 			$lastItem = array_pop( $notif );
 			$nextContinue = $lastItem['timestamp']['utcunix'] . '|' . $lastItem['id'];
 		} else {
@@ -115,8 +113,8 @@ class SpecialNotifications extends SpecialPage {
 				'a',
 				array(
 					'href' => SpecialPage::getTitleFor( 'Notifications' )->getLinkURL(
-								array( 'continue' => $nextContinue )
-							),
+						array( 'continue' => $nextContinue )
+					),
 					'class' => 'mw-ui-button mw-ui-primary',
 					'id' => 'mw-echo-more'
 				),
@@ -136,7 +134,7 @@ class SpecialNotifications extends SpecialPage {
 		// For no-js support
 		$out->addModuleStyles( array( 'ext.echo.styles.notifications', 'ext.echo.styles.special' ) );
 
-		DeferredUpdates::addCallableUpdate( function() use ( $user, $echoSeenTime, $unread ) {
+		DeferredUpdates::addCallableUpdate( function () use ( $user, $echoSeenTime, $unread ) {
 			// Mark items as read
 			if ( $unread ) {
 				MWEchoNotifUser::newFromUser( $user )->markRead( $unread );
@@ -177,6 +175,7 @@ class SpecialNotifications extends SpecialPage {
 			),
 			$this->msg( 'preferences' )->text()
 		);
+
 		return $lang->pipeList( $subtitleLinks );
 	}
 

@@ -6,22 +6,29 @@
 class EchoDataOutputFormatter {
 
 	/**
+	 * @var array type => class
+	 */
+	protected static $formatters = array(
+		'flyout' => 'EchoFlyoutFormatter',
+		'model' => 'EchoModelFormatter',
+		'special' => 'SpecialNotificationsFormatter',
+		'html' => 'SpecialNotificationsFormatter',
+	);
+
+	/**
 	 * Format a notification for a user in the format specified
 	 *
 	 * @param EchoNotification $notification
 	 * @param string|bool $format specifify output format, false to not format any notifications
-	 * @param User|null $user the target user viewing the notification
-	 * @return array
+	 * @param User $user the target user viewing the notification
+	 * @param Language $lang Language to format the notification in
+	 * @return array|bool false if it could not be formatted
 	 */
-	public static function formatOutput( EchoNotification $notification, $format = false, User $user = null ) {
+	public static function formatOutput( EchoNotification $notification, $format = false, User $user, Language $lang ) {
 		$event = $notification->getEvent();
 		$timestamp = $notification->getTimestamp();
 		$utcTimestampUnix = wfTimestamp( TS_UNIX, $timestamp );
-
-		// Default to notification user if user is not specified
-		if ( !$user ) {
-			$user = $notification->getUser();
-		}
+		$utcTimestampMW = wfTimestamp( TS_MW, $timestamp );
 
 		if ( $notification->getBundleBase() && $notification->getBundleDisplayHash() ) {
 			$event->setBundleHash( $notification->getBundleDisplayHash() );
@@ -56,6 +63,7 @@ class EchoDataOutputFormatter {
 				// UTC timestamp in UNIX format used for loading more notification
 				'utcunix' => $utcTimestampUnix,
 				'unix' => self::getUserLocalTime( $user, $timestamp, TS_UNIX ),
+				'utcmw' => $utcTimestampMW,
 				'mw' => $timestampMw,
 				'date' => $date
 			),
@@ -70,7 +78,7 @@ class EchoDataOutputFormatter {
 			$output['title'] = array(
 				'full' => $title->getPrefixedText(),
 				'namespace' => $title->getNSText(),
-				'namespace-key' =>$title->getNamespace(),
+				'namespace-key' => $title->getNamespace(),
 				'text' => $title->getText(),
 			);
 		}
@@ -97,7 +105,7 @@ class EchoDataOutputFormatter {
 
 		// This is only meant for unread notifications, if a notification has a target
 		// page, then it shouldn't be auto marked as read unless the user visits
-		// the target page or a user marks it as read manully ( coming soon )
+		// the target page or a user marks it as read manually ( coming soon )
 		$output['targetpages'] = array();
 		if ( $notification->getTargetPages() ) {
 			foreach ( $notification->getTargetPages() as $targetPage ) {
@@ -106,10 +114,36 @@ class EchoDataOutputFormatter {
 		}
 
 		if ( $format ) {
-			$output['*'] = EchoNotificationController::formatNotification( $event, $user, $format );
+			$formatted = self::formatNotification( $event, $user, $format, $lang );
+			if ( $formatted === false ) {
+				// Can't display it, so mark it as read
+				EchoDeferredMarkAsReadUpdate::add( $event, $user );
+				return false;
+			}
+			$output['*'] = $formatted;
 		}
 
 		return $output;
+	}
+
+	/**
+	 * @param EchoEvent $event
+	 * @param User $user
+	 * @param $format
+	 * @param Language $lang
+	 * @return string|bool false if it could not be formatted
+	 */
+	protected static function formatNotification( EchoEvent $event, User $user, $format, $lang ) {
+		if ( isset( self::$formatters[$format] )
+			&& EchoEventPresentationModel::supportsPresentationModel( $event->getType() )
+		) {
+			/** @var EchoEventFormatter $formatter */
+			$formatter = new self::$formatters[$format]( $user, $lang );
+			return $formatter->format( $event );
+		} else {
+			// Legacy b/c
+			return EchoNotificationController::formatNotification( $event, $user, $format );
+		}
 	}
 
 	/**
@@ -122,6 +156,7 @@ class EchoDataOutputFormatter {
 	protected static function getDateHeader( User $user, $timestampMw ) {
 		$lang = RequestContext::getMain()->getLanguage();
 		$dateFormat = $lang->getDateFormatString( 'pretty', $user->getDatePreference() ?: 'default' );
+
 		return $lang->sprintfDate( $dateFormat, $timestampMw );
 	}
 
@@ -130,13 +165,14 @@ class EchoDataOutputFormatter {
 	 *
 	 * @param User
 	 * @param string
-	 * @param int output format
+	 * @param int $format output format
 	 *
 	 * @return string
 	 */
 	public static function getUserLocalTime( User $user, $ts, $format = TS_MW ) {
 		$timestamp = new MWTimestamp( $ts );
 		$timestamp->offsetForUser( $user );
+
 		return $timestamp->getTimestamp( $format );
 	}
 

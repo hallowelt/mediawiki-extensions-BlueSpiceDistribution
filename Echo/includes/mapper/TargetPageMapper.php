@@ -28,19 +28,22 @@ class EchoTargetPageMapper extends EchoAbstractMapper {
 		$dbr = $this->dbFactory->getEchoDb( DB_SLAVE );
 
 		$res = $dbr->select(
-			array( 'echo_target_page' ),
-			self::$fields,
+			array( 'echo_target_page', 'echo_event' ),
+			array_merge( self::$fields, array( 'event_type' ) ),
 			array(
 				'etp_user' => $user->getId(),
 				'etp_page' => $pageId
 			),
-			__METHOD__
+			__METHOD__,
+			array(),
+			array( 'echo_event' => array( 'JOIN', 'etp_event=event_id' ) )
 		);
 		if ( $res ) {
 			$targetPages = array();
 			foreach ( $res as $row ) {
 				$targetPages[$row->etp_event][] = EchoTargetPage::newFromRow( $row );
 			}
+
 			return $targetPages;
 		} else {
 			return false;
@@ -81,6 +84,7 @@ class EchoTargetPageMapper extends EchoAbstractMapper {
 			),
 			__METHOD__
 		);
+
 		return $res;
 	}
 
@@ -106,6 +110,7 @@ class EchoTargetPageMapper extends EchoAbstractMapper {
 			),
 			__METHOD__
 		);
+
 		return $res;
 	}
 
@@ -127,6 +132,7 @@ class EchoTargetPageMapper extends EchoAbstractMapper {
 			),
 			__METHOD__
 		);
+
 		return $res;
 	}
 
@@ -146,6 +152,7 @@ class EchoTargetPageMapper extends EchoAbstractMapper {
 			),
 			__METHOD__
 		);
+
 		return $res;
 	}
 

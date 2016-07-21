@@ -1,25 +1,18 @@
 ( function ( mw, $ ) {
 	'use strict';
 
-	mw.echo = mw.echo || {};
+	// Remove ?markasread=XYZ from the URL
+	var uri = new mw.Uri();
+	if ( uri.query.markasread !== undefined ) {
+		delete uri.query.markasread;
+		window.history.replaceState( null, document.title, uri );
+	}
 
-	mw.echo.apiCallParams = {
-		action: 'query',
-		meta: 'notifications',
-		// We have to send the API 'groupbysection' otherwise
-		// the 'messageunreadfirst' doesn't do anything.
-		// TODO: Fix the API.
-		notgroupbysection: 1,
-		notmessageunreadfirst: 1,
-		notformat: 'flyout',
-		notlimit: 25,
-		notprop: 'index|list|count',
-		uselang: mw.config.get( 'wgUserLanguage' )
-	};
+	mw.echo = mw.echo || {};
 
 	// Activate ooui
 	$( document ).ready( function () {
-		var apiRequest, myWidget,
+		var myWidget, echoApi,
 			$existingAlertLink = $( '#pt-notifications-alert a' ),
 			$existingMessageLink = $( '#pt-notifications-message a' ),
 			numAlerts = $existingAlertLink.text(),
@@ -33,35 +26,77 @@
 			};
 
 		// Respond to click on the notification button and load the UI on demand
-		$( '.mw-echo-notification-badge-nojs' ).click( function () {
-			var myType = $( this ).parent().prop( 'id' ) === 'pt-notifications-alert' ? 'alert' : 'message';
+		$( '.mw-echo-notification-badge-nojs' ).click( function ( e ) {
+			var myType = $( this ).parent().prop( 'id' ) === 'pt-notifications-alert' ? 'alert' : 'message',
+				time = mw.now();
+
+			if ( e.which !== 1 ) {
+				return;
+			}
+
 			// Dim the button while we load
 			$( this ).addClass( 'mw-echo-notifications-badge-dimmed' );
 
 			// Fire the notification API requests
-			apiRequest = new mw.Api( { ajax: { cache: false } } ).get( $.extend( { notsections: myType }, mw.echo.apiCallParams ) );
+			echoApi = new mw.echo.api.EchoApi();
+			echoApi.fetchNotifications( myType )
+				.then( function ( data ) {
+					mw.track( 'timing.MediaWiki.echo.overlay.api', mw.now() - time );
+					return data;
+				} );
 
 			// Load the ui
-			mw.loader.using( 'ext.echo.ui', function () {
+			mw.loader.using( 'ext.echo.ui.desktop', function () {
+				var messageNotificationsModel,
+					alertNotificationsModel,
+					unreadMessageCounter,
+					unreadAlertCounter,
+					maxNotificationCount = mw.config.get( 'wgEchoMaxNotificationCount' );
+
+				// Overlay
+				$( 'body' ).append( mw.echo.ui.$overlay );
+
 				// Load message button and popup if messages exist
 				if ( $existingMessageLink.length ) {
-					mw.echo.ui.messageWidget = new mw.echo.ui.NotificationBadgeWidget( {
-						type: 'message',
+					unreadMessageCounter = new mw.echo.dm.UnreadNotificationCounter( echoApi, 'message', maxNotificationCount );
+					messageNotificationsModel = new mw.echo.dm.NotificationsModel(
+						echoApi,
+						unreadMessageCounter,
+						{
+							type: 'message'
+						}
+					);
+					mw.echo.ui.messageWidget = new mw.echo.ui.NotificationBadgeWidget( messageNotificationsModel, unreadMessageCounter, {
 						markReadWhenSeen: false,
+						$overlay: mw.echo.ui.$overlay,
 						numItems: numMessages,
 						hasUnseen: hasUnseenMessages,
-						badgeIcon: 'speechBubble',
-						links: links
+						badgeIcon: 'speechBubbles',
+						links: links,
+						href: $existingMessageLink.attr( 'href' )
 					} );
 					// HACK: avoid late debouncedUpdateThemeClasses
 					mw.echo.ui.messageWidget.badgeButton.debouncedUpdateThemeClasses();
 					// Replace the link button with the ooui button
 					$existingMessageLink.parent().replaceWith( mw.echo.ui.messageWidget.$element );
-				}
 
+					mw.echo.ui.messageWidget.getModel().on( 'allTalkRead', function () {
+						// If there was a talk page notification, get rid of it
+						$( '#pt-mytalk a' )
+							.removeClass( 'mw-echo-alert' )
+							.text( mw.msg( 'mytalk' ) );
+					} );
+				}
 				// Load alerts popup and button
-				mw.echo.ui.alertWidget = new mw.echo.ui.NotificationBadgeWidget( {
-					type: 'alert',
+				unreadAlertCounter = new mw.echo.dm.UnreadNotificationCounter( echoApi, 'alert', maxNotificationCount );
+				alertNotificationsModel = new mw.echo.dm.NotificationsModel(
+					echoApi,
+					unreadAlertCounter,
+					{
+						type: 'alert'
+					}
+				);
+				mw.echo.ui.alertWidget = new mw.echo.ui.NotificationBadgeWidget( alertNotificationsModel, unreadAlertCounter, {
 					markReadWhenSeen: true,
 					numItems: numAlerts,
 					hasUnseen: hasUnseenAlerts,
@@ -69,7 +104,9 @@
 						seen: 'bell',
 						unseen: 'bellOn'
 					},
-					links: links
+					links: links,
+					$overlay: mw.echo.ui.$overlay,
+					href: $existingAlertLink.attr( 'href' )
 				} );
 				// HACK: avoid late debouncedUpdateThemeClasses
 				mw.echo.ui.alertWidget.badgeButton.debouncedUpdateThemeClasses();
@@ -78,8 +115,12 @@
 
 				// HACK: Now that the module loaded, show the popup
 				myWidget = myType === 'alert' ? mw.echo.ui.alertWidget : mw.echo.ui.messageWidget;
-				myWidget.populateNotifications( apiRequest );
+				myWidget.once( 'finishLoading', function () {
+					// Log timing after notifications are shown
+					mw.track( 'timing.MediaWiki.echo.overlay', mw.now() - time );
+				} );
 				myWidget.popup.toggle( true );
+				mw.track( 'timing.MediaWiki.echo.overlay.ooui', mw.now() - time );
 			} );
 
 			if ( hasUnseenAlerts || hasUnseenMessages ) {

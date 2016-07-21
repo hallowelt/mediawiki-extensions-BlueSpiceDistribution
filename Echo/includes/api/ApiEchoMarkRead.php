@@ -16,7 +16,7 @@ class ApiEchoMarkRead extends ApiBase {
 		$params = $this->extractRequestParams();
 
 		// There is no need to trigger markRead if all notifications are read
-		if ( $notifUser->getNotificationCount() > 0 ) {
+		if ( $notifUser->getLocalNotificationCount() > 0 ) {
 			if ( count( $params['list'] ) ) {
 				// Make sure there is a limit to the update
 				$notifUser->markRead( array_slice( $params['list'], 0, ApiBase::LIMIT_SML2 ) );
@@ -27,6 +27,12 @@ class ApiEchoMarkRead extends ApiBase {
 			} elseif ( $params['sections'] ) {
 				$notifUser->markAllRead( $params['sections'] );
 			}
+		}
+
+		// Mark as unread
+		if ( count( $params['unreadlist'] ) > 0 ) {
+			// Make sure there is a limit to the update
+			$notifUser->markUnRead( array_slice( $params['unreadlist'], 0, ApiBase::LIMIT_SML2 ) );
 		}
 
 		$result = array(
@@ -52,6 +58,9 @@ class ApiEchoMarkRead extends ApiBase {
 			'list' => array(
 				ApiBase::PARAM_ISMULTI => true,
 			),
+			'unreadlist' => array(
+				ApiBase::PARAM_ISMULTI => true,
+			),
 			'all' => array(
 				ApiBase::PARAM_REQUIRED => false,
 				ApiBase::PARAM_TYPE => 'boolean'
@@ -63,18 +72,6 @@ class ApiEchoMarkRead extends ApiBase {
 			'token' => array(
 				ApiBase::PARAM_REQUIRED => true,
 			),
-		);
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getParamDescription() {
-		return array(
-			'list' => 'A list of notification IDs to mark as read',
-			'all' => "If set to true, marks all of a user's notifications as read",
-			'sections' => 'A list of sections to mark as read',
-			'token' => 'edit token',
 		);
 	}
 
@@ -95,23 +92,6 @@ class ApiEchoMarkRead extends ApiBase {
 	}
 
 	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getDescription() {
-		return 'Mark notifications as read for the current user';
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getExamples() {
-		return array(
-			'api.php?action=echomarkread&list=8',
-			'api.php?action=echomarkread&all=true'
-		);
-	}
-
-	/**
 	 * @see ApiBase::getExamplesMessages()
 	 */
 	protected function getExamplesMessages() {
@@ -120,6 +100,8 @@ class ApiEchoMarkRead extends ApiBase {
 				=> 'apihelp-echomarkread-example-1',
 			'action=echomarkread&all=true'
 				=> 'apihelp-echomarkread-example-2',
+			'action=echomarkread&unreadlist=1'
+				=> 'apihelp-echomarkread-example-3',
 		);
 	}
 

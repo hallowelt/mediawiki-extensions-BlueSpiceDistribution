@@ -53,6 +53,7 @@ class MWEchoEmailBatch {
 		if ( $userEmailSetting == -1 ) {
 			$emailBatch = new self( $user );
 			$emailBatch->clearProcessedEvent();
+
 			return false;
 		}
 
@@ -97,7 +98,7 @@ class MWEchoEmailBatch {
 		$events = $this->getEvents();
 
 		if ( $events ) {
-			foreach( $events as $row ) {
+			foreach ( $events as $row ) {
 				$this->count++;
 				if ( $this->count > self::$displaySize ) {
 					break;
@@ -130,6 +131,7 @@ class MWEchoEmailBatch {
 
 		if ( $res ) {
 			$this->lastEvent = $res;
+
 			return true;
 		} else {
 			return false;
@@ -224,12 +226,11 @@ class MWEchoEmailBatch {
 			$conds[] = 'eeb_event_id <= ' . intval( $this->lastEvent );
 		}
 
-		$dbw = MWEchoDbFactory::getDB( DB_MASTER );
+		$dbw = MWEchoDbFactory::newFromDefault()->getEchoDb( DB_MASTER );
 		$dbw->delete(
 			'echo_email_batch',
 			$conds,
-			__METHOD__,
-			array()
+			__METHOD__
 		);
 	}
 
@@ -239,8 +240,9 @@ class MWEchoEmailBatch {
 	public function sendEmail() {
 		global $wgNotificationSender, $wgNotificationReplyName;
 
-		// @Todo - replace them with the CONSTANT in 33810 once it is merged
-		if ( $this->mUser->getOption( 'echo-email-frequency' ) == 7 ) {
+		if ( $this->mUser->getOption( 'echo-email-frequency' )
+			== EchoHooks::EMAIL_WEEKLY_DIGEST
+		) {
 			$frequency = 'weekly';
 			$emailDeliveryMode = 'weekly_digest';
 		} else {
@@ -264,26 +266,18 @@ class MWEchoEmailBatch {
 			);
 		}
 
-		// email subject
-		if ( $this->count > self::$displaySize ) {
-			$count = wfMessage( 'echo-notification-count' )
-				->inLanguage( $this->mUser->getOption( 'language' ) )
-				->params( self::$displaySize )->text();
-		} else {
-			$count = $this->count;
-		}
 		// Give grep a chance to find the usages:
 		// echo-email-batch-subject-daily, echo-email-batch-subject-weekly
 		$subject = wfMessage( 'echo-email-batch-subject-' . $frequency )
-				->inLanguage( $this->mUser->getOption( 'language' ) )
-				->params( $count, $this->count )->text();
+			->inLanguage( $this->mUser->getOption( 'language' ) )
+			->params( $this->count, $this->count )->text();
 
 		$toAddress = MailAddress::newFromUser( $this->mUser );
 		$fromAddress = new MailAddress( $wgNotificationSender, EchoHooks::getNotificationSenderName() );
-		$replyAddress = new MailAddress( $wgNotificationSender, $wgNotificationReplyName );
+		$replyTo = new MailAddress( $wgNotificationSender, $wgNotificationReplyName );
 
 		// @Todo Push the email to job queue or just send it out directly?
-		UserMailer::send( $toAddress, $fromAddress, $subject, $body, $replyAddress );
+		UserMailer::send( $toAddress, $fromAddress, $subject, $body, array( 'replyTo' => $replyTo ) );
 		MWEchoEventLogging::logSchemaEchoMail( $this->mUser, $emailDeliveryMode );
 	}
 
@@ -339,7 +333,7 @@ class MWEchoEmailBatch {
 		$res = $dbr->select(
 			array( 'echo_email_batch' ),
 			array( 'eeb_user_id' ),
-			array( 'eeb_user_id > ' . intval( $startUserId )  ),
+			array( 'eeb_user_id > ' . intval( $startUserId ) ),
 			__METHOD__,
 			array( 'ORDER BY' => 'eeb_user_id', 'LIMIT' => $batchSize )
 		);

@@ -16,7 +16,7 @@ class EchoUserLocator {
 			return array();
 		}
 
-		$it = new EchoBatchRowIterator(
+		$it = new BatchRowIterator(
 			wfGetDB( DB_SLAVE, 'watchlist' ),
 			/* $table = */ 'watchlist',
 			/* $primaryKeys = */ array( 'wl_user' ),
@@ -31,7 +31,7 @@ class EchoUserLocator {
 		$it = new RecursiveIteratorIterator( $it );
 
 		// add callback to convert user id to user objects
-		$it = new EchoCallbackIterator( $it, function( $row ) {
+		$it = new EchoCallbackIterator( $it, function ( $row ) {
 			return User::newFromId( $row->wl_user );
 		} );
 

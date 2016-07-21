@@ -8,15 +8,33 @@
 	 * @constructor
 	 * @param {number} id Notification id,
 	 * @param {Object} [config] Configuration object
-	 * @cfg {jQuery|string} [content] The html content of this notification
+	 * @cfg {string} [iconUrl] A URL for the given icon.
+	 * @cfg {string} [iconType] A string noting the icon type.
+	 * @cfg {Object} [content] The message object defining the text for the header and,
+	 *  optionally, the body of the notification.
+	 * @cfg {string} [content.header=''] The header text of the notification
+	 * @cfg {string} [content.body=''] The body text of the notification
 	 * @cfg {string} [category] The category of this notification. The category identifies
 	 *  where the notification originates from.
+	 * @cfg {string} [type] The notification type 'message' or 'alert'
 	 * @cfg {boolean} [read=false] State the read state of the option
 	 * @cfg {boolean} [seen=false] State the seen state of the option
 	 * @cfg {string} [timestamp] Notification timestamp in Mediawiki timestamp format
 	 * @cfg {string} [primaryUrl] Notification primary link in raw url format
+	 * @cfg {boolean} [foreign=false] This notification is from a foreign source
+	 * @cfg {string} [source] The source this notification is coming from, if it is foreign
+	 * @cfg {Object[]} [secondaryUrls] An array of objects defining the secondary URLs
+	 *  for this notification. The secondary URLs are expected to have this structure:
+	 *  	{
+	 *  		"iconType": "userAvatar", // A symbolic name for the icon.
+	 *  		                          // Will render as oo-ui-icon-* class.
+	 *  		"label": "", // The label for the link
+	 *  		"prioritized": true/false, // Prioritized links are outside of the popup
+	 *  		                        // menu, whenever possible.
+	 *  		"url": "..." // The url for the secondary link
+	 *  	}
 	 */
-	mw.echo.dm.NotificationItem = function mwFlowDmNotificationItem( id, config ) {
+	mw.echo.dm.NotificationItem = function mwEchoDmNotificationItem( id, config ) {
 		var date = new Date(),
 			normalizeNumber = function ( number ) {
 				return ( number < 10 ? '0' : '' ) + String( number );
@@ -31,20 +49,23 @@
 		// Mixin constructor
 		OO.EventEmitter.call( this );
 
-		this.id = id || null;
+		this.id = id !== undefined ? id : null;
 
-		// TODO: We should work on the API to release and work with actual
-		// data here, rather than getting a pre-made html content of the
-		// notification.
-		this.content = config.content || $();
+		this.content = $.extend( { header: '', body: '' }, config.content );
 
 		this.category = config.category || '';
+		this.type = config.type || 'alert';
+		this.foreign = !!config.foreign;
+		this.source = config.source || '';
+		this.iconType = config.iconType;
+		this.iconURL = config.iconURL;
 
-		this.toggleRead( !!config.read );
-		this.toggleSeen( !!config.seen );
+		this.read = !!config.read;
+		this.seen = !!config.seen;
 
-		this.setTimestamp( config.timestamp || fallbackMWDate );
+		this.timestamp = config.timestamp || fallbackMWDate;
 		this.setPrimaryUrl( config.primaryUrl );
+		this.setSecondaryUrls( config.secondaryUrls );
 	};
 
 	/* Inheritance */
@@ -71,6 +92,7 @@
 
 	/**
 	 * Get NotificationItem id
+	 *
 	 * @return {string} NotificationItem Id
 	 */
 	mw.echo.dm.NotificationItem.prototype.getId = function () {
@@ -78,23 +100,43 @@
 	};
 
 	/**
-	 * Get NotificationItem content
-	 * @return {jQuery|string} NotificationItem content
+	 * Get NotificationItem content header
+	 *
+	 * @return {string} NotificationItem content
 	 */
-	mw.echo.dm.NotificationItem.prototype.getContent = function () {
-		return this.content;
+	mw.echo.dm.NotificationItem.prototype.getContentHeader = function () {
+		return this.content.header;
+	};
+
+	/**
+	 * Get NotificationItem content body
+	 *
+	 * @return {string} NotificationItem content body
+	 */
+	mw.echo.dm.NotificationItem.prototype.getContentBody = function () {
+		return this.content.body;
 	};
 
 	/**
 	 * Get NotificationItem category
+	 *
 	 * @return {string} NotificationItem category
 	 */
 	mw.echo.dm.NotificationItem.prototype.getCategory = function () {
 		return this.category;
 	};
+	/**
+	 * Get NotificationItem type
+	 *
+	 * @return {string} NotificationItem type
+	 */
+	mw.echo.dm.NotificationItem.prototype.getType = function () {
+		return this.type;
+	};
 
 	/**
 	 * Check whether this notification item is read
+	 *
 	 * @return {boolean} Notification item is read
 	 */
 	mw.echo.dm.NotificationItem.prototype.isRead = function () {
@@ -103,10 +145,20 @@
 
 	/**
 	 * Check whether this notification item is seen
+	 *
 	 * @return {boolean} Notification item is seen
 	 */
 	mw.echo.dm.NotificationItem.prototype.isSeen = function () {
 		return this.seen;
+	};
+
+	/**
+	 * Check whether this notification item is foreign
+	 *
+	 * @return {boolean} Notification item is foreign
+	 */
+	mw.echo.dm.NotificationItem.prototype.isForeign = function () {
+		return this.foreign;
 	};
 
 	/**
@@ -120,6 +172,7 @@
 		if ( this.read !== read ) {
 			this.read = read;
 			this.emit( 'read', this.read );
+			this.emit( 'sortChange' );
 		}
 	};
 
@@ -144,6 +197,7 @@
 	 */
 	mw.echo.dm.NotificationItem.prototype.setTimestamp = function ( timestamp ) {
 		this.timestamp = Number( timestamp );
+		this.emit( 'sortChange' );
 	};
 
 	/**
@@ -173,4 +227,58 @@
 		return this.primaryUrl;
 	};
 
+	/**
+	 * Get the notification icon URL
+	 *
+	 * @return {string} Notification icon URL
+	 */
+	mw.echo.dm.NotificationItem.prototype.getIconURL = function () {
+		return this.iconURL;
+	};
+
+	/**
+	 * Get the notification icon type
+	 *
+	 * @return {string} Notification icon type
+	 */
+	mw.echo.dm.NotificationItem.prototype.getIconType = function () {
+		return this.iconType;
+	};
+
+	/**
+	 * Set the notification's secondary links
+	 * See constructor documentation for the structure of these links objects.
+	 *
+	 * @param {Object[]} links Secondary url definitions
+	 */
+	mw.echo.dm.NotificationItem.prototype.setSecondaryUrls = function ( links ) {
+		this.secondaryUrls = links || [];
+	};
+
+	/**
+	 * Get the notification's secondary links
+	 *
+	 * @return {Object[]} Secondary url definitions
+	 */
+	mw.echo.dm.NotificationItem.prototype.getSecondaryUrls = function () {
+		return this.secondaryUrls;
+	};
+
+	/**
+	 * Get the notification's source
+	 *
+	 * @return {string} Notification source
+	 */
+	mw.echo.dm.NotificationItem.prototype.getSource = function () {
+		return this.source;
+	};
+
+	/**
+	 * Get the number of notifications represented by this object
+	 *
+	 * @return {number} Notification count
+	 */
+	mw.echo.dm.NotificationItem.prototype.getCount = function () {
+		return 1;
+	};
 }( mediaWiki, jQuery ) );

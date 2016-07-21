@@ -67,6 +67,7 @@ class MWEchoEmailBundler {
 		if ( !$hash || !preg_match( '/^[a-f0-9]{32}$/', $hash ) ) {
 			return false;
 		}
+
 		return new self( $user, $hash );
 	}
 
@@ -90,6 +91,7 @@ class MWEchoEmailBundler {
 		if ( !$this->baseEvent && $this->shouldSendEmailNow() ) {
 			$this->timestamp = wfTimestampNow();
 			$this->updateEmailMetadata();
+
 			return false;
 		} else {
 			// add to email batch queue
@@ -103,6 +105,7 @@ class MWEchoEmailBundler {
 			// always push the job to job queue in case the previous job
 			// was lost, job queue will ignore duplicate
 			$this->pushToJobQueue( $this->getDelayTime() );
+
 			return true;
 		}
 	}
@@ -143,6 +146,7 @@ class MWEchoEmailBundler {
 		if ( $delay <= 0 ) {
 			$delay = 0;
 		}
+
 		return $delay;
 	}
 
@@ -150,9 +154,7 @@ class MWEchoEmailBundler {
 	 * Get the timestamp of last email
 	 */
 	protected function retrieveLastEmailTimestamp() {
-		global $wgMemc;
-
-		$data = $wgMemc->get( $this->getMemcacheKey() );
+		$data = ObjectCache::getMainStashInstance()->get( $this->getMemcacheKey() );
 		if ( $data !== false ) {
 			$this->timestamp = $data['timestamp'];
 		}
@@ -186,6 +188,7 @@ class MWEchoEmailBundler {
 			return false;
 		}
 		$this->baseEvent = EchoEvent::newFromId( $res->eeb_event_id );
+
 		return true;
 	}
 
@@ -247,7 +250,13 @@ class MWEchoEmailBundler {
 		$replyAddress = new MailAddress( $wgNotificationSender, $wgNotificationReplyName );
 
 		// Schedule a email job or just send the email directly?
-		UserMailer::send( $toAddress, $fromAddress, $content['subject'], $content['body'], $replyAddress );
+		UserMailer::send(
+			$toAddress,
+			$fromAddress,
+			$content['subject'],
+			$content['body'],
+			array( 'replyTo' => $replyAddress )
+		);
 		MWEchoEventLogging::logSchemaEchoMail( $this->mUser, 'bundle' );
 	}
 
@@ -260,6 +269,7 @@ class MWEchoEmailBundler {
 			return '';
 		}
 		$this->baseEvent->setBundleHash( $this->bundleHash );
+
 		return EchoNotificationController::formatNotification( $this->baseEvent, $this->mUser, 'email', 'email' );
 	}
 
@@ -267,12 +277,10 @@ class MWEchoEmailBundler {
 	 * Update bundle email metadata for user/hash pair
 	 */
 	protected function updateEmailMetadata() {
-		global $wgMemc;
-
 		$key = $this->getMemcacheKey();
 
 		// Store new data and make it expire in 7 days
-		$wgMemc->set(
+		ObjectCache::getMainStashInstance()->set(
 			$key,
 			array(
 				'timestamp' => $this->timestamp
@@ -292,12 +300,11 @@ class MWEchoEmailBundler {
 
 		$conds[] = 'eeb_event_id <= ' . intval( $this->baseEvent->getId() );
 
-		$dbw = MWEchoDbFactory::getDB( DB_MASTER );
+		$dbw = MWEchoDbFactory::newFromDefault()->getEchoDb( DB_MASTER );
 		$dbw->delete(
 			'echo_email_batch',
 			$conds,
-			__METHOD__,
-			array()
+			__METHOD__
 		);
 	}
 }

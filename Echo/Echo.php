@@ -38,7 +38,7 @@ $wgExtensionCredits['specialpage'][] = array(
 	'path' => __FILE__,
 	'name' => 'Echo',
 	'url' => 'https://www.mediawiki.org/wiki/Extension:Echo',
-	'author' => array( 'Andrew Garrett', 'Ryan Kaldari', 'Benny Situ', 'Luke Welling' ),
+	'author' => array( 'Andrew Garrett', 'Ryan Kaldari', 'Benny Situ', 'Luke Welling', 'Kunal Mehta', 'Moriel Schottlender', 'Jon Robson' ),
 	'descriptionmsg' => 'echo-desc',
 	'license-name' => 'MIT',
 );
@@ -62,6 +62,7 @@ $wgAPIModules['echomarkseen'] = 'ApiEchoMarkSeen';
 
 // Special page
 $wgSpecialPages['Notifications'] = 'SpecialNotifications';
+$wgSpecialPages['DisplayNotificationsConfiguration'] = 'SpecialDisplayNotificationsConfiguration';
 
 // Housekeeping hooks
 $wgHooks['LoadExtensionSchemaUpdates'][] = 'EchoHooks::onLoadExtensionSchemaUpdates';
@@ -78,6 +79,8 @@ $wgHooks['UserLoadOptions'][] = 'EchoHooks::onUserLoadOptions';
 $wgHooks['UserSaveOptions'][] = 'EchoHooks::onUserSaveOptions';
 $wgHooks['UserClearNewTalkNotification'][] = 'EchoHooks::onUserClearNewTalkNotification';
 $wgHooks['ParserTestTables'][] = 'EchoHooks::onParserTestTables';
+$wgHooks['EmailUserComplete'][] = 'EchoHooks::onEmailUserComplete';
+$wgHooks['LoginFormValidErrorMessages'][] = 'EchoHooks::onLoginFormValidErrorMessages';
 
 // Extension:UserMerge support
 $wgHooks['UserMergeAccountFields'][] = 'EchoHooks::onUserMergeAccountFields';
@@ -94,7 +97,7 @@ $wgHooks['EchoAbortEmailNotification'][] = 'EchoHooks::onEchoAbortEmailNotificat
 
 // Hook appropriate events
 $wgHooks['ArticleSaveComplete'][] = 'EchoHooks::onArticleSaved';
-$wgHooks['AddNewAccount'][] = 'EchoHooks::onAccountCreated';
+$wgHooks['LocalUserCreated'][] = 'EchoHooks::onLocalUserCreated';
 $wgHooks['ArticleRollbackComplete'][] = 'EchoHooks::onRollbackComplete';
 $wgHooks['UserSaveSettings'][] = 'EchoHooks::onUserSaveSettings';
 
@@ -104,6 +107,12 @@ $wgHooks['SendWatchlistEmailNotification'][] = 'EchoHooks::onSendWatchlistEmailN
 // Disable the orange bar of death
 $wgHooks['GetNewMessagesAlert'][] = 'EchoHooks::abortNewMessagesAlert';
 $wgHooks['LinksUpdateAfterInsert'][] = 'EchoHooks::onLinksUpdateAfterInsert';
+
+// Beta features
+$wgHooks['GetBetaFeaturePreferences'][] = 'EchoHooks::getBetaFeaturePreferences';
+
+// Global config vars
+$wgHooks['ResourceLoaderGetConfigVars'][] = 'EchoHooks::onResourceLoaderGetConfigVars';
 
 // Configuration
 
@@ -134,9 +143,13 @@ $wgNotificationReplyName = 'No Reply';
 // use any key defined in $wgExternalServers
 $wgEchoCluster = false;
 
-// The max notification count showed in badge
-// The max number showed in bundled message, eg, <user> and 99+ others <action>
-$wgEchoMaxNotificationCount = 99;
+// Shared database to use for keeping track of cross-wiki unread notifications
+// false to not keep track of it at all
+$wgEchoSharedTrackingDB = false;
+
+// Cluster the shared tracking database is located on, false if it is on the
+// main one. Must be a key defined in $wgExternalServers
+$wgEchoSharedTrackingCluster = false;
 
 // The max number of notifications allowed for a user to do a live update,
 // this is also the number of max notifications allowed for a user to have
@@ -152,14 +165,28 @@ $wgEchoBundleEmailInterval = 0;
 // Whether or not to enable a new talk page message alert for logged in users
 $wgEchoNewMsgAlert = true;
 
-// Define which output formats are available for each notification category
-$wgEchoDefaultNotificationTypes = array(
-	'all' => array(
+// Whether or not to show the footer feedback notice in the notifications popup
+$wgEchoShowFooterNotice = false;
+
+// A URL for the survey that appears in the footer feedback notice in the
+// notification popup
+$wgEchoFooterNoticeURL = '';
+
+// Allowed notify types for all notifications and categories, unless overriden
+// on a per-category or per-type basis.
+// All of the keys from $wgEchoNotifiers must also be keys here.
+$wgDefaultNotifyTypeAvailability = array(
+	'web' => true,
+	'email' => true,
+);
+
+// Define which notify types are available for each notification category
+// If any notify types are omitted, it defaults to $wgDefaultNotifyTypeAvailability.
+$wgNotifyTypeAvailabilityByCategory = array(
+	// Otherwise, a user->user email could trigger an additional redundant
+	// notification email.
+	'emailuser' => array(
 		'web' => true,
-		'email' => true,
-	),
-	// Only send web notification for welcome event
-	'welcome' => array(
 		'email' => false,
 	),
 );
@@ -183,21 +210,40 @@ $wgEchoOnWikiBlacklist = 'Echo-blacklist';
 // sprintf format of per-user notification agent whitelists. Set to null to disable.
 $wgEchoPerUserWhitelistFormat = '%s/Echo-whitelist';
 
+// Whether to enable the cross-wiki notifications feature. To enable this feature you need to:
+// - have a global user system (e.g. CentralAuth or a shared user table)
+// - have $wgMainStash and $wgMainWANCache shared between wikis
+// - configure $wgEchoSharedTrackingDB
+$wgEchoCrossWikiNotifications = false;
+
+// Feature flag for the cross-wiki notifications beta feature
+// If this is true, the cross-wiki notifications preference will appear in the BetaFeatures section;
+// if this is false, it'll appear in the Notifications section instead.
+// This does not control whether cross-wiki notifications are enabled by default. For that,
+// use $wgDefaultUserOptions['echo-cross-wiki-notifications'] = true;
+$wgEchoUseCrossWikiBetaFeature = false;
+
 // Define the categories that notifications can belong to. Categories can be
-// assigned the following parameters: priority, nodismiss, tooltip, and usergroups.
+// assigned the following parameters: priority, no-dismiss, tooltip, and usergroups.
+
 // All parameters are optional.
+
 // If a notifications type doesn't have a category parameter, it is
 // automatically assigned to the 'other' category which is lowest priority and
 // has no preferences or dismissibility.
+
 // The priority parameter controls the order in which notifications are
 // displayed in preferences and batch emails. Priority ranges from 1 to 10. If
 // the priority is not specified, it defaults to 10, which is the lowest.
+
 // The usergroups param specifies an array of usergroups eligible to recieve the
 // notifications in the category. If no usergroups parameter is specified, all
 // groups are eligible.
-// The nodismiss parameter disables the dismissability of notifications in the
-// category. It can either be set to an array of output formats (see
-// $wgEchoNotifiers) or an array containing 'all'.
+
+// The no-dismiss parameter disables the dismissability of notifications in the
+// category. It can either be set to an array of notify types (see
+// $wgEchoNotifiers) or an array containing 'all'.  If no-dismiss is 'all',
+// it will not appear in preferences.
 $wgEchoNotificationCategories = array(
 	'system' => array(
 		'priority' => 9,
@@ -227,6 +273,10 @@ $wgEchoNotificationCategories = array(
 		'priority' => 4,
 		'tooltip' => 'echo-pref-tooltip-mention',
 	),
+	'emailuser' => array(
+		'priority' => 9,
+		'tooltip' => 'echo-pref-tooltip-emailuser',
+	),
 );
 
 $echoIconPath = "Echo/modules/icons";
@@ -235,44 +285,50 @@ $echoIconPath = "Echo/modules/icons";
 // extensions can define their own icons with the same structure.  It is recommended that
 // extensions prefix their icon key. An example is myextension-name.  This will help
 // avoid namespace conflicts.
-//
-// You can use either a path or a url, but not both.
-// The value of 'path' is relative to $wgExtensionAssetsPath.
-//
-// The value of 'url' should be a URL.
-//
-// You should customize the site icon URL, which is:
-// $wgEchoNotificationIcons['site']['url']
+// * You can use either a path or a url, but not both.
+//   The value of 'path' is relative to $wgExtensionAssetsPath.
+// * The value of 'url' should be a URL.
+// * You should customize the site icon URL, which is:
+//   $wgEchoNotificationIcons['site']['url']
 $wgEchoNotificationIcons = array(
 	'placeholder' => array(
 		'path' => "$echoIconPath/Generic.png",
 	),
 	'trash' => array(
-		'path' => "$echoIconPath/Deletion.png",
+		'path' => "$echoIconPath/trash.svg",
 	),
 	'chat' => array(
-		'path' => "$echoIconPath/Talk.png",
+		'path' => "$echoIconPath/chat.svg",
+	),
+	'edit' => array(
+		'path' => array(
+			'ltr' => "$echoIconPath/ooui-edit-ltr-progressive.svg",
+			'rtl' => "$echoIconPath/ooui-edit-rtl-progressive.svg",
+		),
+	),
+	'edit-user-talk' => array(
+		'path' => "$echoIconPath/edit-user-talk.svg",
 	),
 	'linked' => array(
-		'path' => "$echoIconPath/CrossReferenced.png",
+		'path' => "$echoIconPath/link-blue.svg",
 	),
-	'featured' => array(
-		'path' => "$echoIconPath/Featured.png",
+	'mention' => array(
+		'path' => "$echoIconPath/mention.svg",
 	),
 	'reviewed' => array(
-		'path' => "$echoIconPath/Reviewed.png",
-	),
-	'tagged' => array(
-		'path' => "$echoIconPath/ReviewedWithTags.png",
+		'path' => "$echoIconPath/reviewed.svg",
 	),
 	'revert' => array(
-		'path' => "$echoIconPath/Revert.png",
+		'path' => "$echoIconPath/revert.svg",
 	),
-	'checkmark' => array(
-		'path' => "$echoIconPath/Reviewed.png",
+	'user-rights' => array(
+		'path' => "$echoIconPath/user-rights.svg",
 	),
-	'gratitude' => array(
-		'path' => "$echoIconPath/Gratitude.png",
+	'emailuser' => array(
+		'path' => "$echoIconPath/emailuser.svg",
+	),
+	'global' => array(
+		'path' => "$echoIconPath/global.svg"
 	),
 	'site' => array(
 		'url' => false
@@ -281,20 +337,39 @@ $wgEchoNotificationIcons = array(
 
 // Definitions of the notification event types built into Echo.
 // If formatter-class isn't specified, defaults to EchoBasicFormatter.
+
+// 'notify-type-availabilty' - Defines which notifier (e.g. web/email) types are available
+//   for each notification type (e.g. welcome).  Notification types are the keys of
+//   $wgEchoNotificationCategories.
+
+//   This is *ONLY* considered if the category is 'no-dismiss'.  Otherwise,
+//   use $wgNotifyTypeAvailabilityByCategory
+
+//   Without this constraint, we would have no way to display this information
+//   on Special:Preferences in a non-misleading way.
+
+//   If any notify types are omitted, it defaults to $wgNotifyTypeAvailabilityByCategory
+//   which itself defaults to $wgDefaultNotifyTypeAvailability.
 $wgEchoNotifications = array(
 	'welcome' => array(
-		'user-locators' => array(
+		EchoAttributeManager::ATTR_LOCATORS => array(
 			'EchoUserLocator::locateEventAgent'
 		),
 		'category' => 'system',
 		'group' => 'positive',
 		'section' => 'alert',
+		// Only send web notification for welcome event
+		'notify-type-availability' => array(
+			'email' => false,
+		),
+		'presentation-model' => 'EchoWelcomePresentationModel',
 		'title-message' => 'notification-new-user',
 		'title-params' => array( 'agent' ),
 		'icon' => 'site',
 	),
 	'edit-user-talk' => array(
-		'user-locators' => array(
+		'presentation-model' => 'EchoEditUserTalkPresentationModel',
+		EchoAttributeManager::ATTR_LOCATORS => array(
 			'EchoUserLocator::locateTalkPageOwner',
 		),
 		'primary-link' => array( 'message' => 'notification-link-text-view-message', 'destination' => 'section' ),
@@ -308,19 +383,18 @@ $wgEchoNotifications = array(
 		'title-params' => array( 'agent', 'user', 'subject-anchor' ),
 		'bundle-message' => 'notification-edit-talk-page-bundle',
 		'bundle-params' => array( 'agent', 'user', 'agent-other-display', 'agent-other-count' ),
-		'flyout-message' => 'notification-edit-talk-page-flyout2',
-		'flyout-params' => array( 'agent', 'user', 'subject-anchor' ),
 		'email-subject-message' => 'notification-edit-talk-page-email-subject2',
 		'email-subject-params' => array( 'agent' ),
 		'email-body-batch-message' => 'notification-edit-talk-page-email-batch-body2',
 		'email-body-batch-params' => array( 'agent' ),
 		'email-body-batch-bundle-message' => 'notification-edit-user-talk-email-batch-bundle-body',
 		'email-body-batch-bundle-params' => array( 'agent', 'agent-other-display', 'agent-other-count' ),
-		'icon' => 'chat',
+		'icon' => 'edit-user-talk',
 		'immediate' => true,
 	),
 	'reverted' => array(
-		'user-locators' => array(
+		'presentation-model' => 'EchoRevertedPresentationModel',
+		EchoAttributeManager::ATTR_LOCATORS => array(
 			array( 'EchoUserLocator::locateFromEventExtra', array( 'reverted-user-id' ) ),
 		),
 		'primary-link' => array( 'message' => 'notification-link-text-view-edit', 'destination' => 'diff' ),
@@ -330,8 +404,6 @@ $wgEchoNotifications = array(
 		'formatter-class' => 'EchoEditFormatter',
 		'title-message' => 'notification-reverted2',
 		'title-params' => array( 'agent', 'title', 'difflink', 'number', 'userpage-contributions' ),
-		'flyout-message' => 'notification-reverted-flyout2',
-		'flyout-params' => array( 'agent', 'title', 'difflink', 'number' ),
 		'email-subject-message' => 'notification-reverted-email-subject2',
 		'email-subject-params' => array( 'agent', 'title', 'number' ),
 		'email-body-batch-message' => 'notification-reverted-email-batch-body2',
@@ -339,7 +411,8 @@ $wgEchoNotifications = array(
 		'icon' => 'revert',
 	),
 	'page-linked' => array(
-		'user-locators' => array(
+		'presentation-model' => 'EchoPageLinkedPresentationModel',
+		EchoAttributeManager::ATTR_LOCATORS => array(
 			'EchoUserLocator::locateArticleCreator',
 		),
 		'primary-link' => array( 'message' => 'notification-link-text-view-page', 'destination' => 'link-from-page' ),
@@ -350,10 +423,6 @@ $wgEchoNotifications = array(
 		'formatter-class' => 'EchoPageLinkFormatter',
 		'title-message' => 'notification-page-linked',
 		'title-params' => array( 'agent', 'title', 'link-from-page' ),
-		'bundle-message' => 'notification-page-linked-bundle',
-		'bundle-params' => array( 'agent', 'title', 'link-from-page', 'link-from-page-other-display', 'link-from-page-other-count' ),
-		'flyout-message' => 'notification-page-linked-flyout',
-		'flyout-params' => array( 'agent', 'title', 'link-from-page' ),
 		'email-subject-message' => 'notification-page-linked-email-subject',
 		'email-subject-params' => array(),
 		'email-body-batch-message' => 'notification-page-linked-email-batch-body',
@@ -363,7 +432,7 @@ $wgEchoNotifications = array(
 		'icon' => 'linked',
 	),
 	'mention' => array(
-		'user-locators' => array(
+		EchoAttributeManager::ATTR_LOCATORS => array(
 			array( 'EchoUserLocator::locateFromEventExtra', array( 'mentioned-users' ) ),
 		),
 		'primary-link' => array( 'message' => 'notification-link-text-view-mention', 'destination' => 'section' ),
@@ -371,35 +440,70 @@ $wgEchoNotifications = array(
 		'category' => 'mention',
 		'group' => 'interactive',
 		'section' => 'alert',
+		'presentation-model' => 'EchoMentionPresentationModel',
 		'formatter-class' => 'EchoMentionFormatter',
 		'title-message' => 'notification-mention',
-		'title-params' => array( 'agent', 'subject-anchor', 'title', 'section-title', 'main-title-text' ),
-		'flyout-message' => 'notification-mention-flyout',
-		'flyout-params' => array( 'agent', 'subject-anchor',  'title', 'section-title', 'main-title-text' ),
+		'title-params' => array( 'agent', 'subject-anchor', 'title', 'section-title', 'main-title-text', 'user' ),
 		'email-subject-message' => 'notification-mention-email-subject',
-		'email-subject-params' => array( 'agent' ),
+		'email-subject-params' => array( 'agent', 'user' ),
 		'email-body-batch-message' => 'notification-mention-email-batch-body',
-		'email-body-batch-params' => array( 'agent', 'title', 'section-title', 'main-title-text' ),
-		'icon' => 'chat',
+		'email-body-batch-params' => array( 'agent', 'title', 'section-title', 'main-title-text', 'user' ),
+		'icon' => 'mention',
 	),
 	'user-rights' => array(
-		'user-locators' => array(
+		EchoAttributeManager::ATTR_LOCATORS => array(
 			array( 'EchoUserLocator::locateFromEventExtra', array( 'user' ) ),
 		),
 		'primary-link' => array( 'message' => 'echo-learn-more', 'destination' => 'user-rights-list' ),
 		'category' => 'user-rights',
 		'group' => 'neutral',
 		'section' => 'alert',
+		'presentation-model' => 'EchoUserRightsPresentationModel',
+		// Legacy formatting system
 		'formatter-class' => 'EchoUserRightsFormatter',
 		'title-message' => 'notification-user-rights',
 		'title-params' => array( 'agent', 'user-rights-list' ),
-		'flyout-message' => 'notification-user-rights-flyout',
-		'flyout-params' => array( 'agent', 'user-rights-list' ),
 		'email-subject-message' => 'notification-user-rights-email-subject',
 		'email-subject-params' => array(),
 		'email-body-batch-message' => 'notification-user-rights-email-batch-body',
 		'email-body-batch-params' => array( 'agent', 'user-rights-list' ),
-		'icon' => 'site',
+		'icon' => 'user-rights',
+	),
+	'emailuser' => array(
+		'presentation-model' => 'EchoEmailUserPresentationModel',
+		EchoAttributeManager::ATTR_LOCATORS => array(
+			array( 'EchoUserLocator::locateFromEventExtra', array( 'to-user-id' ) ),
+		),
+		'category' => 'emailuser',
+		'group' => 'neutral',
+		'section' => 'alert',
+		'title-message' => 'notification-emailuser',
+		'title-params' => array( 'agent' ),
+		'icon' => 'emailuser',
+	),
+	'foreign' => array(
+		'presentation-model' => 'EchoForeignPresentationModel',
+		EchoAttributeManager::ATTR_LOCATORS => array(
+			'EchoUserLocator::locateEventAgent'
+		),
+		'category' => 'foreign',
+		'group' => 'positive',
+		'section' => 'alert',
+		'icon' => 'global',
+	),
+	'thank-you-edit' => array(
+		'user-locators' => array(
+			'EchoUserLocator::locateEventAgent'
+		),
+		'category' => 'system',
+		// Only send 'web' notification
+		'notify-type-availability' => array(
+			'email' => false,
+		),
+		'group' => 'positive',
+		'presentation-model' => 'EchoEditThresholdPresentationModel',
+		'section' => 'alert',
+		'icon' => 'edit',
 	),
 );
 
@@ -408,6 +512,9 @@ $wgDefaultUserOptions['echo-show-alert'] = true;
 
 // By default, send emails for each notification as they come in
 $wgDefaultUserOptions['echo-email-frequency'] = 0; /*EchoHooks::EMAIL_IMMEDIATELY*/
+
+// By default, do not dismiss the beta feature invitation
+$wgDefaultUserOptions['echo-dismiss-beta-invitation' ] = 0;
 
 if ( $wgAllowHTMLEmail ) {
 	$wgDefaultUserOptions['echo-email-format'] = 'html'; /*EchoHooks::EMAIL_FORMAT_HTML*/
@@ -428,27 +535,27 @@ $wgDefaultUserOptions['echo-subscriptions-web-article-linked'] = false;
 
 // Echo Configuration for EventLogging
 $wgEchoConfig = array(
-	'version' => '1.5',
-	'eventlogging' => array (
+	'version' => '1.7',
+	'eventlogging' => array(
 		/**
 		 * Properties:
 		 * - 'enabled': Whether it should be used
 		 * - 'revision': revision id of the schema
 		 * - 'client': whether the schema is needed client-side
 		 */
-		'Echo' => array (
+		'Echo' => array(
 			'enabled' => false,
-			'revision' => 7572295,
+			'revision' => 7731316,
 			'client' => false,
 		),
-		'EchoMail' => array (
+		'EchoMail' => array(
 			'enabled' => false,
 			'revision' => 5467650,
 			'client' => false,
 		),
-		'EchoInteraction' => array (
+		'EchoInteraction' => array(
 			'enabled' => false,
-			'revision' => 5782287,
+			'revision' => 15180901,
 			'client' => true,
 		),
 	)
