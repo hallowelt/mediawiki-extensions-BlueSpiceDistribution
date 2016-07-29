@@ -1,9 +1,16 @@
 <?php
+/**
+ * InlineDifferenceEngine.php
+ */
 
+/**
+ * Extends the basic DifferenceEngine from core to enable inline difference view
+ * using only one column instead of two column diff system.
+ */
 class InlineDifferenceEngine extends DifferenceEngine {
 	/**
 	 * Checks whether the given Revision was deleted
-	 * FIXME: Upstream to DifferenceEngine - refactor showDiffPage
+	 * @todo FIXME: Upstream to DifferenceEngine - refactor showDiffPage
 	 *
 	 * @return boolean
 	 */
@@ -26,7 +33,7 @@ class InlineDifferenceEngine extends DifferenceEngine {
 	/**
 	 * Checks whether the current user has permission to view the old
 	 * and current revisions.
-	 * FIXME: Upstream to DifferenceEngine - refactor showDiffPage
+	 * @todo FIXME: Upstream to DifferenceEngine - refactor showDiffPage
 	 *
 	 * @return boolean
 	 */
@@ -45,7 +52,7 @@ class InlineDifferenceEngine extends DifferenceEngine {
 	 * Checks whether the diff should be hidden from the current user
 	 * This is based on whether the user is allowed to see it and whether
 	 * the flag unhide is set to allow viewing deleted revisions.
-	 * FIXME: Upstream to DifferenceEngine - refactor showDiffPage
+	 * @todo FIXME: Upstream to DifferenceEngine - refactor showDiffPage
 	 *
 	 * @return boolean
 	 */
@@ -70,15 +77,30 @@ class InlineDifferenceEngine extends DifferenceEngine {
 			$allowed = $this->isUserAllowedToSee();
 			$suppressed = $this->isSuppressedDiff();
 
+			// This IContextSource object will be used to get a message object for the
+			// messages used in this function. We need to to this to allow the message to
+			// get the correct value for the FULLPAGENAME inclusion (which is used in
+			// rev-suppressed-no-diff, e.g.). Otherwise it would use Special:MobileDiff as
+			// the target for Special:Log/delete?page=Special:MobileDiff/..., which isn't
+			// correct and very helpful. To fix this bug, we create a new context from the
+			// current one and set the title object (which we can get from the new revision).
+			// Bug: T122984
+			$context = new DerivativeContext( $this->getContext() );
+			$revision = $this->mNewRev;
+			$context->setTitle( $revision->getTitle() );
+
 			if ( !$allowed ) {
-				$msg = $suppressed ? 'rev-suppressed-no-diff' : 'rev-deleted-no-diff';
-				$msg = wfMessage( $msg )->parse();
+				$msg = $context->msg(
+					$suppressed ? 'rev-suppressed-no-diff' : 'rev-deleted-no-diff'
+				)->parse();
 			} else {
 				# Give explanation and add a link to view the diff...
 				$query = $this->getRequest()->appendQueryValue( 'unhide', '1', true );
 				$link = $this->getTitle()->getFullURL( $query );
-				$msg = $suppressed ? 'rev-suppressed-unhide-diff' : 'rev-deleted-unhide-diff';
-				$msg = wfMessage( $msg, $link )->parse();
+				$msg = $context->msg(
+					$suppressed ? 'rev-suppressed-unhide-diff' : 'rev-deleted-unhide-diff',
+					$link
+				)->parse();
 			}
 		}
 		return $msg;
@@ -94,14 +116,10 @@ class InlineDifferenceEngine extends DifferenceEngine {
 	function generateTextDiffBody( $otext, $ntext ) {
 		global $wgContLang;
 
-		wfProfileIn( __METHOD__ );
 		# First try wikidiff2
 		if ( function_exists( 'wikidiff2_inline_diff' ) ) {
-			wfProfileIn( 'wikidiff2_inline_diff' );
 			$text = wikidiff2_inline_diff( $otext, $ntext, 2 );
 			$text .= $this->debug( 'wikidiff2-inline' );
-			wfProfileOut( 'wikidiff2_inline_diff' );
-			wfProfileOut( __METHOD__ );
 
 			return $text;
 		}
@@ -111,21 +129,48 @@ class InlineDifferenceEngine extends DifferenceEngine {
 		$nta = explode( "\n", $wgContLang->segmentForDiff( $ntext ) );
 		$diffs = new Diff( $ota, $nta );
 		$formatter = new InlineDiffFormatter();
-		$difftext = $wgContLang->unsegmentForDiff( $formatter->format( $diffs ) ) .
-		wfProfileOut( __METHOD__ );
+		$difftext = $wgContLang->unsegmentForDiff( $formatter->format( $diffs ) );
 
 		return $difftext;
 	}
 
 	/**
+	 * Reimplements getDiffBodyCacheKey from DifferenceEngine
+	 * Returns the cache key for diff body text or content.
+	 *
+	 * @throws Exception when no mOldid and mNewid is set
 	 * @see DifferenceEngine:getDiffBodyCacheKey
+	 * @return string
 	 */
 	protected function getDiffBodyCacheKey() {
 		if ( !$this->mOldid || !$this->mNewid ) {
-			throw new MWException( 'mOldid and mNewid must be set to get diff cache key.' );
+			throw new Exception( 'mOldid and mNewid must be set to get diff cache key.' );
 		}
 
 		return wfMemcKey( 'diff', 'inline', MW_DIFF_VERSION,
 			'oldid', $this->mOldid, 'newid', $this->mNewid );
+	}
+
+	/**
+	 * Create a getter function for the patrol link in Mobile Diff.
+	 * FIXME: This shouldn't be needed, but markPatrolledLink is protected in DifferenceEngine
+	 * @return String
+	 */
+	public function getPatrolledLink() {
+		$linkInfo = $this->getMarkPatrolledLinkInfo();
+		if ( $linkInfo ) {
+			$this->getOutput()->addModules( 'mobile.patrol.ajax' );
+			$linkInfo = Html::linkButton(
+				$this->msg( 'markaspatrolleddiff' )->escaped(),
+				array(
+					'href' => $this->mNewPage->getLocalUrl( array(
+						'action' => 'markpatrolled',
+						'rcid' => $linkInfo['rcid'],
+						'token' => $linkInfo['token'],
+					) ),
+				)
+			);
+		}
+		return $linkInfo;
 	}
 }

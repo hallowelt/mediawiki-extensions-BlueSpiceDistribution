@@ -1,32 +1,71 @@
 <?php
+/**
+ * MinervaTemplateBeta.php
+ */
+
+/**
+ * Alternative Minerva template sent to users who have opted into the
+ * beta mode via Special:MobileOptions
+ */
 class MinervaTemplateBeta extends MinervaTemplate {
-	protected $isMainPage;
+	/** @inheritdoc */
+	protected $shouldDisplayPageActionsBeforeHeading = false;
 
-	public function execute() {
-		$this->isMainPage = $this->getSkin()->getTitle()->isMainPage();
-		parent::execute();
+	/**
+	 * Get attributes to create search input
+	 * @return array Array with attributes for search bar
+	 */
+	protected function getSearchAttributes() {
+		$searchBox = parent::getSearchAttributes();
+		$searchBox['placeholder'] = $this->getMsg( 'mobile-frontend-placeholder-beta' )->text();
+		return $searchBox;
 	}
 
-	public function renderPageActions( $data ) {
-		if ( !$this->isMainPage ) {
-			parent::renderPageActions( $data );
+	/**
+	 * Get category button if categories are present
+	 * @return array A map of the button's friendly name, "categories" to its
+	 *   spec if the button can be displayed.
+	 */
+	protected function getCategoryButton() {
+		$skin = $this->getSkin();
+		$categories = $skin->getCategoryLinks( false /* don't render the heading */ );
+
+		if ( !$categories ) {
+			return array();
 		}
+
+		return array(
+			'categories' => array(
+				'attributes' => array(
+					'href' => '#/categories',
+					// add hidden class (the overlay works only, when JS is enabled (class will
+					// be removed in categories/init.js)
+					'class' => 'category-button hidden',
+				),
+				'label' => $this->getMsg( 'categories' )->text()
+			),
+		);
 	}
 
-	protected function renderContentWrapper( $data ) {
-		$this->renderHistoryLinkTop( $data );
-		parent::renderContentWrapper( $data );
-	}
+	/**
+	 * Get page secondary actions
+	 */
+	protected function getSecondaryActions() {
+		$donationUrl = $this->getSkin()->getMFConfig()->get( 'MFDonationUrl' );
 
-	protected function renderHistoryLinkTop( $data ) {
-		if ( !$this->isMainPage ) {
-				$this->renderHistoryLink( $data );
+		$result = parent::getSecondaryActions();
+
+		if ( $donationUrl && !$this->isSpecialPage ) {
+			$result['donation'] = array(
+				'attributes' => array(
+					'href' => $donationUrl,
+				),
+				'label' => $this->getMsg( 'mobile-frontend-donate-button-label' )->text()
+			);
 		}
-	}
 
-	protected function renderHistoryLinkBottom( $data ) {
-		if ( $this->isMainPage ) {
-			parent::renderHistoryLinkBottom( $data );
-		}
+		$result += $this->getCategoryButton();
+
+		return $result;
 	}
 }

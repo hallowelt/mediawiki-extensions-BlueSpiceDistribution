@@ -1,46 +1,23 @@
-@chrome @en.m.wikipedia.beta.wmflabs.org @firefox @login @test2.m.wikipedia.org
-Feature: VisualEditor
+@chrome @editing @en.m.wikipedia.beta.wmflabs.org @extension-visualeditor @firefox @skip @vagrant
+Feature: VisualEditor Mobile
 
-Background:
-  Given I am logged into the mobile website
-    And I am in alpha mode
+  # Tests are skipped due to https://phabricator.wikimedia.org/T88559
+  Background:
+    Given I am logged into the mobile website
+      And I am in beta mode
+      And I am editing a new article with VisualEditor
 
-Scenario: Switch from VisualEditor to source editor
-  Given I am on the "Selenium Edit Test" page
-    And I click the edit button
-    And I see the VisualEditor overlay
-    And The VisualEditor overlay has an editor mode switcher button
-    And I click the editor mode switcher button
-  When I click the source editor button
-  Then I see the wikitext editor overlay
+  Scenario: Switch from VisualEditor to source editor
+    When I switch to editing the source
+      And I see the wikitext editor overlay
+      And I click the wikitext editor overlay close button
+    Then I should not see the wikitext editor overlay
 
-Scenario: Ensure we load the correct section
-  Given I am on the "Duel Masters" page
-  When I click the edit button for section 1
-  Then I see the VisualEditor overlay
+  Scenario: I can edit a page using VisualEditor
+    When I edit the article using VisualEditor
+    Then I should see the edit reflected in the article content
 
-Scenario: Toolbar VisualEditor
-  Given I am on the "Selenium Edit Test" page
-  When I click the edit button
-  Then I see the VisualEditor overlay
-    And I see a toolbar in the overlay header
-    And The VisualEditor toolbar has a bold button
-    And The VisualEditor toolbar has an italic button
-
-Scenario: I can edit a page using VisualEditor
-  Given I am on the "Selenium Edit Test" page
-    And I click the edit button
-    And VisualEditor has loaded
-    And I type "ABCDEFG" into VisualEditor
-    And I click continue
-  When I click submit
-  Then I do not see the VisualEditor overlay
-    And I see a toast notification
-
-Scenario: Going back from save screen in VisualEditor
-  Given I am on the "Selenium Edit Test" page
-    And I click the edit button
-    And I type "ABCDEFG" into VisualEditor
-    And I click continue
-  When I click the escape button
-  Then I see the VisualEditor
+  Scenario: Going back from save screen in VisualEditor
+    When I click the escape button
+    Then I should see the article content
+      And I should no longer see the VisualEditor

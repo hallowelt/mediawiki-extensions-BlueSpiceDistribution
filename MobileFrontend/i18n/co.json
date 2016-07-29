@@ -1,7 +1,8 @@
 {
-    "@metadata": {
-        "authors": []
-    },
-    "mobile-frontend-leave-feedback-subject": "Sughjettu",
-    "mobile-frontend-leave-feedback-message": "Messaghju"
+	"@metadata": {
+		"authors": [
+			"Jun Misugi"
+		]
+	},
+	"mobile-frontend-editor-edit": "Mudificà"
 }
