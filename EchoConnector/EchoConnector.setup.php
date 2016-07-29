@@ -27,38 +27,59 @@ $echoIconPath = "BlueSpiceDistribution/Echo/modules/icons";
 // You should customize the site icon URL, which is:
 // $wgEchoNotificationIcons['site']['url']
 $wgEchoNotificationIcons = array(
-	'placeholder' => array(
-		'path' => "$echoIconPath/Generic.png",
-	),
-	'trash' => array(
-		'path' => "$echoIconPath/Deletion.png",
-	),
 	'chat' => array(
-		'path' => "$echoIconPath/Talk.png",
-	),
-	'linked' => array(
-		'path' => "$echoIconPath/CrossReferenced.png",
-	),
-	'featured' => array(
-		'path' => "$echoIconPath/Featured.png",
-	),
-	'reviewed' => array(
-		'path' => "$echoIconPath/Reviewed.png",
-	),
-	'tagged' => array(
-		'path' => "$echoIconPath/ReviewedWithTags.png",
-	),
-	'revert' => array(
-		'path' => "$echoIconPath/Revert.png",
+		'path' => "$echoIconPath/chat.svg",
 	),
 	'checkmark' => array(
 		'path' => "$echoIconPath/Reviewed.png",
 	),
+	'edit' => array(
+		'path' => array(
+			'ltr' => "$echoIconPath/ooui-edit-ltr-progressive.svg",
+			'rtl' => "$echoIconPath/ooui-edit-rtl-progressive.svg",
+		),
+	),
+	'edit-user-talk' => array(
+		'path' => "$echoIconPath/edit-user-talk.svg",
+	),
+	'emailuser' => array(
+		'path' => "$echoIconPath/emailuser.svg",
+	),
+	'featured' => array(
+		'path' => "$echoIconPath/Featured.png",
+	),
+	'global' => array(
+		'path' => "$echoIconPath/global.svg"
+	),
 	'gratitude' => array(
 		'path' => "$echoIconPath/Gratitude.png",
 	),
+	'linked' => array(
+		'path' => "$echoIconPath/link-blue.svg",
+	),
+	'mention' => array(
+		'path' => "$echoIconPath/mention.svg",
+	),
+	'placeholder' => array(
+		'path' => "$echoIconPath/Generic.png",
+	),
+	'reviewed' => array(
+		'path' => "$echoIconPath/reviewed.svg",
+	),
+	'revert' => array(
+		'path' => "$echoIconPath/revert.svg",
+	),
 	'site' => array(
 		'url' => false
+	),
+	'tagged' => array(
+		'path' => "$echoIconPath/ReviewedWithTags.png",
+	),
+	'trash' => array(
+		'path' => "$echoIconPath/trash.svg",
+	),
+	'user-rights' => array(
+		'path' => "$echoIconPath/user-rights.svg",
 	),
 );
 
