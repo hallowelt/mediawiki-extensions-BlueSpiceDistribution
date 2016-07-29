@@ -371,13 +371,13 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 	}
 
 	public function onBSUserManagerAfterAddUser( UserManager $oUserManager, User $oUser, $aUserDetails ) {
-
+error_log($oUser->getName());
 		BSNotifications::notify(
 			'bs-adduser',
 			$oUserManager->getUser(),
 			Title::newFromText("Test"),
 			array(
-				'username' => $aUserDetails[ 'username' ],
+				'username' => $oUser->getName(),
 				'userlink' => $oUser->getUserPage()->getFullURL(),
 				'user' => $oUser->getName() //user means username here! not userobject, otherwise exception ist thrown when user object given in here!
 			)
