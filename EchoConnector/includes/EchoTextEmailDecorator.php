@@ -43,7 +43,7 @@ class BsEchoTextEmailDecorator extends EchoTextEmailDecorator {
 	 *
 	 * @return String
 	 */
-	public function decorateFooter( $address, $user ) {
+	public function decorateFooter( $address, User $user ) {
 		global $wgSitename;
 
 		$sFooter = parent::decorateFooter( $address, $user );
