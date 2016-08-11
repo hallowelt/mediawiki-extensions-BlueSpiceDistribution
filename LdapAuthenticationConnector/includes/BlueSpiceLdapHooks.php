@@ -4,8 +4,8 @@ class BlueSpiceLdapHooks {
 
 	public static function checkLocalDomain() {
 		global $bsgLDAPShowLocal, $wgLDAPUseLocal;
-		if ((isset( $wgLDAPUseLocal ) && $wgLDAPUseLocal === false) ||
-			(isset( $bsgLDAPShowLocal ) && $bsgLDAPShowLocal == false)) {
+		if ((isset( $wgLDAPUseLocal ) && $wgLDAPUseLocal !== true) ||
+			(isset( $bsgLDAPShowLocal ) && $bsgLDAPShowLocal !== true)) {
 			return true;
 			}
 		else {

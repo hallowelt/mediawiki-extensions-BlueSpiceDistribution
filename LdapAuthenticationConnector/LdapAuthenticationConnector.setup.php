@@ -40,7 +40,12 @@ function BSAutoAuthSetup( $domain ) {
 		}
 	}
 
-	$username = preg_replace( '|^.*?\\\|', '', $_SERVER['REMOTE_USER'] );
+	if ( strpos( $_SERVER['REMOTE_USER'], '@' ) !== false ) {
+		$username = substr( $_SERVER['REMOTE_USER'], 0, strpos( $_SERVER['REMOTE_USER'], '@' ) );
+	}
+	else {
+		$username = $username = preg_replace( '|^.*?\\\|', '', $_SERVER['REMOTE_USER'] );
+	}
 	$wgLDAPAutoAuthUsername = strtolower( $username );
 	$wgLDAPAutoAuthDomain = $sAutoAuthDomain;
 
