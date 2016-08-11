@@ -32,7 +32,7 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 		self::registerNotificationCategory( 'bs-page-actions-cat', 3 );
 
 		self::registerNotification(
-			'bs-adduser', //Called from UserManager:addUser - wfRunHooks: BSUserManagerAfterAddUser
+			'bs-adduser',
 			'bs-admin-cat',
 			'bs-notifications-addacount',
 			array( 'username' ),
@@ -370,8 +370,9 @@ class BSEchoNotificationHandler extends BSNotificationHandler {
 		return true;
 	}
 
-	public function onBSUserManagerAfterAddUser( UserManager $oUserManager, User $oUser, $aUserDetails ) {
-error_log($oUser->getName());
+
+	public function onBSUserManagerAfterAddUser( UserManager $oUserManager, User $oUser, $aMetaData, &$oStatus ) { #$aUserDetails
+
 		BSNotifications::notify(
 			'bs-adduser',
 			$oUserManager->getUser(),
@@ -432,14 +433,15 @@ error_log($oUser->getName());
 		$type = $event->getType();
 		if ( $type == "bs-adduser" ) {
 			$arrUserOptions = $user->getOptions();
+
+			$notifyTypes = array_diff( $notifyTypes, array( 'web', 'email' ) );
+
 			if( isset( $arrUserOptions['echo-subscriptions-web-bs-admin-cat'] ) &&
 				$arrUserOptions['echo-subscriptions-web-bs-admin-cat'] == 1 ){
-
 				$notifyTypes[] =  'web';
 			}
 			if( isset( $arrUserOptions['echo-subscriptions-email-bs-admin-cat'] ) &&
 				$arrUserOptions['echo-subscriptions-email-bs-admin-cat'] == 1 ) {
-
 				$notifyTypes[] = 'email';
 			}
 		}
