@@ -6,6 +6,7 @@
 
 class NSLocalRepo extends LocalRepo {
 	public $fileFactory = array( 'NSLocalFile', 'newFromTitle' );
+	protected $fileFactoryKey = array( 'NSLocalFile', 'newFromKey' );
 	public $oldFileFactory = array( 'NSOldLocalFile', 'newFromTitle' );
 	public $fileFromRowFactory = array( 'NSLocalFile', 'newFromRow' );
 	public $oldFileFromRowFactory = array( 'NSOldLocalFile', 'newFromRow' );
@@ -52,6 +53,23 @@ class NSLocalRepo extends LocalRepo {
 }
 
 class NSLocalFile extends LocalFile {
+	
+	static function newFromKey( $sha1, $repo, $timestamp = false ) {
+		$dbr = $repo->getSlaveDB();
+
+		$conds = array( 'img_sha1' => $sha1 );
+		if ( $timestamp ) {
+			$conds['img_timestamp'] = $dbr->timestamp( $timestamp );
+		}
+
+		$row = $dbr->selectRow( 'image', self::selectFields(), $conds, __METHOD__ );
+		if ( $row ) {
+			return self::newFromRow( $row, $repo );
+		} else {
+			return false;
+		}
+	}
+
 	/**
 	 * Get the path of the file relative to the public zone root
 	 */
