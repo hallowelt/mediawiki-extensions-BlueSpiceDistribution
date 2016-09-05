@@ -11,6 +11,7 @@ require_once( __DIR__."/EchoConnector/EchoConnector.setup.php" );
 require_once( __DIR__."/TitleKey/TitleKey.php" );
 require_once( __DIR__."/NSFileRepo/NSFileRepo.php" );
 require_once( __DIR__."/EmbedVideo/EmbedVideo.php" );
+require_once( __DIR__."/HitCounters/HitCounters.php" );
 if( !isset($wgExtensionDirectory) ) {
 	$wgExtensionDirectory = "$IP/extensions";
 }
