@@ -7,7 +7,7 @@ BlueSpiceDistribution have been moved and can be initialized with the following 
 
 	bash build/dist/init_bsdistribution_from_git.bash ../
 
-replace "~/workspace/mediawiki/core/extensions/" with your local path to mediawiki's extension path.
+replace "../" if your like to clone extensions into another dir
 
 The init script will clone all needed extensions from github to your local extensions folder, before you can start, create a github account and setup your ssh key in profile settings. 
 
