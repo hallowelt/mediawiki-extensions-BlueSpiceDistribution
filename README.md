@@ -5,7 +5,7 @@
 
 BlueSpiceDistribution have been moved and can be initialized with the following command (git version):
 
-	bash build/dist/init_bsdistribution_from_git.sh ../
+	bash build/dist/init_bsdistribution_from_git.bash ../
 
 replace "~/workspace/mediawiki/core/extensions/" with your local path to mediawiki's extension path.
 
@@ -13,6 +13,6 @@ The init script will clone all needed extensions from github to your local exten
 
 As alternative or for distribution you can create a zip file with all extensions (tarball version):
 
-	bash build/dist/build_tarball.sh
+	bash build/dist/build_tarball.bash
 
 This script will create the file "/tmp/BlueSpiceDistribution.zip", just extract the content into your extensions folder and copy/include LocalSettings config file as needed. 
