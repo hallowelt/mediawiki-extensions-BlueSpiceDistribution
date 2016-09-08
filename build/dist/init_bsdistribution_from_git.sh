@@ -187,10 +187,6 @@ require_once( "\$IP/extensions/BlueSpiceEchoConnector/EchoConnector.setup.php" )
 require_once( "\$IP/extensions/TitleKey/TitleKey.php" );
 require_once( "\$IP/extensions/NSFileRepo/NSFileRepo.php" );
 require_once( "\$IP/extensions/EmbedVideo/EmbedVideo.php" );
-if( !isset(\$wgExtensionDirectory) ) {
-	\$wgExtensionDirectory = "\$IP/extensions";
-}
-\$wgExtensionDirectory = "\$IP/extensions/BlueSpiceDistribution";
 require_once( "\$IP/extensions/UserMerge/UserMerge.php" );
 \$wgUserMergeProtectedGroups = array(); //+there is a hack in
 //SpecialUserMerge:validateOldUser
@@ -210,6 +206,6 @@ require_once( "\$IP/extensions/BlueSpiceUserMergeConnector/UserMergeConnector.se
 
 EOT
 
-echo 'require_once "LocalSettings.BlueSpiceDistribution.php";' | tee --append ../LocalSettings.php
+#echo 'require_once "LocalSettings.BlueSpiceDistribution.php";' | tee --append ../LocalSettings.php
 
-echo "extensions initialized, don't forget to rename LocalSettings.BlueSpiceDistribution.php.template file and call update.php on first init";
+echo "extensions initialized, don't forget to rename/include LocalSettings.BlueSpiceDistribution.php.template file and call update.php on first init";

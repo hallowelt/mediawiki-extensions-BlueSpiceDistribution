@@ -206,10 +206,6 @@ require_once( "\$IP/extensions/BlueSpiceEchoConnector/EchoConnector.setup.php" )
 require_once( "\$IP/extensions/TitleKey/TitleKey.php" );
 require_once( "\$IP/extensions/NSFileRepo/NSFileRepo.php" );
 require_once( "\$IP/extensions/EmbedVideo/EmbedVideo.php" );
-if( !isset(\$wgExtensionDirectory) ) {
-	\$wgExtensionDirectory = "\$IP/extensions";
-}
-\$wgExtensionDirectory = "\$IP/extensions/BlueSpiceDistribution";
 require_once( "\$IP/extensions/UserMerge/UserMerge.php" );
 \$wgUserMergeProtectedGroups = array(); //+there is a hack in
 //SpecialUserMerge:validateOldUser
