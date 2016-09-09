@@ -74,7 +74,7 @@ ImageMapEdit=(
 )
 # LdapAuthentication
 LdapAuthentication=(
-	"https://github.com/wikimedia/mediawiki-extensions-LdapAuthentication/archive/REL1_27.zip"
+	"https://github.com/hallowelt/mediawiki-extensions-LdapAuthentication/archive/REL1_27.zip"
 	"mediawiki-extensions-LdapAuthentication-REL1_27"
 	"LdapAuthentication"
 )
