@@ -6,6 +6,9 @@ if [ -z "$1" ]
   else EXTENSIONS_DIR="$1"
 fi
 
+#GIT_URL="git@github.com:" #use this for git over ssh
+GIT_URL="https://github.com/" #use this for anonymous git over https
+
 # build bluespice distribution
 # used extensions:
 #

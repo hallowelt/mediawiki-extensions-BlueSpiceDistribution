@@ -185,7 +185,6 @@ done
 
 #create localsettings configs
 cat <<EOT >> LocalSettings.BlueSpiceDistribution.php.template
-
 <?php
 //Copy LocalSettings.BlueSpiceDistribution.php.template to mediawiki main directory: /LocalSettings.BlueSpiceDistribution.php
 //Include LocalSettings.BlueSpiceProDistribution.php in LocalSettings.php to activate all Modules
@@ -222,7 +221,6 @@ require_once( "\$IP/extensions/BlueSpiceUserMergeConnector/UserMergeConnector.se
 //By default this is disabled. See https://gerrit.wikimedia.org/r/#/c/193359/1
 //If this is needed depends on the actual LDAP setup
 //\$wgHooks['SetUsernameAttributeFromLDAP'][] = 'BlueSpiceDistributionHooks::onSetUsernameAttribute';
-
 EOT
 
 zip $TEMP_FILE LocalSettings.BlueSpiceDistribution.php.template
