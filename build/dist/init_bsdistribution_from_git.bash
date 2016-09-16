@@ -140,6 +140,12 @@ BlueSpiceUserMergeConnector=(
 	"master"
 	"BlueSpiceUserMergeConnector"
 )
+# EditNotify
+EditNotify=(
+	"git@github.com:hallowelt/mediawiki-extensions-EditNotify.git"
+	"master"
+	"EditNotify"
+)
 
 Extensions=(
 	BlueSpiceDistributionConnector[@]
@@ -191,6 +197,7 @@ require_once( "\$IP/extensions/TitleKey/TitleKey.php" );
 require_once( "\$IP/extensions/NSFileRepo/NSFileRepo.php" );
 require_once( "\$IP/extensions/EmbedVideo/EmbedVideo.php" );
 require_once( "\$IP/extensions/UserMerge/UserMerge.php" );
+require_once( "\$IP/extensions/EditNotify/EditNotify.php" );
 \$wgUserMergeProtectedGroups = array(); //+there is a hack in
 //SpecialUserMerge:validateOldUser
 \$wgUserMergeUnmergeable = array();
