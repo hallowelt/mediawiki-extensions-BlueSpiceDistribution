@@ -38,8 +38,8 @@ CategoryTree=(
 )
 # DynamicPageList
 DynamicPageList=(
-	"https://github.com/wikimedia/mediawiki-extensions-DynamicPageList/archive/REL1_27.zip"
-	"mediawiki-extensions-DynamicPageList-REL1_27"
+	"https://github.com/Alexia/DynamicPageList/archive/master.zip"
+	"DynamicPageList-master"
 	"DynamicPageList"
 )
 # Echo

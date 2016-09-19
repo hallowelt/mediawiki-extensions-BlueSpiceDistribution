@@ -30,6 +30,7 @@ GIT_URL="https://github.com/" #use this for anonymous git over https
 #	TitleKey
 #	UserMerge
 #	BlueSpiceUserMergeConnector
+#	EditNotify
 
 
 # BlueSpiceDistributionConnector
@@ -46,8 +47,8 @@ CategoryTree=(
 )
 # DynamicPageList
 DynamicPageList=(
-	"git@github.com:wikimedia/mediawiki-extensions-DynamicPageList.git"
-	"REL1_27"
+	"https://github.com/Alexia/DynamicPageList.git"
+	"master"
 	"DynamicPageList"
 )
 # Echo
@@ -142,7 +143,7 @@ BlueSpiceUserMergeConnector=(
 )
 # EditNotify
 EditNotify=(
-	"git@github.com:hallowelt/mediawiki-extensions-EditNotify.git"
+	"git@github.com:wikimedia/mediawiki-extensions-EditNotify.git"
 	"master"
 	"EditNotify"
 )
