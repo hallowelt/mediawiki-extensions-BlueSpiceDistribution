@@ -7,7 +7,7 @@ if [ -z "$1" ]
 fi
 
 #GIT_URL="git@github.com:" #use this for git over ssh
-GIT_URL="https://github.com" #use this for anonymous git over https
+GIT_URL="https://github.com/" #use this for anonymous git over https
 
 # build bluespice distribution
 # used extensions:
@@ -35,115 +35,115 @@ GIT_URL="https://github.com" #use this for anonymous git over https
 
 # BlueSpiceDistributionConnector
 BlueSpiceDistributionConnector=(
-	"$GIT_URL/hallowelt/mediawiki-extensions-BlueSpiceDistributionConnector.git"
+	"$GIT_URLhallowelt/mediawiki-extensions-BlueSpiceDistributionConnector.git"
 	"master"
 	"BlueSpiceDistributionConnector"
 )
 # CategoryTree
 CategoryTree=(
-	"git@github.com:wikimedia/mediawiki-extensions-CategoryTree.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-CategoryTree.git"
 	"REL1_27"
 	"CategoryTree"
 )
 # DynamicPageList
 DynamicPageList=(
-	"https://github.com/Alexia/DynamicPageList.git"
+	"$GIT_URLAlexia/DynamicPageList.git"
 	"master"
 	"DynamicPageList"
 )
 # Echo
 Echo=(
-	"git@github.com:wikimedia/mediawiki-extensions-Echo.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-Echo.git"
 	"REL1_27"
 	"Echo"
 )
 # EchoConnector
 BlueSpiceEchoConnector=(
-	"git@github.com:hallowelt/mediawiki-extensions-BlueSpiceEchoConnector.git"
+	"$GIT_URLhallowelt/mediawiki-extensions-BlueSpiceEchoConnector.git"
 	"master"
 	"BlueSpiceEchoConnector"
 )
 # EmbedVideo
 EmbedVideo=(
-	"git@github.com:HydraWiki/mediawiki-embedvideo.git"
+	"$GIT_URLHydraWiki/mediawiki-embedvideo.git"
 	"master"
 	"EmbedVideo"
 )
 # HitCounters
 HitCounters=(
-	"git@github.com:wikimedia/mediawiki-extensions-HitCounters.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-HitCounters.git"
 	"REL1_27"
 	"HitCounters"
 )
 # ImageMapEdit
 ImageMapEdit=(
-	"git@github.com:hallowelt/mediawiki-extensions-ImageMapEdit.git"
+	"$GIT_URLhallowelt/mediawiki-extensions-ImageMapEdit.git"
 	"master"
 	"ImageMapEdit"
 )
 # LdapAuthentication
 LdapAuthentication=(
-	"git@github.com:hallowelt/mediawiki-extensions-LdapAuthentication.git"
+	"$GIT_URLhallowelt/mediawiki-extensions-LdapAuthentication.git"
 	"REL1_27"
 	"LdapAuthentication"
 )
 # LdapAuthenticationConnector
 BlueSpiceLdapAuthenticationConnector=(
-	"git@github.com:hallowelt/mediawiki-extensions-BlueSpiceLdapAuthenticationConnector.git"
+	"$GIT_URLhallowelt/mediawiki-extensions-BlueSpiceLdapAuthenticationConnector.git"
 	"master"
 	"BlueSpiceLdapAuthenticationConnector"
 )
 # Lockdown
 Lockdown=(
-	"git@github.com:wikimedia/mediawiki-extensions-Lockdown.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-Lockdown.git"
 	"REL1_27"
 	"Lockdown"
 )
 # MobileFrontend
 MobileFrontend=(
-	"git@github.com:wikimedia/mediawiki-extensions-MobileFrontend.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-MobileFrontend.git"
 	"REL1_27"
 	"MobileFrontend"
 )
 # NSFileRepo
 NSFileRepo=(
-	"git@github.com:wikimedia/mediawiki-extensions-NSFileRepo.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-NSFileRepo.git"
 	"REL1_27"
 	"NSFileRepo"
 )
 # Quiz
 Quiz=(
-	"git@github.com:wikimedia/mediawiki-extensions-Quiz.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-Quiz.git"
 	"REL1_27"
 	"Quiz"
 )
 # RSS
 RSS=(
-	"git@github.com:wikimedia/mediawiki-extensions-RSS.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-RSS.git"
 	"REL1_27"
 	"RSS"
 )
 # TitleKey
 TitleKey=(
-	"git@github.com:wikimedia/mediawiki-extensions-TitleKey.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-TitleKey.git"
 	"REL1_27"
 	"TitleKey"
 )
 # UserMerge
 UserMerge=(
-	"git@github.com:wikimedia/mediawiki-extensions-UserMerge.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-UserMerge.git"
 	"REL1_27"
 	"UserMerge"
 )
 # UserMergeConnector
 BlueSpiceUserMergeConnector=(
-	"git@github.com:hallowelt/mediawiki-extensions-BlueSpiceUserMergeConnector.git"
+	"$GIT_URLhallowelt/mediawiki-extensions-BlueSpiceUserMergeConnector.git"
 	"master"
 	"BlueSpiceUserMergeConnector"
 )
 # EditNotify
 EditNotify=(
-	"git@github.com:wikimedia/mediawiki-extensions-EditNotify.git"
+	"$GIT_URLwikimedia/mediawiki-extensions-EditNotify.git"
 	"master"
 	"EditNotify"
 )
