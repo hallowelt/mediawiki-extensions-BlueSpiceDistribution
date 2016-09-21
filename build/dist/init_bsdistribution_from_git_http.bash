@@ -167,6 +167,7 @@ Extensions=(
 	TitleKey[@]
 	UserMerge[@]
 	BlueSpiceUserMergeConnector[@]
+	EditNotify[@]
 )
 
 mkdir -p $EXTENSIONS_DIR
