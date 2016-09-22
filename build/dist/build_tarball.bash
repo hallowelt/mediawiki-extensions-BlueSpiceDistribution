@@ -140,6 +140,12 @@ EditNotify=(
 	"EditNotify"
 )
 
+BlueSpiceEditNotifyConnector={
+	"https://gerrit.wikimedia.org/r/mediawiki/extensions/BlueSpiceEditNotifyConnector",
+	"master",
+	"BlueSpiceEditNotifyConnector"
+}
+
 Extensions=(
 	BlueSpiceDistributionConnector[@]
 	CategoryTree[@]
@@ -159,7 +165,8 @@ Extensions=(
 	TitleKey[@]
 	UserMerge[@]
 	BlueSpiceUserMergeConnector[@],
-	EditNotify[@]
+	EditNotify[@],
+	BlueSpiceEditNotifyConnector[@]
 )
 
 TEMP_FILE="/tmp/BlueSpiceDistribution.zip"
@@ -209,23 +216,24 @@ require_once( "\$IP/extensions/Lockdown/Lockdown.php" );
 require_once( "\$IP/extensions/Quiz/Quiz.php" );
 require_once( "\$IP/extensions/RSS/RSS.php" );
 require_once( "\$IP/extensions/Echo/Echo.php" );
-require_once( "\$IP/extensions/BlueSpiceEchoConnector/EchoConnector.setup.php" );
 require_once( "\$IP/extensions/TitleKey/TitleKey.php" );
 require_once( "\$IP/extensions/NSFileRepo/NSFileRepo.php" );
 require_once( "\$IP/extensions/EmbedVideo/EmbedVideo.php" );
 require_once( "\$IP/extensions/UserMerge/UserMerge.php" );
 require_once( "\$IP/extensions/EditNotify/EditNotify.php" );
-\$wgUserMergeProtectedGroups = array(); //+there is a hack in
-//SpecialUserMerge:validateOldUser
+
+\$wgUserMergeProtectedGroups = array();
 \$wgUserMergeUnmergeable = array();
 
 require_once( "\$IP/extensions/MobileFrontend/MobileFrontend.php" );
 \$wgMFAutodetectMobileView = true;
 \$wgMFEnableDesktopResources = true;
-\$wgExtensionDirectory = "\$IP/extensions";
 
-require_once( "\$IP/extensions/BlueSpiceDistributionConnector/BSDistConnector.setup.php" );
-require_once( "\$IP/extensions/BlueSpiceUserMergeConnector/UserMergeConnector.setup.php" );
+require_once( "\$IP/extensions/BlueSpiceEchoConnector/BlueSpiceEchoConnector.php" );
+require_once( "\$IP/extensions/BlueSpiceDistributionConnector/BlueSpiceDistributionConnector.php" );
+require_once( "\$IP/extensions/BlueSpiceUserMergeConnector/BlueSpiceUserMergeConnector.php" );
+wfLoadExtensions( "BlueSpiceEditNotifyConnector" );
+
 
 //By default this is disabled. See https://gerrit.wikimedia.org/r/#/c/193359/1
 //If this is needed depends on the actual LDAP setup
