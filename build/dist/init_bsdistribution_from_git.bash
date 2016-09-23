@@ -222,7 +222,7 @@ require_once( "\$IP/extensions/MobileFrontend/MobileFrontend.php" );
 require_once( "\$IP/extensions/BlueSpiceEchoConnector/BlueSpiceEchoConnector.php" );
 require_once( "\$IP/extensions/BlueSpiceDistributionConnector/BlueSpiceDistributionConnector.php" );
 require_once( "\$IP/extensions/BlueSpiceUserMergeConnector/BlueSpiceUserMergeConnector.php" );
-wfLoadExtensions( "BlueSpiceEditNotifyConnector" );
+wfLoadExtension( "BlueSpiceEditNotifyConnector" );
 
 
 //By default this is disabled. See https://gerrit.wikimedia.org/r/#/c/193359/1
