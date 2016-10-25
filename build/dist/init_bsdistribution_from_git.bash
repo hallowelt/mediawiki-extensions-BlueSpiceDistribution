@@ -189,7 +189,6 @@ done
 SETTINGS_FILE="../LocalSettings.BlueSpiceDistribution.php.template"
 rm $SETTINGS_FILE
 cat <<EOT >> $SETTINGS_FILE
-
 <?php
 //Copy LocalSettings.BlueSpiceDistribution.php.template to mediawiki main directory: /LocalSettings.BlueSpiceDistribution.php
 //Include LocalSettings.BlueSpiceProDistribution.php in LocalSettings.php to activate all Modules
