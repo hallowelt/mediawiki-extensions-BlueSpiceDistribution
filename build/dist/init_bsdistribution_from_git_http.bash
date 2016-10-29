@@ -148,11 +148,12 @@ EditNotify=(
 	"EditNotify"
 )
 
-BlueSpiceEditNotifyConnector={
+# BlueSpiceEditNotifyConnector
+BlueSpiceEditNotifyConnector=(
 	"https://gerrit.wikimedia.org/r/p/mediawiki/extensions/BlueSpiceEditNotifyConnector.git",
 	"master",
 	"BlueSpiceEditNotifyConnector"
-}
+)
 
 Extensions=(
 	BlueSpiceDistributionConnector[@]
