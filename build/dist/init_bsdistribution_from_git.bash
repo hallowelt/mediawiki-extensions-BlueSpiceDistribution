@@ -147,12 +147,12 @@ EditNotify=(
 	"master"
 	"EditNotify"
 )
-
-BlueSpiceEditNotifyConnector={
-	"https://gerrit.wikimedia.org/r/p/mediawiki/extensions/BlueSpiceEditNotifyConnector",
-	"master",
+#BlueSpiceEditNotifyConnector
+BlueSpiceEditNotifyConnector=(
+	"https://gerrit.wikimedia.org/r/p/mediawiki/extensions/BlueSpiceEditNotifyConnector"
+	"master"
 	"BlueSpiceEditNotifyConnector"
-}
+)
 
 Extensions=(
 	BlueSpiceDistributionConnector[@]
@@ -206,7 +206,7 @@ require_once( "\$IP/extensions/Quiz/Quiz.php" );
 require_once( "\$IP/extensions/RSS/RSS.php" );
 require_once( "\$IP/extensions/Echo/Echo.php" );
 require_once( "\$IP/extensions/TitleKey/TitleKey.php" );
-require_once( "\$IP/extensions/NSFileRepo/NSFileRepo.php" );
+wfLoadExtension( "NSFileRepo" );
 require_once( "\$IP/extensions/EmbedVideo/EmbedVideo.php" );
 require_once( "\$IP/extensions/UserMerge/UserMerge.php" );
 require_once( "\$IP/extensions/EditNotify/EditNotify.php" );
