@@ -149,7 +149,7 @@ EditNotify=(
 )
 
 BlueSpiceEditNotifyConnector={
-	"https://gerrit.wikimedia.org/r/mediawiki/extensions/BlueSpiceEditNotifyConnector",
+	"https://gerrit.wikimedia.org/r/p/mediawiki/extensions/BlueSpiceEditNotifyConnector",
 	"master",
 	"BlueSpiceEditNotifyConnector"
 }
