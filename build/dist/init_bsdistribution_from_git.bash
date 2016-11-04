@@ -24,7 +24,6 @@ GIT_URL="https://github.com/" #use this for anonymous git over https
 #	BlueSpiceLdapAuthenticationConnector
 #	Lockdown
 #	MobileFrontend
-#	NSFileRepo
 #	Quiz
 #	RSS
 #	TitleKey
@@ -105,12 +104,6 @@ MobileFrontend=(
 	"REL1_27"
 	"MobileFrontend"
 )
-# NSFileRepo
-NSFileRepo=(
-	"git@github.com:wikimedia/mediawiki-extensions-NSFileRepo.git"
-	"REL1_27"
-	"NSFileRepo"
-)
 # Quiz
 Quiz=(
 	"git@github.com:wikimedia/mediawiki-extensions-Quiz.git"
@@ -167,7 +160,6 @@ Extensions=(
 	BlueSpiceLdapAuthenticationConnector[@]
 	Lockdown[@]
 	MobileFrontend[@]
-	NSFileRepo[@]
 	Quiz[@]
 	RSS[@]
 	TitleKey[@]
@@ -206,7 +198,6 @@ require_once( "\$IP/extensions/Quiz/Quiz.php" );
 require_once( "\$IP/extensions/RSS/RSS.php" );
 require_once( "\$IP/extensions/Echo/Echo.php" );
 require_once( "\$IP/extensions/TitleKey/TitleKey.php" );
-wfLoadExtension( "NSFileRepo" );
 require_once( "\$IP/extensions/EmbedVideo/EmbedVideo.php" );
 require_once( "\$IP/extensions/UserMerge/UserMerge.php" );
 require_once( "\$IP/extensions/EditNotify/EditNotify.php" );

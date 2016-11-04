@@ -16,7 +16,6 @@
 #	BlueSpiceLdapAuthenticationConnector
 #	Lockdown
 #	MobileFrontend
-#	NSFileRepo
 #	Quiz
 #	RSS
 #	TitleKey
@@ -96,12 +95,7 @@ MobileFrontend=(
 	"mediawiki-extensions-MobileFrontend-REL1_27"
 	"MobileFrontend"
 )
-# NSFileRepo
-NSFileRepo=(
-	"https://github.com/wikimedia/mediawiki-extensions-NSFileRepo/archive/REL1_27.zip"
-	"mediawiki-extensions-NSFileRepo-REL1_27"
-	"NSFileRepo"
-)
+
 # Quiz
 Quiz=(
 	"https://github.com/wikimedia/mediawiki-extensions-Quiz/archive/REL1_27.zip"
@@ -140,11 +134,11 @@ EditNotify=(
 	"EditNotify"
 )
 
-BlueSpiceEditNotifyConnector={
-	"https://gerrit.wikimedia.org/r/mediawiki/extensions/BlueSpiceEditNotifyConnector",
-	"master",
+BlueSpiceEditNotifyConnector=(
+	"https://github.com/wikimedia/mediawiki-extensions-BlueSpiceEditNotifyConnector/archive/master.zip"
+	"mediawiki-extensions-BlueSpiceEditNotifyConnector-master"
 	"BlueSpiceEditNotifyConnector"
-}
+)
 
 Extensions=(
 	BlueSpiceDistributionConnector[@]
@@ -159,13 +153,12 @@ Extensions=(
 	BlueSpiceLdapAuthenticationConnector[@]
 	Lockdown[@]
 	MobileFrontend[@]
-	NSFileRepo[@]
 	Quiz[@]
 	RSS[@]
 	TitleKey[@]
 	UserMerge[@]
-	BlueSpiceUserMergeConnector[@],
-	EditNotify[@],
+	BlueSpiceUserMergeConnector[@]
+	EditNotify[@]
 	BlueSpiceEditNotifyConnector[@]
 )
 
@@ -217,7 +210,6 @@ require_once( "\$IP/extensions/Quiz/Quiz.php" );
 require_once( "\$IP/extensions/RSS/RSS.php" );
 require_once( "\$IP/extensions/Echo/Echo.php" );
 require_once( "\$IP/extensions/TitleKey/TitleKey.php" );
-require_once( "\$IP/extensions/NSFileRepo/NSFileRepo.php" );
 require_once( "\$IP/extensions/EmbedVideo/EmbedVideo.php" );
 require_once( "\$IP/extensions/UserMerge/UserMerge.php" );
 require_once( "\$IP/extensions/EditNotify/EditNotify.php" );
