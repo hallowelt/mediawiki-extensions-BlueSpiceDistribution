@@ -129,7 +129,7 @@ BlueSpiceUserMergeConnector=(
 
 # EditNotify
 EditNotify=(
-	"https://github.com/wikimedia/mediawiki-extensions-EditNotify/archive/master.zip"
+	"https://github.com/hallowelt/mediawiki-extensions-EditNotify/archive/master.zip"
 	"mediawiki-extensions-EditNotify-master"
 	"EditNotify"
 )
